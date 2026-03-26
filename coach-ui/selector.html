@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Selector — Metric Configuration</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --cream: #faf8f4; --cream2: #f4f0e8; --cream3: #ede8dc;
+  --white: #ffffff; --teal: #1a6b5a; --teal2: #22876f;
+  --teal-bg: #edf5f2; --teal-mid: #c8e6de;
+  --coral: #e8614a; --coral-bg: #fdf0ed;
+  --gold: #c4922a; --gold-bg: #fdf6e8;
+  --blue: #2563eb; --blue-bg: #eff6ff;
+  --ink: #1c1917; --ink2: #44403c; --ink3: #78716c; --ink4: #a8a29e;
+  --border: #e7e2d8; --border2: #d6cfc3;
+  --shadow: 0 1px 3px rgba(28,25,23,0.08);
+  --shadow2: 0 4px 12px rgba(28,25,23,0.1);
+  --radius: 12px; --display: 'Playfair Display', serif; --sans: 'DM Sans', sans-serif; --mono: 'DM Mono', monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--cream); color: var(--ink); font-family: var(--sans); font-size: 14px; }
+
+.header {
+  background: var(--white); border-bottom: 1px solid var(--border);
+  padding: 0 32px; height: 56px; display: flex; align-items: center;
+  justify-content: space-between; box-shadow: var(--shadow); position: sticky; top: 0; z-index: 10;
+}
+.header-left { display: flex; align-items: center; gap: 14px; }
+.header-crest { width: 32px; height: 32px; background: var(--teal); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-family: var(--display); font-size: 11px; font-weight: 700; color: white; }
+.header-title { font-family: var(--display); font-size: 17px; font-weight: 600; }
+.header-sub { font-size: 12px; color: var(--ink4); }
+.header-divider { width: 1px; height: 20px; background: var(--border); }
+
+.page { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
+
+.ph { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; }
+.ph-t { font-family: var(--display); font-size: 26px; font-weight: 700; letter-spacing: -0.01em; }
+.ph-s { font-size: 13px; color: var(--ink3); margin-top: 3px; max-width: 560px; line-height: 1.5; }
+
+/* Score Preview */
+.score-preview {
+  background: var(--teal); border-radius: 16px; padding: 24px 28px;
+  margin-bottom: 24px; display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 20px;
+  position: relative; overflow: hidden;
+}
+.score-preview::before {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(ellipse 60% 80% at 80% 20%, rgba(0,0,0,0.12), transparent);
+}
+.sp-item { position: relative; z-index: 1; }
+.sp-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(255,255,255,0.6); margin-bottom: 6px; }
+.sp-val { font-family: var(--display); font-size: 32px; font-weight: 700; color: white; line-height: 1; }
+.sp-sub { font-size: 12px; color: rgba(255,255,255,0.7); margin-top: 4px; }
+.sp-band { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.2); border-radius: 20px; padding: 4px 12px; font-size: 12px; font-weight: 600; color: white; margin-top: 8px; }
+
+/* Tabs */
+.tabs { display: flex; gap: 4px; margin-bottom: 20px; background: var(--cream2); border-radius: 10px; padding: 4px; width: fit-content; }
+.tab { padding: 7px 18px; border-radius: 7px; font-size: 13px; font-weight: 500; color: var(--ink3); cursor: pointer; transition: all 0.12s; }
+.tab.active { background: var(--white); color: var(--ink); font-weight: 600; box-shadow: var(--shadow); }
+
+/* Metrics table */
+.card { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; margin-bottom: 20px; }
+.card-h { padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.card-t { font-size: 13px; font-weight: 600; color: var(--ink); display: flex; align-items: center; gap: 8px; }
+
+.metric-row {
+  display: grid;
+  grid-template-columns: 32px 1fr 90px 120px 80px 100px 80px;
+  gap: 12px; align-items: center;
+  padding: 12px 20px; border-bottom: 1px solid var(--border);
+  transition: background 0.1s;
+}
+.metric-row:last-child { border-bottom: none; }
+.metric-row:hover { background: var(--cream); }
+.metric-row.inactive { opacity: 0.45; }
+
+.metric-head {
+  display: grid;
+  grid-template-columns: 32px 1fr 90px 120px 80px 100px 80px;
+  gap: 12px; padding: 9px 20px;
+  border-bottom: 2px solid var(--border);
+  background: var(--cream2);
+}
+.metric-head span { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink4); }
+
+.toggle { position: relative; width: 36px; height: 20px; cursor: pointer; flex-shrink: 0; }
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle-track { position: absolute; inset: 0; background: var(--border2); border-radius: 10px; transition: background 0.2s; }
+.toggle input:checked + .toggle-track { background: var(--teal); }
+.toggle-thumb { position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; background: white; border-radius: 50%; transition: transform 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+.toggle input:checked ~ .toggle-thumb { transform: translateX(16px); }
+
+.metric-name { font-size: 13px; font-weight: 500; color: var(--ink); }
+.metric-source { font-size: 11px; color: var(--ink4); margin-top: 2px; display: flex; align-items: center; gap: 4px; }
+
+.cat-pill { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 6px; }
+.cat-drinks { background: #dbeafe; color: #1d4ed8; }
+.cat-food    { background: #dcfce7; color: #15803d; }
+.cat-ops     { background: var(--coral-bg); color: var(--coral); }
+.cat-group   { background: var(--gold-bg); color: var(--gold); }
+.cat-mixed   { background: var(--cream3); color: var(--ink3); }
+
+.num-input {
+  width: 100%; background: var(--cream); border: 1.5px solid var(--border);
+  border-radius: 7px; padding: 6px 10px; font-family: var(--mono);
+  font-size: 12px; color: var(--ink); outline: none; text-align: right;
+  transition: border-color 0.15s;
+}
+.num-input:focus { border-color: var(--teal); background: var(--white); }
+
+.direction-tag { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 6px; }
+.dir-pos { background: var(--teal-bg); color: var(--teal); }
+.dir-neg { background: var(--coral-bg); color: var(--coral); }
+
+.metric-score { font-family: var(--mono); font-size: 13px; font-weight: 600; text-align: right; }
+
+/* Bands section */
+.band-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+.band-card { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow); }
+.band-venue { font-family: var(--display); font-size: 16px; font-weight: 700; margin-bottom: 14px; color: var(--ink); }
+.band-row { display: grid; grid-template-columns: 1fr 80px 80px 80px 70px; gap: 8px; align-items: center; margin-bottom: 8px; }
+.band-row-head { display: grid; grid-template-columns: 1fr 80px 80px 80px 70px; gap: 8px; margin-bottom: 10px; }
+.band-row-head span { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink4); }
+.band-name { font-size: 13px; font-weight: 500; color: var(--ink); }
+.band-type { font-size: 11px; }
+.band-type.weekday { color: var(--blue); background: var(--blue-bg); padding: 2px 7px; border-radius: 5px; font-weight: 600; }
+.band-type.weekend { color: var(--gold); background: var(--gold-bg); padding: 2px 7px; border-radius: 5px; font-weight: 600; }
+
+/* Buttons */
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; font-family: var(--sans); font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: all 0.12s; white-space: nowrap; }
+.btn-teal { background: var(--teal); color: white; }
+.btn-teal:hover { background: var(--teal2); }
+.btn-ghost { background: var(--white); color: var(--ink2); border: 1.5px solid var(--border); }
+.btn-ghost:hover { background: var(--cream); }
+.btn-sm { padding: 5px 12px; font-size: 12px; border-radius: 7px; }
+
+.save-bar {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: var(--white); border-top: 1px solid var(--border);
+  padding: 14px 32px; display: flex; align-items: center; justify-content: space-between;
+  box-shadow: 0 -4px 12px rgba(28,25,23,0.08);
+  transform: translateY(100%); transition: transform 0.2s;
+}
+.save-bar.visible { transform: translateY(0); }
+.save-msg { font-size: 13px; color: var(--ink3); }
+
+.alert { display: flex; align-items: flex-start; gap: 10px; padding: 12px 16px; border-radius: 10px; font-size: 13px; margin-bottom: 16px; line-height: 1.5; }
+.al-blue { background: var(--blue-bg); border: 1px solid rgba(37,99,235,0.2); color: var(--blue); }
+.al-gold { background: var(--gold-bg); border: 1px solid rgba(196,146,42,0.2); color: var(--gold); }
+
+.source-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+.src-relay { background: var(--teal); }
+.src-manual { background: var(--gold); }
+.src-rotaready { background: var(--blue); }
+
+.view { display: none; }
+.view.active { display: block; }
+
+.fairness-section { margin-bottom: 24px; }
+.fairness-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.fairness-title { font-family: var(--display); font-size: 18px; font-weight: 700; }
+
+.venue-band-wrap { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 16px; box-shadow: var(--shadow); }
+.venue-band-head { padding: 14px 20px; background: var(--cream2); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.venue-band-name { font-family: var(--display); font-size: 16px; font-weight: 700; }
+
+.band-table { width: 100%; border-collapse: collapse; }
+.band-table th { text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink4); padding: 10px 20px; border-bottom: 1px solid var(--border); }
+.band-table td { padding: 10px 20px; border-bottom: 1px solid var(--border); font-size: 13px; }
+.band-table tr:last-child td { border-bottom: none; }
+.band-table tr:hover td { background: var(--cream); }
+
+.add-band-row { padding: 12px 20px; border-top: 1px solid var(--border); background: var(--cream); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+.fi { background: var(--cream); border: 1.5px solid var(--border); border-radius: 7px; padding: 7px 10px; font-family: var(--sans); font-size: 13px; color: var(--ink); outline: none; }
+.fi:focus { border-color: var(--teal); }
+select.fi { cursor: pointer; }
+
+.multiplier-explain { font-size: 11px; color: var(--ink4); line-height: 1.5; margin-top: 4px; }
+
+.score-bar-wrap { display: flex; align-items: center; gap: 8px; }
+.score-bar { height: 6px; background: var(--cream2); border-radius: 3px; overflow: hidden; flex: 1; min-width: 60px; }
+.score-fill { height: 100%; border-radius: 3px; transition: width 0.4s ease; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="header-crest">C&W</div>
+    <div>
+      <div class="header-title">The Selector — Metric Configuration</div>
+    </div>
+    <div class="header-divider"></div>
+    <span class="header-sub">Cat & Wickets Group · Fox ITC</span>
+  </div>
+  <div style="display:flex;gap:8px">
+    <a href="/" class="btn btn-ghost btn-sm">← Back to Coach</a>
+    <button class="btn btn-teal btn-sm" onclick="saveAll()">Save Changes</button>
+  </div>
+</div>
+
+<div class="page">
+
+  <div class="ph">
+    <div>
+      <div class="ph-t">Scoring Model</div>
+      <div class="ph-s">Configure how The Selector calculates team member scores. Every metric below maps directly to Jack's spreadsheet. Toggle metrics on/off, adjust targets and weights — scores recalculate instantly.</div>
+    </div>
+  </div>
+
+  <!-- Live score preview -->
+  <div class="score-preview" id="score-preview">
+    <div class="sp-item">
+      <div class="sp-label">Live Score Preview</div>
+      <div class="sp-val" id="prev-score">—</div>
+      <div class="sp-sub">Based on current targets</div>
+    </div>
+    <div class="sp-item">
+      <div class="sp-label">Active Metrics</div>
+      <div class="sp-val" id="prev-active">—</div>
+      <div class="sp-sub">of 17 total</div>
+    </div>
+    <div class="sp-item">
+      <div class="sp-label">Total Weight</div>
+      <div class="sp-val" id="prev-weight">—</div>
+      <div class="sp-sub">Normalised automatically</div>
+    </div>
+    <div class="sp-item">
+      <div class="sp-label">Performance Band</div>
+      <div class="sp-val" style="font-size:16px;margin-top:4px">
+        <span class="sp-band" id="prev-band">—</span>
+      </div>
+      <div class="sp-sub" style="margin-top:8px">60=County · 80=Test Player</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('metrics')">Metrics & Weights</div>
+    <div class="tab" onclick="switchTab('fairness')">Fairness & Benchmarking</div>
+    <div class="tab" onclick="switchTab('sources')">Data Sources</div>
+  </div>
+
+  <!-- METRICS TAB -->
+  <div id="tab-metrics" class="view active">
+
+    <div class="alert al-blue" style="margin-bottom:16px">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <div><strong>How scoring works:</strong> Positive metrics score 0 until above target, then scale to 100 at target +25%. Negative metrics (like lateness) score 100 at 0 and drop to 0 at the limit. Weights are normalised automatically — changing one weight rebalances all others. Only active metrics contribute to the final score.</div>
+    </div>
+
+    <!-- Drinks -->
+    <div class="card" id="cat-drinks">
+      <div class="card-h">
+        <div class="card-t"><span class="cat-pill cat-drinks">Drinks</span> <span id="drinks-count" style="color:var(--ink4);font-weight:400"></span></div>
+        <span style="font-size:11px;color:var(--ink4)">Higher weight = more influence on final score</span>
+      </div>
+      <div class="metric-head">
+        <span></span><span>Metric</span><span>Category</span><span>Target</span><span>Weight</span><span>Direction</span><span style="text-align:right">Preview</span>
+      </div>
+      <div id="rows-drinks"></div>
+    </div>
+
+    <!-- Food -->
+    <div class="card" id="cat-food">
+      <div class="card-h"><div class="card-t"><span class="cat-pill cat-food">Food</span> <span id="food-count" style="color:var(--ink4);font-weight:400"></span></div></div>
+      <div class="metric-head">
+        <span></span><span>Metric</span><span>Category</span><span>Target</span><span>Weight</span><span>Direction</span><span style="text-align:right">Preview</span>
+      </div>
+      <div id="rows-food"></div>
+    </div>
+
+    <!-- Operations -->
+    <div class="card" id="cat-ops">
+      <div class="card-h"><div class="card-t"><span class="cat-pill cat-ops">Operations</span> <span id="ops-count" style="color:var(--ink4);font-weight:400"></span></div></div>
+      <div class="metric-head">
+        <span></span><span>Metric</span><span>Category</span><span>Target</span><span>Weight</span><span>Direction</span><span style="text-align:right">Preview</span>
+      </div>
+      <div id="rows-operations"></div>
+    </div>
+
+    <!-- Mixed + Group -->
+    <div class="card">
+      <div class="card-h"><div class="card-t"><span class="cat-pill cat-group">Group & Mixed</span></div></div>
+      <div class="metric-head">
+        <span></span><span>Metric</span><span>Category</span><span>Target</span><span>Weight</span><span>Direction</span><span style="text-align:right">Preview</span>
+      </div>
+      <div id="rows-mixed"></div>
+      <div id="rows-group"></div>
+    </div>
+
+  </div>
+
+  <!-- FAIRNESS TAB -->
+  <div id="tab-fairness" class="view">
+
+    <div class="alert al-gold" style="margin-bottom:20px">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <div>
+        <strong>The fairness problem:</strong> A mum working Mon–Thu lunches and a weekend evening clerk are doing fundamentally different jobs. Comparing raw totals is unfair. Service bands let you set a target multiplier per service type — for example, a lunch service might have a spend target of 70% of an evening service. The Selector automatically assigns each transaction to its service band and benchmarks accordingly.
+      </div>
+    </div>
+
+    <div class="fairness-section">
+      <div class="fairness-header">
+        <div class="fairness-title">Service Bands</div>
+        <div style="font-size:12px;color:var(--ink4)">One set of bands per venue — reflects your actual trading patterns</div>
+      </div>
+
+      <div id="bands-container">
+        <div style="text-align:center;padding:32px;color:var(--ink4)">Loading bands...</div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:20px">
+      <div class="card-h"><div class="card-t">Benchmarking Approach</div></div>
+      <div style="padding:20px">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
+          <div style="padding:16px;background:var(--cream);border-radius:10px;border:2px solid var(--teal)">
+            <div style="font-size:12px;font-weight:700;color:var(--teal);margin-bottom:6px">✓ ACTIVE — Hybrid Model</div>
+            <div style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:8px">Fixed floors + Peer comparison</div>
+            <div style="font-size:12px;color:var(--ink3);line-height:1.6">Minimum standards everyone must meet, plus dynamic benchmarking against peers in the same service band. Most defensible — you can explain every score.</div>
+          </div>
+          <div style="padding:16px;background:var(--cream);border-radius:10px;border:1px solid var(--border)">
+            <div style="font-size:12px;font-weight:600;color:var(--ink4);margin-bottom:6px">Option B</div>
+            <div style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:8px">Dynamic peer benchmarking only</div>
+            <div style="font-size:12px;color:var(--ink3);line-height:1.6">Targets auto-calculated from 4-week rolling average per service band. Self-calibrating but needs several weeks of data first.</div>
+          </div>
+          <div style="padding:16px;background:var(--cream);border-radius:10px;border:1px solid var(--border)">
+            <div style="font-size:12px;font-weight:600;color:var(--ink4);margin-bottom:6px">Option A</div>
+            <div style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:8px">Fixed targets with band multipliers</div>
+            <div style="font-size:12px;color:var(--ink3);line-height:1.6">Jack sets one target per metric, system applies a multiplier per service band. Simple and transparent.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="card-h"><div class="card-t">Pub vs Pub Fairness</div></div>
+      <div style="padding:20px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:8px">Within-venue scoring (Coaching)</div>
+            <div style="font-size:13px;color:var(--ink3);line-height:1.6;margin-bottom:12px">Each team member is measured against peers at their own venue. A Griffin Inn clerk competes against other Griffin Inn clerks. This is what the Coach shows GMs — it's the most useful for day-to-day coaching conversations.</div>
+            <span style="background:var(--teal-bg);color:var(--teal);border:1px solid var(--teal-mid);padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600">Used for individual coaching</span>
+          </div>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:8px">Group-wide scoring (League Table)</div>
+            <div style="font-size:13px;color:var(--ink3);line-height:1.6;margin-bottom:12px">Cross-venue comparison normalised by venue averages. A score of 75 at Long Hop means the same as a 75 at Tap & Run — both are performing at the same level relative to their venue baseline. Used for the overall Test Player league table.</div>
+            <span style="background:var(--gold-bg);color:var(--gold);border:1px solid rgba(196,146,42,0.2);padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600">Used for group league table</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- SOURCES TAB -->
+  <div id="tab-sources" class="view">
+
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:20px">
+      <div style="background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow)">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <div class="source-dot src-relay" style="width:10px;height:10px"></div>
+          <div style="font-size:13px;font-weight:700">Relay (Access EPOS)</div>
+          <span style="margin-left:auto;background:var(--teal-bg);color:var(--teal);border:1px solid var(--teal-mid);padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600">● Live</span>
+        </div>
+        <div style="font-size:12px;color:var(--ink3);line-height:1.6;margin-bottom:12px">Provides transaction data, items sold, spend per head, covers. 9 metrics calculable automatically once SalesGroup mapping is confirmed.</div>
+        <div style="font-size:11px;font-weight:600;color:var(--ink4);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px">Pending</div>
+        <div style="font-size:12px;color:var(--gold)">⚠ SalesGroup codes needed from Access for drinks/food split</div>
+      </div>
+
+      <div style="background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow)">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <div class="source-dot src-manual" style="width:10px;height:10px"></div>
+          <div style="font-size:13px;font-weight:700">Manual Entry</div>
+          <span style="margin-left:auto;background:var(--gold-bg);color:var(--gold);border:1px solid rgba(196,146,42,0.2);padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600">Ready</span>
+        </div>
+        <div style="font-size:12px;color:var(--ink3);line-height:1.6;margin-bottom:12px">Named reviews and Group NPS require manual input per period. GMs enter these weekly in the Assessments screen.</div>
+        <div id="manual-metrics" style="display:flex;flex-direction:column;gap:4px"></div>
+      </div>
+
+      <div style="background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow)">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <div class="source-dot src-rotaready" style="width:10px;height:10px"></div>
+          <div style="font-size:13px;font-weight:700">RotaReady</div>
+          <span style="margin-left:auto;background:var(--cream2);color:var(--ink3);border:1px solid var(--border);padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600">Pending</span>
+        </div>
+        <div style="font-size:12px;color:var(--ink3);line-height:1.6;margin-bottom:12px">Lateness and extra shifts require RotaReady credentials. Once connected, these calculate automatically from shift sign-off data.</div>
+        <div id="rota-metrics" style="display:flex;flex-direction:column;gap:4px"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><div class="card-t">SalesGroup Mapping — Action Required</div></div>
+      <div style="padding:20px">
+        <div class="alert al-gold" style="margin-bottom:16px">
+          Ask Access Hospitality for a full SalesGroup code list for each venue. Once confirmed, The Selector can automatically calculate drinks/food splits, premium items and specials.
+        </div>
+        <table style="width:100%;border-collapse:collapse">
+          <thead>
+            <tr style="background:var(--cream2)">
+              <th style="text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink4);padding:9px 16px;border-bottom:1px solid var(--border)">Code seen so far</th>
+              <th style="text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink4);padding:9px 16px;border-bottom:1px solid var(--border)">Example items</th>
+              <th style="text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink4);padding:9px 16px;border-bottom:1px solid var(--border)">Suspected type</th>
+              <th style="text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink4);padding:9px 16px;border-bottom:1px solid var(--border)">Confirmed</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td style="padding:10px 16px;font-family:var(--mono);border-bottom:1px solid var(--border)">5</td><td style="padding:10px 16px;font-size:13px;color:var(--ink3);border-bottom:1px solid var(--border)">Fish Curry, Prawn Curry, House Lamb</td><td style="padding:10px 16px;border-bottom:1px solid var(--border)"><span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:600">Food — Mains</span></td><td style="padding:10px 16px;border-bottom:1px solid var(--border)"><span style="color:var(--gold)">⚠ TBC</span></td></tr>
+            <tr><td style="padding:10px 16px;font-family:var(--mono);border-bottom:1px solid var(--border)">6</td><td style="padding:10px 16px;font-size:13px;color:var(--ink3);border-bottom:1px solid var(--border)">Miniature Poppadoms, Rice</td><td style="padding:10px 16px;border-bottom:1px solid var(--border)"><span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:600">Food — Sides/Nibbles</span></td><td style="padding:10px 16px;border-bottom:1px solid var(--border)"><span style="color:var(--gold)">⚠ TBC</span></td></tr>
+            <tr><td style="padding:10px 16px;font-family:var(--mono);border-bottom:1px solid var(--border)">22</td><td style="padding:10px 16px;font-size:13px;color:var(--ink3);border-bottom:1px solid var(--border)">PINT Lime and Soda Coors, Still Water</td><td style="padding:10px 16px;border-bottom:1px solid var(--border)"><span style="background:#dbeafe;color:#1d4ed8;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:600">Drinks — Soft/Low ABV</span></td><td style="padding:10px 16px;border-bottom:1px solid var(--border)"><span style="color:var(--gold)">⚠ TBC</span></td></tr>
+            <tr><td style="padding:10px 16px;font-family:var(--mono);border-bottom:1px solid var(--border)">23</td><td style="padding:10px 16px;font-size:13px;color:var(--ink3);border-bottom:1px solid var(--border)">Tiny Rebel Clwb Tropica, Pint Charnwood Vixen</td><td style="padding:10px 16px;border-bottom:1px solid var(--border)"><span style="background:#dbeafe;color:#1d4ed8;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:600">Drinks — Craft Beer</span></td><td style="padding:10px 16px;border-bottom:1px solid var(--border)"><span style="color:var(--gold)">⚠ TBC</span></td></tr>
+            <tr><td style="padding:10px 16px;font-family:var(--mono);border-bottom:1px solid var(--border)">28</td><td style="padding:10px 16px;font-size:13px;color:var(--ink3);border-bottom:1px solid var(--border)">No Glass</td><td style="padding:10px 16px;border-bottom:1px solid var(--border)"><span style="background:var(--cream3);color:var(--ink3);padding:2px 8px;border-radius:5px;font-size:11px;font-weight:600">Modifier/Option</span></td><td style="padding:10px 16px;border-bottom:1px solid var(--border)"><span style="color:var(--gold)">⚠ TBC</span></td></tr>
+            <tr><td style="padding:10px 16px;font-family:var(--mono);border-bottom:1px solid var(--border)">33</td><td style="padding:10px 16px;font-size:13px;color:var(--ink3);border-bottom:1px solid var(--border)">SM Fenugreek Fries, SM Roti Breads, SM Chat Bombs</td><td style="padding:10px 16px;border-bottom:1px solid var(--border)"><span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:600">Food — Sides (Small)</span></td><td style="padding:10px 16px;border-bottom:1px solid var(--border)"><span style="color:var(--gold)">⚠ TBC</span></td></tr>
+            <tr><td style="padding:10px 16px;font-family:var(--mono)">35</td><td style="padding:10px 16px;font-size:13px;color:var(--ink3)">Plus slaw, Just popp on the fly</td><td style="padding:10px 16px"><span style="background:var(--cream3);color:var(--ink3);padding:2px 8px;border-radius:5px;font-size:11px;font-weight:600">Add-on/Modifier</span></td><td style="padding:10px 16px"><span style="color:var(--gold)">⚠ TBC</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Save bar -->
+<div class="save-bar" id="save-bar">
+  <span class="save-msg">You have unsaved changes</span>
+  <div style="display:flex;gap:8px">
+    <button class="btn btn-ghost" onclick="discardChanges()">Discard</button>
+    <button class="btn btn-teal" onclick="saveAll()">Save & Apply</button>
+  </div>
+</div>
+
+<script>
+const API = 'https://theclub.thecatandwickets.com/api/v1';
+let metrics = [], venues = [], bands = [], token = '', dirty = false;
+
+async function init() {
+  token = await getToken();
+  await Promise.all([loadMetrics(), loadVenues()]);
+  loadBands();
+}
+
+async function getToken() {
+  const r = await fetch(`${API}/auth/login`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:'admin@catandwickets.com',password:'admin123!'})});
+  const d = await r.json();
+  return d.data?.token || '';
+}
+
+async function loadMetrics() {
+  const r = await fetch(`${API}/selector/metrics`, {headers:{'Authorization':`Bearer ${token}`}});
+  const d = await r.json();
+  metrics = d.data || [];
+  renderMetrics();
+  updatePreview();
+}
+
+async function loadVenues() {
+  const r = await fetch(`${API}/venues`, {headers:{'Authorization':`Bearer ${token}`}});
+  const d = await r.json();
+  venues = d.data || [];
+}
+
+async function loadBands() {
+  const r = await fetch(`${API}/selector/bands`, {headers:{'Authorization':`Bearer ${token}`}});
+  const d = await r.json();
+  bands = d.data || [];
+  renderBands();
+}
+
+function catClass(cat) {
+  const m = {drinks:'cat-drinks',food:'cat-food',operations:'cat-ops',group:'cat-group',mixed:'cat-mixed'};
+  return m[cat.toLowerCase()] || 'cat-mixed';
+}
+
+function sourceHtml(src) {
+  const m = {relay:'src-relay',manual:'src-manual',rotaready:'src-rotaready'};
+  const l = {relay:'Relay',manual:'Manual',rotaready:'RotaReady'};
+  return `<span class="source-dot ${m[src]||''}"></span>${l[src]||src}`;
+}
+
+function calcMetricScore(m, actual) {
+  // Use actual = target * 1.1 for preview (10% above target)
+  const a = actual !== undefined ? actual : (m.target * 1.1);
+  const t = Number(m.target);
+  if (m.direction === 'positive') {
+    if (a <= t) return 0;
+    return Math.min(((a - t) / (t * 0.25)) * 100, 100);
+  } else {
+    if (t === 0) return a === 0 ? 100 : 0;
+    return Math.max(0, Math.min((1 - (a / t)) * 100, 100));
+  }
+}
+
+function updatePreview() {
+  const active = metrics.filter(m => m.is_active);
+  const totalWeight = active.reduce((s,m) => s + Number(m.weight), 0);
+  let totalScore = 0;
+  active.forEach(m => {
+    const raw = calcMetricScore(m);
+    const weighted = raw * (Number(m.weight) / totalWeight);
+    totalScore += weighted;
+  });
+  totalScore = Math.round(totalScore * 10) / 10;
+  const band = totalScore < 60 ? 'Club Player' : totalScore < 80 ? 'County Player' : 'Test Player';
+  const bandColor = totalScore < 60 ? '#e8614a' : totalScore < 80 ? '#c4922a' : '#1a6b5a';
+
+  document.getElementById('prev-score').textContent = totalScore || '—';
+  document.getElementById('prev-active').textContent = active.length;
+  document.getElementById('prev-weight').textContent = totalWeight;
+  const bandEl = document.getElementById('prev-band');
+  bandEl.textContent = band;
+  bandEl.style.background = bandColor+'33';
+  bandEl.style.borderColor = bandColor+'66';
+  bandEl.style.color = 'white';
+
+  // Update individual row previews
+  metrics.forEach(m => {
+    const el = document.getElementById(`score-${m.metric_key}`);
+    if (!el) return;
+    if (!m.is_active) { el.innerHTML = '<span style="color:var(--ink4)">Off</span>'; return; }
+    const raw = Math.round(calcMetricScore(m));
+    const color = raw >= 80 ? 'var(--teal)' : raw >= 50 ? 'var(--gold)' : 'var(--coral)';
+    el.innerHTML = `<div class="score-bar-wrap"><div class="score-bar"><div class="score-fill" style="width:${raw}%;background:${color}"></div></div><span style="color:${color};font-weight:700;min-width:32px;text-align:right">${raw}</span></div>`;
+  });
+}
+
+function renderMetrics() {
+  const cats = ['Drinks', 'Food', 'Operations', 'Mixed', 'Group'];
+  const catIdMap = {Drinks:'drinks',Food:'food',Operations:'operations',Mixed:'mixed',Group:'group'};
+
+  // Update source lists
+  const manualMetrics = metrics.filter(m => m.data_source === 'manual');
+  const rotaMetrics = metrics.filter(m => m.data_source === 'rotaready');
+  document.getElementById('manual-metrics').innerHTML = manualMetrics.map(m =>
+    `<div style="font-size:12px;color:var(--ink2);padding:3px 0;border-bottom:1px solid var(--border)">${m.name}</div>`
+  ).join('');
+  document.getElementById('rota-metrics').innerHTML = rotaMetrics.map(m =>
+    `<div style="font-size:12px;color:var(--ink2);padding:3px 0;border-bottom:1px solid var(--border)">${m.name}</div>`
+  ).join('');
+
+  cats.forEach(cat => {
+    const catMetrics = metrics.filter(m => m.category === cat);
+    const containerId = `rows-${catIdMap[cat]}`;
+    const countId = `${catIdMap[cat]}-count`;
+    const countEl = document.getElementById(countId);
+    if (countEl) countEl.textContent = `${catMetrics.filter(m=>m.is_active).length} of ${catMetrics.length} active`;
+
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    container.innerHTML = catMetrics.map(m => `
+      <div class="metric-row ${m.is_active ? '' : 'inactive'}" id="row-${m.metric_key}">
+        <label class="toggle">
+          <input type="checkbox" ${m.is_active ? 'checked' : ''} onchange="toggleMetric('${m.metric_key}', this.checked)">
+          <div class="toggle-track"></div>
+          <div class="toggle-thumb"></div>
+        </label>
+        <div>
+          <div class="metric-name">${m.name}</div>
+          <div class="metric-source">${sourceHtml(m.data_source)} · <span style="color:var(--ink4)">${m.notes||''}</span></div>
+        </div>
+        <span class="cat-pill ${catClass(m.category)}">${m.category}</span>
+        <input class="num-input" type="number" step="0.01" value="${m.target}" id="target-${m.metric_key}" onchange="updateMetric('${m.metric_key}','target',this.value)" style="width:100px">
+        <input class="num-input" type="number" min="1" max="10" step="1" value="${m.weight}" id="weight-${m.metric_key}" onchange="updateMetric('${m.metric_key}','weight',this.value)" style="width:60px">
+        <span class="direction-tag ${m.direction === 'positive' ? 'dir-pos' : 'dir-neg'}">
+          ${m.direction === 'positive' ? '▲ Higher' : '▼ Lower'}
+        </span>
+        <div id="score-${m.metric_key}" style="text-align:right"></div>
+      </div>
+    `).join('');
+  });
+
+  updatePreview();
+}
+
+function toggleMetric(key, active) {
+  const m = metrics.find(m => m.metric_key === key);
+  if (m) { m.is_active = active; }
+  const row = document.getElementById(`row-${key}`);
+  if (row) row.classList.toggle('inactive', !active);
+  markDirty();
+  updatePreview();
+}
+
+function updateMetric(key, field, value) {
+  const m = metrics.find(m => m.metric_key === key);
+  if (m) { m[field] = field === 'weight' ? parseInt(value) : parseFloat(value); }
+  markDirty();
+  updatePreview();
+}
+
+function markDirty() {
+  dirty = true;
+  document.getElementById('save-bar').classList.add('visible');
+}
+
+function discardChanges() {
+  dirty = false;
+  document.getElementById('save-bar').classList.remove('visible');
+  loadMetrics();
+}
+
+async function saveAll() {
+  for (const m of metrics) {
+    await fetch(`${API}/selector/metrics/${m.metric_key}`, {
+      method: 'PUT',
+      headers: {'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},
+      body: JSON.stringify({target:m.target,weight:m.weight,is_active:m.is_active,name:m.name,notes:m.notes})
+    });
+  }
+  dirty = false;
+  document.getElementById('save-bar').classList.remove('visible');
+  const btn = document.querySelector('.btn-teal');
+  if (btn) { btn.textContent = '✓ Saved'; setTimeout(() => { btn.textContent = 'Save Changes'; }, 2000); }
+}
+
+function renderBands() {
+  const container = document.getElementById('bands-container');
+  if (!venues.length) { container.innerHTML = '<div style="text-align:center;padding:32px;color:var(--ink4)">No venues found</div>'; return; }
+
+  container.innerHTML = venues.map(v => {
+    const vBands = bands.filter(b => b.venue_id === v.id);
+    const defaultBands = [
+      {name:'Lunch Weekday', day_type:'weekday', start_time:'11:00', end_time:'16:00', target_multiplier:'0.75'},
+      {name:'Dinner Weekday', day_type:'weekday', start_time:'17:00', end_time:'23:00', target_multiplier:'1.00'},
+      {name:'Lunch Weekend', day_type:'weekend', start_time:'11:00', end_time:'16:00', target_multiplier:'0.85'},
+      {name:'Dinner Weekend', day_type:'weekend', start_time:'17:00', end_time:'23:00', target_multiplier:'1.15'},
+    ];
+    const displayBands = vBands.length ? vBands : defaultBands;
+
+    return `
+      <div class="venue-band-wrap">
+        <div class="venue-band-head">
+          <div class="venue-band-name">${v.name}</div>
+          <span style="font-size:12px;color:var(--ink4)">${vBands.length ? vBands.length+' bands configured' : 'Using default bands'}</span>
+        </div>
+        <table class="band-table">
+          <thead>
+            <tr>
+              <th>Service Band</th>
+              <th>Day Type</th>
+              <th>Start</th>
+              <th>End</th>
+              <th>Target Multiplier</th>
+              <th>Effect on targets</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${displayBands.map((b,i) => {
+              const mult = Number(b.target_multiplier || 1);
+              const pct = Math.round((mult - 1) * 100);
+              const pctStr = pct > 0 ? `+${pct}%` : pct < 0 ? `${pct}%` : 'Baseline';
+              const pctColor = pct > 0 ? 'var(--teal)' : pct < 0 ? 'var(--coral)' : 'var(--ink3)';
+              return `<tr>
+                <td style="font-weight:600">${b.name}</td>
+                <td><span class="band-type ${b.day_type}">${b.day_type}</span></td>
+                <td class="mono" style="font-size:12px">${b.start_time?.slice?.(0,5)||b.start_time}</td>
+                <td class="mono" style="font-size:12px">${b.end_time?.slice?.(0,5)||b.end_time}</td>
+                <td><input class="num-input" type="number" min="0.1" max="3" step="0.05" value="${mult}" style="width:80px" onchange="updateBandMultiplier('${v.id}','${b.band_key||b.name}',this.value)"></td>
+                <td style="font-weight:600;color:${pctColor}">${pctStr} on all targets</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+        <div class="add-band-row">
+          <span style="font-size:12px;color:var(--ink4);font-weight:500">Add band:</span>
+          <input class="fi" id="nb-name-${v.id}" placeholder="Band name" style="width:160px">
+          <select class="fi" id="nb-day-${v.id}">
+            <option value="weekday">Weekday</option>
+            <option value="weekend">Weekend</option>
+            <option value="all">All days</option>
+          </select>
+          <input class="fi" id="nb-start-${v.id}" type="time" value="11:00" style="width:100px">
+          <input class="fi" id="nb-end-${v.id}" type="time" value="16:00" style="width:100px">
+          <input class="fi" id="nb-mult-${v.id}" type="number" placeholder="Multiplier" value="1.00" step="0.05" style="width:90px">
+          <button class="btn btn-teal btn-sm" onclick="addBand('${v.id}')">Add</button>
+        </div>
+        <div style="padding:10px 20px;background:var(--cream);border-top:1px solid var(--border)">
+          <div class="multiplier-explain">Multiplier 1.0 = baseline targets. 0.75 = targets are 75% of baseline (easier for quiet lunches). 1.15 = targets are 115% of baseline (higher expectations for busy weekend evenings).</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function addBand(venueId) {
+  const name  = document.getElementById(`nb-name-${venueId}`)?.value;
+  const day   = document.getElementById(`nb-day-${venueId}`)?.value;
+  const start = document.getElementById(`nb-start-${venueId}`)?.value;
+  const end   = document.getElementById(`nb-end-${venueId}`)?.value;
+  const mult  = document.getElementById(`nb-mult-${venueId}`)?.value;
+  if (!name) return;
+  const bandKey = name.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'');
+  await fetch(`${API}/selector/bands`, {
+    method:'POST',
+    headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},
+    body: JSON.stringify({venueId, bandKey, name, dayType:day, startTime:start, endTime:end, targetMultiplier:mult})
+  });
+  loadBands();
+}
+
+function updateBandMultiplier(venueId, bandKey, value) { markDirty(); }
+
+function switchTab(tab) {
+  ['metrics','fairness','sources'].forEach(t => {
+    document.getElementById(`tab-${t}`)?.classList.toggle('active', t === tab);
+  });
+  document.querySelectorAll('.tab').forEach((el,i) => {
+    el.classList.toggle('active', ['metrics','fairness','sources'][i] === tab);
+  });
+}
+
+init();
+</script>
+</body>
+</html>
