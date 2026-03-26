@@ -1,0 +1,1202 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Analytics Coach — Cat & Wickets</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --cream:     #faf8f4;
+  --cream2:    #f4f0e8;
+  --cream3:    #ede8dc;
+  --white:     #ffffff;
+  --teal:      #1a6b5a;
+  --teal2:     #22876f;
+  --teal-bg:   #edf5f2;
+  --teal-mid:  #c8e6de;
+  --coral:     #e8614a;
+  --coral-bg:  #fdf0ed;
+  --gold:      #c4922a;
+  --gold-bg:   #fdf6e8;
+  --ink:       #1c1917;
+  --ink2:      #44403c;
+  --ink3:      #78716c;
+  --ink4:      #a8a29e;
+  --border:    #e7e2d8;
+  --border2:   #d6cfc3;
+  --shadow:    0 1px 3px rgba(28,25,23,0.08), 0 1px 2px rgba(28,25,23,0.04);
+  --shadow2:   0 4px 12px rgba(28,25,23,0.1), 0 2px 4px rgba(28,25,23,0.06);
+  --radius:    12px;
+  --display:   'Playfair Display', serif;
+  --sans:      'DM Sans', sans-serif;
+  --mono:      'DM Mono', monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body { background: var(--cream); color: var(--ink); font-family: var(--sans); font-size: 14px; line-height: 1.5; overflow: hidden; }
+
+/* ── LOGIN ─────────────────────────────────────────── */
+#login-screen {
+  position: fixed; inset: 0; z-index: 1000;
+  display: flex; align-items: stretch;
+}
+
+.login-left {
+  flex: 1;
+  background: var(--teal);
+  display: flex; flex-direction: column;
+  justify-content: space-between;
+  padding: 48px;
+  position: relative;
+  overflow: hidden;
+}
+
+.login-left::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse 80% 60% at 20% 80%, rgba(255,255,255,0.06) 0%, transparent 60%),
+              radial-gradient(ellipse 60% 80% at 80% 20%, rgba(0,0,0,0.15) 0%, transparent 60%);
+}
+
+.login-left-content { position: relative; z-index: 1; }
+
+.login-brand {
+  display: flex; align-items: center; gap: 14px;
+  margin-bottom: 48px;
+}
+
+.login-crest {
+  width: 44px; height: 44px;
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--display);
+  font-size: 16px; font-weight: 700; color: white;
+}
+
+.login-brand-text { color: white; }
+.login-brand-name { font-family: var(--display); font-size: 18px; font-weight: 600; letter-spacing: 0.01em; }
+.login-brand-sub  { font-size: 11px; opacity: 0.65; margin-top: 1px; letter-spacing: 0.04em; }
+
+.login-headline {
+  font-family: var(--display);
+  font-size: 42px; font-weight: 700;
+  color: white; line-height: 1.15;
+  letter-spacing: -0.01em;
+  margin-bottom: 16px;
+}
+
+.login-tagline {
+  font-size: 15px; color: rgba(255,255,255,0.7);
+  line-height: 1.6; max-width: 360px;
+}
+
+.login-stats {
+  display: flex; gap: 32px;
+  position: relative; z-index: 1;
+}
+
+.login-stat { color: white; }
+.login-stat-val { font-family: var(--display); font-size: 28px; font-weight: 700; }
+.login-stat-label { font-size: 11px; opacity: 0.6; margin-top: 2px; letter-spacing: 0.04em; text-transform: uppercase; }
+
+.login-right {
+  width: 440px; flex-shrink: 0;
+  background: var(--white);
+  display: flex; align-items: center; justify-content: center;
+  padding: 48px;
+}
+
+.login-form-wrap { width: 100%; max-width: 340px; }
+
+.login-welcome { font-family: var(--display); font-size: 26px; font-weight: 700; color: var(--ink); margin-bottom: 6px; }
+.login-sub { font-size: 13px; color: var(--ink3); margin-bottom: 28px; }
+
+.login-err {
+  display: none; background: var(--coral-bg);
+  border: 1px solid rgba(232,97,74,0.2);
+  border-radius: 8px; padding: 10px 14px;
+  font-size: 12px; color: var(--coral); margin-bottom: 16px;
+}
+
+.field { margin-bottom: 16px; }
+.field label { display: block; font-size: 12px; font-weight: 600; color: var(--ink2); margin-bottom: 5px; }
+.field input {
+  width: 100%; background: var(--cream);
+  border: 1.5px solid var(--border); border-radius: 8px;
+  padding: 10px 13px; font-family: var(--sans); font-size: 14px; color: var(--ink);
+  outline: none; transition: border-color 0.15s, box-shadow 0.15s;
+}
+.field input:focus { border-color: var(--teal); box-shadow: 0 0 0 3px var(--teal-bg); }
+
+.login-btn {
+  width: 100%; margin-top: 6px;
+  background: var(--teal); color: white;
+  border: none; border-radius: 8px; padding: 12px;
+  font-family: var(--sans); font-size: 14px; font-weight: 600;
+  cursor: pointer; transition: background 0.15s;
+  letter-spacing: 0.01em;
+}
+.login-btn:hover { background: var(--teal2); }
+
+.login-notice { text-align: center; margin-top: 20px; font-size: 11px; color: var(--ink4); }
+
+/* ── APP ──────────────────────────────────────────── */
+#app { display: none; height: 100vh; flex-direction: column; }
+#app.ready { display: flex; }
+
+/* ── TOPBAR ───────────────────────────────────────── */
+.topbar {
+  height: 56px; background: var(--white);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center;
+  justify-content: space-between; padding: 0 24px;
+  flex-shrink: 0; box-shadow: var(--shadow);
+  position: relative; z-index: 10;
+}
+
+.tb-left { display: flex; align-items: center; gap: 16px; }
+
+.tb-logo {
+  display: flex; align-items: center; gap: 11px;
+}
+
+.tb-crest {
+  width: 32px; height: 32px; background: var(--teal);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--display); font-size: 12px; font-weight: 700; color: white;
+}
+
+.tb-name { font-family: var(--display); font-size: 17px; font-weight: 600; color: var(--ink); letter-spacing: 0.01em; }
+.tb-divider { width: 1px; height: 20px; background: var(--border); }
+.tb-client { font-size: 12px; color: var(--ink4); font-weight: 500; }
+
+.tb-right { display: flex; align-items: center; gap: 12px; }
+
+.tb-role-badge {
+  padding: 3px 10px; border-radius: 20px;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.role-admin { background: var(--teal-bg); color: var(--teal); border: 1px solid var(--teal-mid); }
+.role-coach  { background: var(--gold-bg);  color: var(--gold);  border: 1px solid rgba(196,146,42,0.25); }
+.role-hq     { background: var(--coral-bg); color: var(--coral); border: 1px solid rgba(232,97,74,0.2); }
+
+.tb-time { font-family: var(--mono); font-size: 11px; color: var(--ink4); }
+
+.user-chip {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--cream); border: 1.5px solid var(--border);
+  border-radius: 20px; padding: 4px 12px 4px 5px;
+  cursor: pointer; transition: all 0.12s;
+}
+.user-chip:hover { background: var(--cream2); border-color: var(--border2); }
+
+.user-av {
+  width: 24px; height: 24px; background: var(--teal);
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; color: white;
+}
+
+.user-nm { font-size: 13px; font-weight: 500; color: var(--ink2); }
+
+/* ── LAYOUT ───────────────────────────────────────── */
+.body { display: flex; flex: 1; overflow: hidden; }
+
+/* ── SIDEBAR ──────────────────────────────────────── */
+.sidebar {
+  width: 216px; background: var(--white);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  flex-shrink: 0; overflow-y: auto; padding: 16px 10px;
+}
+
+.venue-selector {
+  margin-bottom: 16px; padding: 0 6px;
+}
+
+.venue-sel-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink4); margin-bottom: 6px; }
+
+.venue-sel {
+  width: 100%; background: var(--cream2);
+  border: 1.5px solid var(--border); border-radius: 8px;
+  padding: 8px 11px; font-family: var(--sans); font-size: 13px;
+  color: var(--ink); outline: none; cursor: pointer; appearance: none;
+  transition: border-color 0.12s;
+}
+.venue-sel:focus { border-color: var(--teal); }
+
+.ns { padding: 8px 6px 4px; font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink4); }
+
+.ni {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 10px; cursor: pointer; color: var(--ink3);
+  font-size: 13px; font-weight: 500; border-radius: 8px;
+  transition: all 0.12s; margin-bottom: 1px;
+}
+.ni:hover { background: var(--cream2); color: var(--ink); }
+.ni.active { background: var(--teal-bg); color: var(--teal); font-weight: 600; }
+.ni-ic { width: 16px; height: 16px; flex-shrink: 0; opacity: 0.7; }
+.ni.active .ni-ic { opacity: 1; }
+
+.nc { margin-left: auto; background: var(--coral); color: white; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 10px; }
+
+/* ── CONTENT ──────────────────────────────────────── */
+.content { flex: 1; overflow-y: auto; padding: 24px; background: var(--cream); }
+
+/* ── PAGE HEADER ──────────────────────────────────── */
+.ph { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 22px; }
+.ph-t { font-family: var(--display); font-size: 24px; font-weight: 700; color: var(--ink); letter-spacing: -0.01em; }
+.ph-s { font-size: 13px; color: var(--ink3); margin-top: 2px; }
+
+/* ── CARDS ────────────────────────────────────────── */
+.card {
+  background: var(--white); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden;
+}
+
+.card-h {
+  padding: 14px 18px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.card-t { font-size: 13px; font-weight: 600; color: var(--ink); display: flex; align-items: center; gap: 8px; }
+
+/* ── STATS ────────────────────────────────────────── */
+.stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 20px; }
+
+.stat {
+  background: var(--white); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow);
+}
+
+.stat-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink4); margin-bottom: 10px; }
+.stat-val { font-family: var(--display); font-size: 30px; font-weight: 700; color: var(--ink); line-height: 1; }
+.stat-note { font-size: 12px; color: var(--ink3); margin-top: 6px; }
+.stat-note.up   { color: var(--teal); font-weight: 500; }
+.stat-note.down { color: var(--coral); font-weight: 500; }
+.stat-note.warn { color: var(--gold); font-weight: 500; }
+
+.stat-icon {
+  width: 36px; height: 36px; border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 12px;
+}
+
+/* ── GRID ─────────────────────────────────────────── */
+.g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+.g3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: 16px; }
+.g21 { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 16px; }
+
+/* ── TABLE ────────────────────────────────────────── */
+.tbl { width: 100%; border-collapse: collapse; }
+.tbl th { text-align: left; font-size: 11px; font-weight: 600; color: var(--ink4); padding: 10px 18px; border-bottom: 1px solid var(--border); white-space: nowrap; text-transform: uppercase; letter-spacing: 0.04em; }
+.tbl td { padding: 12px 18px; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--ink2); vertical-align: middle; }
+.tbl tr:last-child td { border-bottom: none; }
+.tbl tr:hover td { background: var(--cream); }
+.tbl td.p { color: var(--ink); font-weight: 600; }
+.tbl td.mono { font-family: var(--mono); font-size: 12px; }
+
+/* ── BADGES ───────────────────────────────────────── */
+.b { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; white-space: nowrap; letter-spacing: 0.02em; }
+.b .dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+.b-teal   { background: var(--teal-bg);  color: var(--teal);  border: 1px solid var(--teal-mid); }
+.b-coral  { background: var(--coral-bg); color: var(--coral); border: 1px solid rgba(232,97,74,0.2); }
+.b-gold   { background: var(--gold-bg);  color: var(--gold);  border: 1px solid rgba(196,146,42,0.2); }
+.b-dim    { background: var(--cream2);   color: var(--ink3);  border: 1px solid var(--border); }
+
+/* ── VENUE CARDS ──────────────────────────────────── */
+.venue-card {
+  background: var(--white); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow);
+  position: relative; overflow: hidden;
+  transition: box-shadow 0.15s, transform 0.15s;
+  cursor: pointer;
+}
+.venue-card:hover { box-shadow: var(--shadow2); transform: translateY(-1px); }
+
+.venue-card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+.venue-card-name { font-family: var(--display); font-size: 18px; font-weight: 700; color: var(--ink); }
+.venue-card-type { font-size: 11px; color: var(--ink4); margin-top: 2px; }
+
+.venue-score {
+  width: 52px; height: 52px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--display); font-size: 18px; font-weight: 700;
+  flex-shrink: 0;
+}
+.score-high { background: var(--teal-bg); color: var(--teal); border: 2px solid var(--teal-mid); }
+.score-mid  { background: var(--gold-bg);  color: var(--gold);  border: 2px solid rgba(196,146,42,0.25); }
+.score-low  { background: var(--coral-bg); color: var(--coral); border: 2px solid rgba(232,97,74,0.2); }
+
+.venue-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.vm { padding: 10px 12px; background: var(--cream); border-radius: 8px; }
+.vm-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink4); margin-bottom: 3px; }
+.vm-val { font-family: var(--mono); font-size: 14px; font-weight: 500; color: var(--ink); }
+
+/* ── BUTTONS ──────────────────────────────────────── */
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; font-family: var(--sans); font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: all 0.12s; white-space: nowrap; }
+.btn-teal { background: var(--teal); color: white; }
+.btn-teal:hover { background: var(--teal2); }
+.btn-ghost { background: var(--white); color: var(--ink2); border: 1.5px solid var(--border); }
+.btn-ghost:hover { background: var(--cream); border-color: var(--border2); }
+.btn-sm { padding: 5px 12px; font-size: 12px; }
+
+/* ── ALERT ────────────────────────────────────────── */
+.alert { display: flex; align-items: flex-start; gap: 10px; padding: 12px 16px; border-radius: 10px; font-size: 13px; margin-bottom: 16px; }
+.al-teal  { background: var(--teal-bg);  border: 1px solid var(--teal-mid);              color: var(--teal); }
+.al-gold  { background: var(--gold-bg);  border: 1px solid rgba(196,146,42,0.25);        color: var(--gold); }
+.al-coral { background: var(--coral-bg); border: 1px solid rgba(232,97,74,0.2);          color: var(--coral); }
+
+/* ── VIEWS ────────────────────────────────────────── */
+.view { display: none; animation: vi 0.15s ease; }
+.view.active { display: block; }
+@keyframes vi { from{opacity:0;transform:translateY(3px)} to{opacity:1;transform:translateY(0)} }
+
+/* ── MODAL ────────────────────────────────────────── */
+.overlay { display:none; position:fixed; inset:0; background:rgba(28,25,23,0.4); z-index:500; align-items:center; justify-content:center; backdrop-filter:blur(4px); }
+.overlay.open { display:flex; }
+.modal { background:var(--white); border:1px solid var(--border); border-radius:16px; width:500px; max-width:94vw; box-shadow:var(--shadow2); }
+.mh { padding:18px 22px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+.mt { font-family:var(--display); font-size:18px; font-weight:700; }
+.mx { cursor:pointer; color:var(--ink4); font-size:22px; line-height:1; width:30px; height:30px; display:flex; align-items:center; justify-content:center; border-radius:6px; }
+.mx:hover { background:var(--cream2); color:var(--ink); }
+.mb { padding:22px; }
+.mf { padding:16px 22px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:8px; }
+
+/* ── FORM ─────────────────────────────────────────── */
+.fg { margin-bottom:14px; }
+.fl { display:block; font-size:12px; font-weight:600; color:var(--ink2); margin-bottom:5px; }
+.fi { width:100%; background:var(--cream); border:1.5px solid var(--border); border-radius:8px; padding:9px 13px; font-family:var(--sans); font-size:13px; color:var(--ink); outline:none; transition:border-color 0.15s; }
+.fi:focus { border-color:var(--teal); box-shadow:0 0 0 3px var(--teal-bg); }
+select.fi { cursor:pointer; appearance:none; }
+
+/* ── MISC ─────────────────────────────────────────── */
+.empty { text-align:center; padding:36px 20px; font-size:13px; color:var(--ink4); }
+::-webkit-scrollbar { width:4px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:var(--border2); border-radius:2px; }
+
+/* ── SCORE BAR ────────────────────────────────────── */
+.score-bar { height: 6px; background: var(--cream2); border-radius: 3px; overflow: hidden; margin-top: 6px; }
+.score-fill { height: 100%; border-radius: 3px; transition: width 0.6s ease; }
+
+/* ── TRAIL AREA TAG ───────────────────────────────── */
+.area-tag { display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:600; padding:2px 8px; border-radius:6px; }
+.area-boh { background:#e8f0fe; color:#2563eb; }
+.area-foh { background:#fce7f3; color:#9d174d; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-left">
+    <div class="login-left-content">
+      <div class="login-brand">
+        <div class="login-crest">C&W</div>
+        <div class="login-brand-text">
+          <div class="login-brand-name">The Analytics Coach</div>
+          <div class="login-brand-sub">Cat & Wickets Group</div>
+        </div>
+      </div>
+      <div class="login-headline">Know your numbers.<br>Coach your team.</div>
+      <div class="login-tagline">Real-time performance intelligence across all three venues. Powered by The Selector.</div>
+    </div>
+    <div class="login-stats">
+      <div class="login-stat">
+        <div class="login-stat-val">3</div>
+        <div class="login-stat-label">Venues</div>
+      </div>
+      <div class="login-stat">
+        <div class="login-stat-val" id="login-tx-count">—</div>
+        <div class="login-stat-label">Transactions</div>
+      </div>
+      <div class="login-stat">
+        <div class="login-stat-val">Live</div>
+        <div class="login-stat-label">Data Status</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="login-right">
+    <div class="login-form-wrap">
+      <div class="login-welcome">Welcome back</div>
+      <div class="login-sub">Sign in to your Analytics Coach account</div>
+      <div class="login-err" id="lerr">Incorrect email or password</div>
+      <div class="field"><label>Email address</label><input type="email" id="fe" placeholder="you@thecatandwickets.com" autocomplete="email"></div>
+      <div class="field"><label>Password</label><input type="password" id="fp" placeholder="••••••••" autocomplete="current-password"></div>
+      <button class="login-btn" onclick="doLogin()">Sign in</button>
+      <div class="login-notice">Managed by Fox ITC · Authorised staff only</div>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="topbar">
+    <div class="tb-left">
+      <div class="tb-logo">
+        <div class="tb-crest">C&W</div>
+        <span class="tb-name">The Analytics Coach</span>
+      </div>
+      <div class="tb-divider"></div>
+      <span class="tb-client" id="tb-venue-name">Cat & Wickets Group</span>
+    </div>
+    <div class="tb-right">
+      <span class="tb-role-badge role-admin" id="role-badge">Admin</span>
+      <span class="tb-time" id="clk"></span>
+      <div class="user-chip" onclick="doLogout()">
+        <div class="user-av" id="uav">—</div>
+        <span class="user-nm" id="unm">—</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="body">
+    <nav class="sidebar">
+      <!-- Venue selector (admins/HQ only) -->
+      <div class="venue-selector" id="venue-selector-wrap">
+        <div class="venue-sel-label">Viewing</div>
+        <select class="venue-sel" id="venue-sel" onchange="switchVenue()">
+          <option value="all">All Venues</option>
+          <option value="griffin">The Griffin Inn</option>
+          <option value="longhop">Long Hop</option>
+          <option value="taprun">Tap & Run</option>
+        </select>
+      </div>
+
+      <div class="ns">Overview</div>
+      <div class="ni active" onclick="nav('dashboard')">
+        <svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+        Dashboard
+      </div>
+      <div class="ni" onclick="nav('venues')">
+        <svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        Venues
+      </div>
+
+      <div class="ns">Performance</div>
+      <div class="ni" onclick="nav('scores')">
+        <svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Team Scores
+      </div>
+      <div class="ni" onclick="nav('trail')">
+        <svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+        Trail Compliance
+      </div>
+      <div class="ni" onclick="nav('sales')">
+        <svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+        Sales Data
+      </div>
+
+      <div class="ns">Management</div>
+      <div class="ni" onclick="nav('squad')">
+        <svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+        Squad
+        <span class="nc" id="squad-nc" style="display:none">0</span>
+      </div>
+      <div class="ni" onclick="nav('assessments')">
+        <svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Assessments
+      </div>
+      <div class="ni" onclick="nav('clerks')">
+        <svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+        Clerk Mapping
+        <span class="nc" id="clerk-nc" style="display:none">0</span>
+      </div>
+    </nav>
+
+    <div class="content">
+
+      <!-- DASHBOARD -->
+      <div id="v-dashboard" class="view active">
+        <div class="ph">
+          <div>
+            <div class="ph-t">Good <span id="greeting-time">morning</span>, <span id="greeting-name">—</span></div>
+            <div class="ph-s" id="dash-date">Loading...</div>
+          </div>
+          <button class="btn btn-ghost" onclick="loadDashboard()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
+            Refresh
+          </button>
+        </div>
+
+        <div class="stats">
+          <div class="stat">
+            <div class="stat-icon" style="background:var(--teal-bg)">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+            </div>
+            <div class="stat-label">Transactions Today</div>
+            <div class="stat-val" id="s-tx">—</div>
+            <div class="stat-note" id="s-txn">Loading...</div>
+          </div>
+          <div class="stat">
+            <div class="stat-icon" style="background:var(--gold-bg)">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+            </div>
+            <div class="stat-label">Active Staff</div>
+            <div class="stat-val" id="s-staff">—</div>
+            <div class="stat-note" id="s-staffn">Across all venues</div>
+          </div>
+          <div class="stat">
+            <div class="stat-icon" style="background:#e8f0fe">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+            </div>
+            <div class="stat-label">Trail Compliance</div>
+            <div class="stat-val" id="s-trail">—</div>
+            <div class="stat-note" id="s-trailn">w/e 15 Mar 2026</div>
+          </div>
+          <div class="stat">
+            <div class="stat-icon" style="background:var(--coral-bg)">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--coral)" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            </div>
+            <div class="stat-label">Unmatched Clerks</div>
+            <div class="stat-val" id="s-clerks">—</div>
+            <div class="stat-note warn" id="s-clerksn">Loading...</div>
+          </div>
+        </div>
+
+        <!-- Venue cards -->
+        <div class="g3" id="venue-cards">
+          <div class="empty" style="grid-column:1/-1">Loading venues...</div>
+        </div>
+
+        <!-- Trail breakdown -->
+        <div class="card">
+          <div class="card-h">
+            <div class="card-t">Trail Compliance — Week ending 15 Mar 2026</div>
+            <button class="btn btn-ghost btn-sm" onclick="nav('trail')">View all →</button>
+          </div>
+          <table class="tbl">
+            <thead><tr><th>Venue</th><th>Area</th><th>Tasks</th><th>Completed</th><th>Rate</th><th>Score</th><th>Progress</th></tr></thead>
+            <tbody id="trail-tbl"><tr><td colspan="7" class="empty">Loading...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- VENUES -->
+      <div id="v-venues" class="view">
+        <div class="ph">
+          <div><div class="ph-t">Venues</div><div class="ph-s">Performance overview across all three pubs</div></div>
+        </div>
+        <div class="g3" id="venues-detail">
+          <div class="empty" style="grid-column:1/-1">Loading...</div>
+        </div>
+        <div class="card">
+          <div class="card-h"><div class="card-t">Recent Transactions by Venue</div></div>
+          <table class="tbl">
+            <thead><tr><th>Venue</th><th>Transactions</th><th>Total Spend</th><th>Avg per Transaction</th><th>Status</th></tr></thead>
+            <tbody id="venue-tx-tbl"><tr><td colspan="5" class="empty">Loading...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TEAM SCORES -->
+      <div id="v-scores" class="view">
+        <div class="ph">
+          <div><div class="ph-t">Team Scores</div><div class="ph-s">Powered by The Selector · Updated weekly</div></div>
+        </div>
+        <div class="alert al-gold" style="margin-bottom:20px">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          The Selector is ready but needs metric configuration before scores can be generated. Set up your scoring weights in the metric configuration tool.
+        </div>
+        <div class="card">
+          <div class="card-h"><div class="card-t">League Table</div><span style="font-size:12px;color:var(--ink4)">No scores yet</span></div>
+          <div class="empty">No scores generated yet — configure your metrics to run The Selector</div>
+        </div>
+      </div>
+
+      <!-- TRAIL COMPLIANCE -->
+      <div id="v-trail" class="view">
+        <div class="ph">
+          <div><div class="ph-t">Trail Compliance</div><div class="ph-s">Task completion rates across all venues</div></div>
+          <button class="btn btn-teal" onclick="syncTrail()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
+            Sync Now
+          </button>
+        </div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-h"><div class="card-t">Venue Summary — w/e 15 Mar 2026</div></div>
+          <table class="tbl">
+            <thead><tr><th>Venue</th><th>Total Tasks</th><th>Completed</th><th>Avg Completion</th><th>Combined Score</th></tr></thead>
+            <tbody id="trail-summary-tbl"><tr><td colspan="5" class="empty">Loading...</td></tr></tbody>
+          </table>
+        </div>
+        <div class="card">
+          <div class="card-h"><div class="card-t">Area Breakdown</div></div>
+          <table class="tbl">
+            <thead><tr><th>Venue</th><th>Area</th><th>Tasks</th><th>Completed</th><th>Rate</th><th>Exceptions</th><th>Score</th></tr></thead>
+            <tbody id="trail-area-tbl"><tr><td colspan="7" class="empty">Loading...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- SALES DATA -->
+      <div id="v-sales" class="view">
+        <div class="ph">
+          <div><div class="ph-t">Sales Data</div><div class="ph-s">EPOS transaction data from Relay</div></div>
+        </div>
+        <div class="stats" style="grid-template-columns:repeat(3,1fr)">
+          <div class="stat">
+            <div class="stat-label">Total Transactions</div>
+            <div class="stat-val" id="sales-tx">—</div>
+            <div class="stat-note">All venues · All time</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Total Revenue</div>
+            <div class="stat-val" id="sales-rev">—</div>
+            <div class="stat-note">Gross item cost</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Active Locations</div>
+            <div class="stat-val" id="sales-loc">—</div>
+            <div class="stat-note">Mapped venues</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-h"><div class="card-t">Recent Transactions</div><span style="font-size:12px;color:var(--ink4)" id="sales-tx-lbl">—</span></div>
+          <table class="tbl">
+            <thead><tr><th>Date/Time</th><th>Venue</th><th>Covers</th><th>Gross</th><th>Clerk</th><th>Items</th></tr></thead>
+            <tbody id="sales-tbl"><tr><td colspan="6" class="empty">Loading...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- SQUAD -->
+      <div id="v-squad" class="view">
+        <div class="ph">
+          <div><div class="ph-t">Squad</div><div class="ph-s">Team members across all venues</div></div>
+          <button class="btn btn-teal" onclick="openM('add-member')">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Member
+          </button>
+        </div>
+        <div class="alert al-teal" style="margin-bottom:20px">
+          Connect RotaReady to automatically import your full staff list. Once connected, team members will appear here with their roles, venues and shift patterns.
+        </div>
+        <div class="card">
+          <div class="card-h"><div class="card-t">Team Members</div><span style="font-size:12px;color:var(--ink4)" id="squad-count">—</span></div>
+          <table class="tbl">
+            <thead><tr><th>Name</th><th>Venue</th><th>Role</th><th>Clerk ID</th><th>Status</th></tr></thead>
+            <tbody id="squad-tbl"><tr><td colspan="5" class="empty">No team members yet — connect RotaReady to import</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ASSESSMENTS -->
+      <div id="v-assessments" class="view">
+        <div class="ph">
+          <div><div class="ph-t">Assessments</div><div class="ph-s">Weekly manager assessments for The Selector</div></div>
+          <button class="btn btn-teal" onclick="openM('new-assessment')">New Assessment</button>
+        </div>
+        <div class="alert al-gold" style="margin-bottom:20px">
+          Manager assessments feed directly into The Selector scoring model. Complete weekly assessments for each team member to generate accurate scores.
+        </div>
+        <div class="card">
+          <div class="card-h"><div class="card-t">Recent Assessments</div></div>
+          <div class="empty">No assessments yet — add your first assessment to get started</div>
+        </div>
+      </div>
+
+      <!-- CLERK MAPPING -->
+      <div id="v-clerks" class="view">
+        <div class="ph">
+          <div><div class="ph-t">Clerk Mapping</div><div class="ph-s">Match EPOS clerk IDs to your team members</div></div>
+        </div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-h">
+            <div class="card-t" style="color:var(--gold)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              Unmatched Clerks
+            </div>
+            <span class="b b-gold" id="uc-lbl">0 unmatched</span>
+          </div>
+          <table class="tbl">
+            <thead><tr><th>Clerk ID</th><th>Venue</th><th>First Seen</th><th>Transactions</th><th>Match To</th><th></th></tr></thead>
+            <tbody id="uc-tbody"><tr><td colspan="6" class="empty">Loading...</td></tr></tbody>
+          </table>
+        </div>
+        <div class="card">
+          <div class="card-h"><div class="card-t" style="color:var(--teal)">Matched Clerks</div></div>
+          <table class="tbl">
+            <thead><tr><th>Clerk ID</th><th>Venue</th><th>Team Member</th><th>Status</th></tr></thead>
+            <tbody id="mc-tbody"><tr><td colspan="4" class="empty">No matched clerks yet</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- MODALS -->
+<div class="overlay" id="m-add-member">
+  <div class="modal">
+    <div class="mh"><div class="mt">Add Team Member</div><span class="mx" onclick="closeM('add-member')">×</span></div>
+    <div class="mb">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="fg"><label class="fl">First Name</label><input class="fi" placeholder="Jane"></div>
+        <div class="fg"><label class="fl">Last Name</label><input class="fi" placeholder="Smith"></div>
+      </div>
+      <div class="fg"><label class="fl">Venue</label>
+        <select class="fi">
+          <option>The Griffin Inn</option>
+          <option>Long Hop</option>
+          <option>Tap & Run</option>
+        </select>
+      </div>
+      <div class="fg"><label class="fl">Role</label>
+        <select class="fi">
+          <option>Server</option>
+          <option>Bar Staff</option>
+          <option>Kitchen</option>
+          <option>Manager</option>
+        </select>
+      </div>
+      <div class="fg"><label class="fl">Email (optional)</label><input class="fi" type="email" placeholder="jane@thecatandwickets.com"></div>
+    </div>
+    <div class="mf">
+      <button class="btn btn-ghost" onclick="closeM('add-member')">Cancel</button>
+      <button class="btn btn-teal" onclick="closeM('add-member')">Add Member</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+const API_BASE = 'https://theclub.thecatandwickets.com/api/v1';
+
+// Users — role-based access
+const USERS = [
+  { email:'ian@foxitc.com',              pass:'FoxITC2026!',    name:'Ian',   initials:'I',  role:'admin',  venue:'all' },
+  { email:'jack@foxitc.com',             pass:'FoxITC2026!',    name:'Jack',  initials:'J',  role:'admin',  venue:'all' },
+  { email:'coach.griffin@catandwickets.com', pass:'Coach2026!', name:'Coach', initials:'G',  role:'coach',  venue:'griffin' },
+  { email:'coach.longhop@catandwickets.com', pass:'Coach2026!', name:'Coach', initials:'LH', role:'coach',  venue:'longhop' },
+  { email:'coach.taprun@catandwickets.com',  pass:'Coach2026!', name:'Coach', initials:'TR', role:'coach',  venue:'taprun' },
+  { email:'admin@catandwickets.com',     pass:'admin123!',      name:'Admin', initials:'A',  role:'hq',     venue:'all' },
+];
+
+const VENUE_NAMES = { griffin:'The Griffin Inn', longhop:'Long Hop', taprun:'Tap & Run', all:'All Venues' };
+const LOCATION_MAP = { '0001':'The Griffin Inn', '0002':'Tap & Run' };
+
+let SESSION = null, TOKEN = '', currentVenue = 'all';
+
+// Clock
+setInterval(() => {
+  const el = document.getElementById('clk');
+  if (el) el.textContent = new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+}, 1000);
+
+// Greeting
+function updateGreeting() {
+  const h = new Date().getHours();
+  const g = h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
+  const el = document.getElementById('greeting-time');
+  if (el) el.textContent = g;
+  const d = document.getElementById('dash-date');
+  if (d) d.textContent = new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+}
+
+// Load transaction count on login page
+async function loadLoginStats() {
+  try {
+    const tok = await getToken();
+    const r = await fetch(`${API_BASE}/webhooks/relay/status`, { headers:{'Authorization':`Bearer ${tok}`} });
+    const d = await r.json();
+    const el = document.getElementById('login-tx-count');
+    if (el) el.textContent = Number(d.data?.total_transactions||0).toLocaleString();
+  } catch(e) {}
+}
+
+// Auth
+document.getElementById('fp').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+
+function doLogin() {
+  const email = document.getElementById('fe').value.trim().toLowerCase();
+  const pass  = document.getElementById('fp').value;
+  const user  = USERS.find(u => u.email===email && u.pass===pass);
+  if (!user) { document.getElementById('lerr').style.display='block'; document.getElementById('fp').value=''; return; }
+  SESSION = user;
+  sessionStorage.setItem('coach_session', JSON.stringify(user));
+  bootApp();
+}
+
+function doLogout() { sessionStorage.removeItem('coach_session'); location.reload(); }
+
+function bootApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').classList.add('ready');
+  document.getElementById('uav').textContent = SESSION.initials;
+  document.getElementById('unm').textContent = SESSION.name;
+
+  // Role badge
+  const badge = document.getElementById('role-badge');
+  badge.textContent = SESSION.role === 'admin' ? 'Fox ITC' : SESSION.role === 'hq' ? 'Head Office' : 'Coach';
+  badge.className = `tb-role-badge role-${SESSION.role}`;
+
+  // Venue selector — coaches only see their venue
+  currentVenue = SESSION.venue;
+  if (SESSION.role === 'coach') {
+    document.getElementById('venue-selector-wrap').style.display = 'none';
+    document.getElementById('tb-venue-name').textContent = VENUE_NAMES[SESSION.venue] || 'Your Venue';
+  } else {
+    document.getElementById('venue-sel').value = 'all';
+  }
+
+  document.getElementById('greeting-name').textContent = SESSION.name;
+  updateGreeting();
+  init();
+}
+
+// Auto-login
+(function() {
+  const s = sessionStorage.getItem('coach_session');
+  if (!s) { loadLoginStats(); return; }
+  SESSION = JSON.parse(s);
+  bootApp();
+})();
+
+// API
+async function getToken() {
+  if (TOKEN) return TOKEN;
+  try {
+    const r = await fetch(`${API_BASE}/auth/login`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({email:'admin@catandwickets.com', password:'admin123!'})
+    });
+    const d = await r.json();
+    TOKEN = d.data?.token ?? '';
+    return TOKEN;
+  } catch(e) { return ''; }
+}
+
+async function api(path, opts={}) {
+  const tok = await getToken();
+  const r = await fetch(API_BASE+path, {...opts, headers:{'Authorization':`Bearer ${tok}`,'Content-Type':'application/json',...(opts.headers||{})}});
+  return r.json();
+}
+
+// Navigation
+const VIEWS = ['dashboard','venues','scores','trail','sales','squad','assessments','clerks'];
+function nav(id) {
+  VIEWS.forEach(v => { document.getElementById('v-'+v)?.classList.toggle('active', v===id); });
+  document.querySelectorAll('.ni').forEach(el => { el.classList.toggle('active', el.getAttribute('onclick')?.includes(`'${id}'`)); });
+  if (id==='trail') loadTrail();
+  if (id==='sales') loadSales();
+  if (id==='squad') loadSquad();
+  if (id==='venues') loadVenuesDetail();
+  if (id==='clerks') loadClerks();
+}
+
+function switchVenue() {
+  currentVenue = document.getElementById('venue-sel').value;
+  document.getElementById('tb-venue-name').textContent = VENUE_NAMES[currentVenue] || 'All Venues';
+  loadDashboard();
+}
+
+// Init
+async function init() {
+  await getToken();
+  loadDashboard();
+}
+
+// Dashboard
+async function loadDashboard() {
+  try {
+    const r = await api('/webhooks/relay/status');
+    if (r.data) {
+      const tx = Number(r.data.total_transactions)||0;
+      document.getElementById('s-tx').textContent = tx.toLocaleString();
+      document.getElementById('s-txn').textContent = (r.data.locations||0)+' active location(s)';
+      const uc = Number(r.data.unmatched_clerks)||0;
+      document.getElementById('s-clerks').textContent = uc;
+      document.getElementById('s-clerksn').textContent = uc>0 ? 'Needs attention' : 'All matched';
+      document.getElementById('s-clerksn').className = 'stat-note '+(uc>0?'down':'up');
+      if (uc>0) { document.getElementById('clerk-nc').textContent=uc; document.getElementById('clerk-nc').style.display=''; }
+    }
+  } catch(e) {}
+
+  try {
+    const vr = await api('/venues');
+    const venues = vr.data || [];
+    document.getElementById('s-staff').textContent = '—';
+
+    // Venue cards
+    const trailR = await api('/metrics/trail/breakdown?weekEnding=2026-03-15');
+    const summary = trailR.data?.summary || [];
+
+    // Calculate avg completion for trail stat
+    if (summary.length) {
+      const avg = Math.round(summary.reduce((s,v)=>s+Number(v.avg_completion_rate),0)/summary.length);
+      document.getElementById('s-trail').textContent = avg+'%';
+    }
+
+    const cardsEl = document.getElementById('venue-cards');
+    cardsEl.innerHTML = venues.map(v => {
+      const ts = summary.find(s => s.venue_name === v.name);
+      const score = ts ? Math.round(Number(ts.combined_trail_score)) : null;
+      const scoreClass = score === null ? '' : score>=15?'score-high':score>=5?'score-mid':'score-low';
+      const scoreDisplay = score !== null ? score : '—';
+      const rate = ts ? Number(ts.avg_completion_rate).toFixed(1) : '—';
+      const tasks = ts ? ts.total_tasks : '—';
+      return `
+        <div class="venue-card" onclick="nav('venues')">
+          <div class="venue-card-top">
+            <div>
+              <div class="venue-card-name">${v.name}</div>
+              <div class="venue-card-type">Cat & Wickets Group</div>
+            </div>
+            <div class="venue-score ${scoreClass}">${scoreDisplay}</div>
+          </div>
+          <div class="venue-metrics">
+            <div class="vm"><div class="vm-label">Trail Rate</div><div class="vm-val">${rate}%</div></div>
+            <div class="vm"><div class="vm-label">Tasks</div><div class="vm-val">${tasks}</div></div>
+            <div class="vm"><div class="vm-label">Location</div><div class="vm-val">${getLocationId(v.name)}</div></div>
+            <div class="vm"><div class="vm-label">Status</div><div class="vm-val" style="color:var(--teal)">Active</div></div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // Trail table
+    const areas = trailR.data?.areas || [];
+    document.getElementById('trail-tbl').innerHTML = areas.length ? areas.map(a => {
+      const sc = Number(a.trail_score)||0;
+      const cr = Number(a.completion_rate)||0;
+      const barColor = sc>=15?'var(--teal)':sc>=5?'var(--gold)':'var(--coral)';
+      return `<tr>
+        <td class="p">${a.venue_name}</td>
+        <td><span class="area-tag ${a.area==='BOH'?'area-boh':'area-foh'}">${a.area}</span></td>
+        <td class="mono">${a.total_tasks}</td>
+        <td class="mono">${a.completed_tasks}</td>
+        <td class="mono">${cr}%</td>
+        <td><span style="font-weight:700;color:${barColor}">${sc}/100</span></td>
+        <td style="width:120px">
+          <div class="score-bar"><div class="score-fill" style="width:${cr}%;background:${barColor}"></div></div>
+        </td>
+      </tr>`;
+    }).join('') : '<tr><td colspan="7" class="empty">No Trail data — run a sync first</td></tr>';
+
+  } catch(e) {}
+}
+
+function getLocationId(venueName) {
+  for (const [id, name] of Object.entries(LOCATION_MAP)) {
+    if (name === venueName) return id;
+  }
+  return '—';
+}
+
+// Trail
+async function loadTrail() {
+  try {
+    const r = await api('/metrics/trail/breakdown?weekEnding=2026-03-15');
+    const areas = r.data?.areas || [];
+    const summary = r.data?.summary || [];
+
+    document.getElementById('trail-summary-tbl').innerHTML = summary.length ? summary.map(v => {
+      const sc = Number(v.combined_trail_score)||0;
+      const c = sc>=15?'var(--teal)':sc>=5?'var(--gold)':'var(--coral)';
+      return `<tr>
+        <td class="p">${v.venue_name}</td>
+        <td class="mono">${v.total_tasks}</td>
+        <td class="mono">${v.completed_tasks}</td>
+        <td class="mono">${v.avg_completion_rate}%</td>
+        <td><span style="font-weight:700;color:${c};font-size:15px">${sc}</span><span style="color:var(--ink4)">/100</span></td>
+      </tr>`;
+    }).join('') : '<tr><td colspan="5" class="empty">No data</td></tr>';
+
+    document.getElementById('trail-area-tbl').innerHTML = areas.length ? areas.map(a => {
+      const sc = Number(a.trail_score)||0;
+      const c = sc>=15?'var(--teal)':sc>=5?'var(--gold)':'var(--coral)';
+      return `<tr>
+        <td class="p">${a.venue_name}</td>
+        <td><span class="area-tag ${a.area==='BOH'?'area-boh':'area-foh'}">${a.area}</span></td>
+        <td class="mono">${a.total_tasks}</td>
+        <td class="mono">${a.completed_tasks}</td>
+        <td class="mono">${a.completion_rate}%</td>
+        <td class="mono">${a.total_exceptions}</td>
+        <td><span style="font-weight:700;color:${c}">${sc}/100</span></td>
+      </tr>`;
+    }).join('') : '<tr><td colspan="7" class="empty">No data</td></tr>';
+  } catch(e) {}
+}
+
+// Sales
+async function loadSales() {
+  try {
+    const [status, txns] = await Promise.all([
+      api('/webhooks/relay/status'),
+      api('/transactions/recent?limit=20')
+    ]);
+
+    if (status.data) {
+      document.getElementById('sales-tx').textContent = Number(status.data.total_transactions||0).toLocaleString();
+      document.getElementById('sales-loc').textContent = status.data.locations||'—';
+    }
+
+    const list = txns.data || [];
+    const total = list.reduce((s,t)=>s+Number(t.total_gross_item_cost||0),0);
+    document.getElementById('sales-rev').textContent = '£'+total.toFixed(2);
+    document.getElementById('sales-tx-lbl').textContent = list.length+' shown';
+
+    document.getElementById('sales-tbl').innerHTML = list.length ? list.map(t => {
+      const venue = LOCATION_MAP[t.location_id] || t.location_id || '—';
+      const items = (t.items||[]).map(i=>i.name).slice(0,2).join(', ') + (t.items?.length>2?'...':'');
+      return `<tr>
+        <td class="mono">${fmtDT(t.datetime_opened)}</td>
+        <td class="p">${venue}</td>
+        <td class="mono">${t.covers||0}</td>
+        <td class="mono">£${Number(t.total_gross_item_cost||0).toFixed(2)}</td>
+        <td class="mono">${t.closed_by_clerk_id||'—'}</td>
+        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--ink3)">${items||'—'}</td>
+      </tr>`;
+    }).join('') : '<tr><td colspan="6" class="empty">No transactions yet</td></tr>';
+  } catch(e) {}
+}
+
+// Venues detail
+async function loadVenuesDetail() {
+  try {
+    const [vr, tr] = await Promise.all([api('/venues'), api('/metrics/trail/breakdown?weekEnding=2026-03-15')]);
+    const venues = vr.data || [];
+    const summary = tr.data?.summary || [];
+
+    document.getElementById('venues-detail').innerHTML = venues.map(v => {
+      const ts = summary.find(s => s.venue_name === v.name);
+      const score = ts ? Math.round(Number(ts.combined_trail_score)) : null;
+      const scoreClass = score === null ? '' : score>=15?'score-high':score>=5?'score-mid':'score-low';
+      return `
+        <div class="venue-card">
+          <div class="venue-card-top">
+            <div><div class="venue-card-name">${v.name}</div><div class="venue-card-type">${v.short_name||''}</div></div>
+            <div class="venue-score ${scoreClass}">${score??'—'}</div>
+          </div>
+          <div class="venue-metrics">
+            <div class="vm"><div class="vm-label">Completion</div><div class="vm-val">${ts?ts.avg_completion_rate+'%':'—'}</div></div>
+            <div class="vm"><div class="vm-label">Total Tasks</div><div class="vm-val">${ts?ts.total_tasks:'—'}</div></div>
+            <div class="vm"><div class="vm-label">Location ID</div><div class="vm-val">${getLocationId(v.name)}</div></div>
+            <div class="vm"><div class="vm-label">Trail Score</div><div class="vm-val">${ts?ts.combined_trail_score:'—'}</div></div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // Transaction summary per venue
+    const txR = await api('/transactions/recent?limit=100');
+    const txns = txR.data || [];
+    const byLocation = {};
+    txns.forEach(t => {
+      const venue = LOCATION_MAP[t.location_id] || t.location_id || 'Unknown';
+      if (!byLocation[venue]) byLocation[venue] = { count:0, total:0 };
+      byLocation[venue].count++;
+      byLocation[venue].total += Number(t.total_gross_item_cost||0);
+    });
+
+    document.getElementById('venue-tx-tbl').innerHTML = Object.entries(byLocation).length ? Object.entries(byLocation).map(([venue, data]) => `
+      <tr>
+        <td class="p">${venue}</td>
+        <td class="mono">${data.count}</td>
+        <td class="mono">£${data.total.toFixed(2)}</td>
+        <td class="mono">£${(data.total/data.count).toFixed(2)}</td>
+        <td><span class="b b-teal"><span class="dot"></span>Active</span></td>
+      </tr>
+    `).join('') : '<tr><td colspan="5" class="empty">No transaction data yet</td></tr>';
+
+  } catch(e) {}
+}
+
+// Squad
+async function loadSquad() {
+  try {
+    const r = await api('/squad');
+    const members = r.data || [];
+    document.getElementById('squad-count').textContent = members.length+' member'+(members.length!==1?'s':'');
+    document.getElementById('squad-tbl').innerHTML = members.length ? members.map(m => `
+      <tr>
+        <td class="p">${m.first_name} ${m.last_name}</td>
+        <td>${m.venue_name||'—'}</td>
+        <td>${m.role||'—'}</td>
+        <td class="mono">—</td>
+        <td><span class="b b-teal"><span class="dot"></span>Active</span></td>
+      </tr>
+    `).join('') : '<tr><td colspan="5" class="empty">No team members — connect RotaReady to import staff</td></tr>';
+  } catch(e) {}
+}
+
+// Clerks
+async function loadClerks() {
+  try {
+    const r = await api('/clerks');
+    const clerks = r.data || [];
+    const unmatched = clerks.filter(c => !c.team_member_id);
+    const matched   = clerks.filter(c => c.team_member_id);
+
+    document.getElementById('uc-lbl').textContent = unmatched.length+' unmatched';
+
+    const sqR = await api('/squad');
+    const members = sqR.data || [];
+    const opts = members.map(m=>`<option value="${m.id}">${m.first_name} ${m.last_name}</option>`).join('');
+
+    document.getElementById('uc-tbody').innerHTML = unmatched.length ? unmatched.map(c => `
+      <tr>
+        <td class="mono p">${c.clerk_id}</td>
+        <td>${LOCATION_MAP[c.location_id]||c.location_id||'—'}</td>
+        <td class="mono">${fmtD(c.created_at)}</td>
+        <td class="mono">—</td>
+        <td>
+          ${members.length ? `<select class="fi" style="padding:5px 10px;font-size:12px;width:180px" id="match-${c.clerk_id}-${c.location_id}">
+            <option value="">— Select team member —</option>${opts}
+          </select>` : '<span style="font-size:12px;color:var(--ink4)">Add staff first</span>'}
+        </td>
+        <td>${members.length ? `<button class="btn btn-teal btn-sm" onclick="matchClerk('${c.clerk_id}','${c.location_id}')">Match</button>` : ''}</td>
+      </tr>
+    `).join('') : '<tr><td colspan="6" class="empty">No unmatched clerks</td></tr>';
+
+    document.getElementById('mc-tbody').innerHTML = matched.length ? matched.map(c=>`
+      <tr>
+        <td class="mono p">${c.clerk_id}</td>
+        <td>${LOCATION_MAP[c.location_id]||c.location_id||'—'}</td>
+        <td class="p">${c.first_name} ${c.last_name}</td>
+        <td><span class="b b-teal"><span class="dot"></span>Matched</span></td>
+      </tr>
+    `).join('') : '<tr><td colspan="4" class="empty">No matched clerks yet</td></tr>';
+  } catch(e) {}
+}
+
+async function matchClerk(clerkId, locationId) {
+  const sel = document.getElementById('match-'+clerkId+'-'+locationId);
+  const teamMemberId = sel?.value;
+  if (!teamMemberId) return;
+  try {
+    await api('/clerks/'+clerkId+'/match', { method:'POST', body:JSON.stringify({teamMemberId,locationId}) });
+    loadClerks();
+  } catch(e) {}
+}
+
+async function syncTrail() {
+  try {
+    const tok = await getToken();
+    await fetch(`${API_BASE}/sync/trail`, { method:'POST', headers:{'Authorization':`Bearer ${tok}`,'Content-Type':'application/json'}, body:'{}' });
+    setTimeout(loadTrail, 3000);
+  } catch(e) {}
+}
+
+// Modals
+function openM(id)  { document.getElementById('m-'+id)?.classList.add('open'); }
+function closeM(id) { document.getElementById('m-'+id)?.classList.remove('open'); }
+document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open');}));
+
+// Utils
+function fmtD(s) { try{return new Date(s).toLocaleDateString('en-GB',{day:'numeric',month:'short'});}catch{return s||'—';} }
+function fmtDT(s) { try{return new Date(s).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});}catch{return s||'—';} }
+</script>
+</body>
+</html>
