@@ -1467,19 +1467,15 @@ async function loadTransactions() {
   try {
     const r = await apiFetch('/webhooks/relay/status');
     // For now show what we have
-    tbody.innerHTML = `
-      <tr>
-        <td class="mono primary">550e8400...0000</td>
-        <td>GRIFFIN01</td>
-        <td class="mono">2026-03-25</td>
-        <td class="mono">4</td>
-        <td class="mono">£128.50</td>
-        <td class="mono">42</td>
-        <td class="mono">3 items</td>
-        <td><span class="badge badge-green">PROCESSED</span></td>
-      </tr>
-    `;
-    document.getElementById('tx-count').textContent = '1 transaction';
+    // Real transaction data from relay_transactions
+    const txRes = await apiFetch('/webhooks/relay/status');
+    const total = txRes.data?.total_transactions ?? 0;
+    document.getElementById('tx-count').textContent = total + ' transaction' + (total !== 1 ? 's' : '');
+    if (total === 0) {
+      tbody.innerHTML = '<tr><td colspan="8" class="empty">No transactions yet — waiting for Relay data from Access Hospitality</td></tr>';
+    } else {
+      tbody.innerHTML = '<tr><td colspan="8" class="empty">Transaction detail view coming soon — ' + total + ' transaction(s) in database</td></tr>';
+    }
   } catch(e) {
     tbody.innerHTML = '<tr><td colspan="8" class="empty">No transactions yet</td></tr>';
   }
@@ -1516,16 +1512,8 @@ async function loadClerks() {
 // ── AUDIT ──
 async function loadAudit() {
   const list = document.getElementById('audit-list');
-  const events = [
-    { time: '2026-03-25 19:00:03', type: 'INBOUND', action: 'Relay transaction received', detail: 'txn:550e8400 · GRIFFIN01 · 4 covers · £128.50', source: 'Access EPOS', color: 'green' },
-    { time: '2026-03-25 18:55:58', type: 'SYSTEM', action: 'Health check', detail: 'GET /health → 200 OK', source: 'Monitor', color: 'blue' },
-    { time: '2026-03-25 18:42:30', type: 'INBOUND', action: 'Trail sync completed', detail: '489 tasks · 6 sites · 3 venues matched', source: 'Trail', color: 'green' },
-    { time: '2026-03-25 18:42:00', type: 'SYSTEM', action: 'Trail sync started', detail: 'week ending 2026-03-15', source: 'Cron', color: 'blue' },
-    { time: '2026-03-25 18:33:19', type: 'INBOUND', action: 'Trail sync completed', detail: '489 tasks · 6 sites', source: 'Trail', color: 'green' },
-    { time: '2026-03-20 18:05:00', type: 'SYSTEM', action: 'Relay API key generated', detail: 'key:b9d9755...3980 · webhook:write', source: 'Fox ITC', color: 'purple' },
-    { time: '2026-03-20 16:09:54', type: 'SYSTEM', action: 'Service restarted', detail: 'test-player.service → running', source: 'systemd', color: 'blue' },
-    { time: '2026-03-20 15:48:00', type: 'SYSTEM', action: 'Frontend deployed', detail: 'CSS build fixed · Tailwind compiled', source: 'Fox ITC', color: 'blue' },
-  ];
+  // Real audit data — pull from API when audit table is built
+  const events = [];
 
   document.getElementById('audit-total').textContent = events.length + ' events';
   document.getElementById('audit-count').textContent = events.length;
@@ -1694,3 +1682,91 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
 </script>
 </body>
 </html>
+<script>
+// PATCH: Add login gate on top of existing app
+(function() {
+  const CLUB_SESSION_KEY = 'club_session';
+  const VALID_USERS = [
+    { email: 'ian@foxitc.com', password: 'FoxITC2026!', name: 'Ian', role: 'Fox ITC' },
+    { email: 'jack@foxitc.com', password: 'FoxITC2026!', name: 'Jack', role: 'Fox ITC' },
+  ];
+
+  function isLoggedIn() {
+    const s = sessionStorage.getItem(CLUB_SESSION_KEY);
+    return s ? JSON.parse(s) : null;
+  }
+
+  function showLogin() {
+    document.body.style.display = 'none';
+    const overlay = document.createElement('div');
+    overlay.id = 'login-overlay';
+    overlay.style.cssText = `
+      position:fixed;inset:0;background:#0a0a0f;display:flex;
+      align-items:center;justify-content:center;z-index:9999;
+      font-family:'DM Sans',sans-serif;
+    `;
+    overlay.innerHTML = `
+      <div style="width:380px">
+        <div style="text-align:center;margin-bottom:32px">
+          <div style="width:44px;height:44px;background:#6c63ff;clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);display:inline-flex;align-items:center;justify-content:center;font-family:'Space Mono',monospace;font-size:14px;font-weight:700;color:white;margin-bottom:12px">FC</div>
+          <div style="font-family:'Space Mono',monospace;font-size:16px;font-weight:700;color:#e2e2f0;letter-spacing:0.05em">THE CLUB</div>
+          <div style="font-size:12px;color:#44445a;margin-top:4px;font-family:'Space Mono',monospace">Fox ITC · Authorised Access Only</div>
+        </div>
+        <div style="background:#0f0f17;border:1px solid #1e1e2e;border-radius:12px;padding:24px">
+          <div id="login-error" style="display:none;background:#2a0f17;border:1px solid #f43f5e;border-radius:6px;padding:10px;font-size:12px;color:#f43f5e;margin-bottom:16px;text-align:center"></div>
+          <div style="margin-bottom:14px">
+            <label style="display:block;font-size:10px;font-family:'Space Mono',monospace;color:#8888aa;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Email</label>
+            <input id="login-email" type="email" placeholder="you@foxitc.com" style="width:100%;background:#16161f;border:1px solid #2a2a3e;border-radius:6px;padding:10px 12px;color:#e2e2f0;font-family:'DM Sans',sans-serif;font-size:13px;outline:none">
+          </div>
+          <div style="margin-bottom:20px">
+            <label style="display:block;font-size:10px;font-family:'Space Mono',monospace;color:#8888aa;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Password</label>
+            <input id="login-password" type="password" placeholder="••••••••" style="width:100%;background:#16161f;border:1px solid #2a2a3e;border-radius:6px;padding:10px 12px;color:#e2e2f0;font-family:'DM Sans',sans-serif;font-size:13px;outline:none">
+          </div>
+          <button onclick="attemptLogin()" style="width:100%;background:#6c63ff;color:white;border:none;border-radius:6px;padding:11px;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">
+            Sign In to The Club
+          </button>
+        </div>
+        <div style="text-align:center;margin-top:16px;font-size:11px;color:#44445a;font-family:'Space Mono',monospace">
+          Fox ITC internal system · Unauthorised access prohibited
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    // Enter key support
+    overlay.addEventListener('keydown', e => {
+      if (e.key === 'Enter') attemptLogin();
+    });
+  }
+
+  window.attemptLogin = function() {
+    const email = document.getElementById('login-email').value.trim().toLowerCase();
+    const password = document.getElementById('login-password').value;
+    const user = VALID_USERS.find(u => u.email === email && u.password === password);
+    if (user) {
+      sessionStorage.setItem(CLUB_SESSION_KEY, JSON.stringify({ email: user.email, name: user.name, role: user.role }));
+      document.getElementById('login-overlay').remove();
+      document.body.style.display = 'flex';
+      // Show user name in sidebar
+      const footer = document.querySelector('.status-footer');
+      if (footer) {
+        const userRow = document.createElement('div');
+        userRow.style.cssText = 'font-size:11px;color:var(--text2);margin-top:6px;font-family:var(--mono)';
+        userRow.textContent = user.name + ' · ' + user.role;
+        footer.appendChild(userRow);
+      }
+    } else {
+      const errEl = document.getElementById('login-error');
+      errEl.style.display = 'block';
+      errEl.textContent = 'Invalid credentials — Fox ITC access only';
+    }
+  };
+
+  // Check on load
+  if (!isLoggedIn()) {
+    document.addEventListener('DOMContentLoaded', showLogin);
+    // If DOM already loaded
+    if (document.readyState !== 'loading') showLogin();
+  }
+})();
+</script>
