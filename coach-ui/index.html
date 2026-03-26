@@ -390,6 +390,10 @@ select.fi { cursor:pointer; appearance:none; }
 .area-tag { display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:600; padding:2px 8px; border-radius:6px; }
 .area-boh { background:#e8f0fe; color:#2563eb; }
 .area-foh { background:#fce7f3; color:#9d174d; }
+@keyframes spin{to{transform:rotate(360deg)}}
+.vm{padding:10px 12px;background:var(--cream2);border-radius:8px}
+.vm-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--ink4);margin-bottom:3px}
+.vm-val{font-family:var(--mono);font-size:14px;font-weight:500;color:var(--ink)}
 </style>
 </head>
 <body>
@@ -571,16 +575,21 @@ select.fi { cursor:pointer; appearance:none; }
           <div class="empty" style="grid-column:1/-1">Loading venues...</div>
         </div>
 
-        <!-- Trail breakdown -->
+        <!-- AI Insights -->
         <div class="card">
           <div class="card-h">
-            <div class="card-t">Trail Compliance — Week ending 15 Mar 2026</div>
-            <button class="btn btn-ghost btn-sm" onclick="nav('trail')">View all →</button>
+            <div class="card-t">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              The Selector — AI Insights
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="loadAIInsights()">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
+              Generate Insights
+            </button>
           </div>
-          <table class="tbl">
-            <thead><tr><th>Venue</th><th>Area</th><th>Tasks</th><th>Completed</th><th>Rate</th><th>Score</th><th>Progress</th></tr></thead>
-            <tbody id="trail-tbl"><tr><td colspan="7" class="empty">Loading...</td></tr></tbody>
-          </table>
+          <div id="ai-insights-body" style="padding:20px;text-align:center;font-size:13px;color:var(--ink4)">
+            Click Generate Insights to analyse today's performance across all three venues
+          </div>
         </div>
       </div>
 
@@ -659,14 +668,14 @@ select.fi { cursor:pointer; appearance:none; }
             <div class="stat-note" id="sales-tx-note">All venues</div>
           </div>
           <div class="stat">
-            <div class="stat-label">Revenue</div>
+            <div class="stat-label">Net Revenue</div>
             <div class="stat-val" id="sales-rev">—</div>
-            <div class="stat-note">Gross item cost</div>
+            <div class="stat-note">All transactions</div>
           </div>
           <div class="stat">
-            <div class="stat-label">Avg Transaction</div>
+            <div class="stat-label">Avg Spend / Head</div>
             <div class="stat-val" id="sales-avg">—</div>
-            <div class="stat-note">Per transaction</div>
+            <div class="stat-note">Revenue ÷ covers</div>
           </div>
           <div class="stat">
             <div class="stat-label">Active Venues</div>
@@ -981,39 +990,63 @@ async function loadDashboard() {
     const trailR = await api('/metrics/trail/breakdown?weekEnding=2026-03-15');
     const summary = trailR.data?.summary || [];
 
-    // Calculate avg completion for trail stat
-    if (summary.length) {
-      const avg = Math.round(summary.reduce((s,v)=>s+Number(v.avg_completion_rate),0)/summary.length);
+    // Trail stat filtered by venue
+    const locF = getLocationFilter();
+    const filtSummary = locF ? summary.filter(s => getLocationId(s.venue_name) === locF) : summary;
+    if (filtSummary.length) {
+      const avg = Math.round(filtSummary.reduce((s,v)=>s+Number(v.avg_completion_rate),0)/filtSummary.length);
       document.getElementById('s-trail').textContent = avg+'%';
-    }
+    } else { document.getElementById('s-trail').textContent = '—'; }
+
+    // Per-venue sales
+    let venueSales = {};
+    try {
+      const txR2 = await api('/transactions/recent?limit=200');
+      (txR2.data||[]).forEach(t => {
+        const vn = LOCATION_MAP[t.location_id];
+        if (!vn) return;
+        if (!venueSales[vn]) venueSales[vn] = {tx:0, rev:0, covers:0};
+        venueSales[vn].tx++;
+        venueSales[vn].rev += Number(t.total_gross_item_cost||0);
+        venueSales[vn].covers += Number(t.covers||0);
+      });
+    } catch(e) {}
 
     const cardsEl = document.getElementById('venue-cards');
     cardsEl.innerHTML = venues.map(v => {
       const ts = summary.find(s => s.venue_name === v.name);
       const score = ts ? Math.round(Number(ts.combined_trail_score)) : null;
-      const scoreClass = score === null ? '' : score>=15?'score-high':score>=5?'score-mid':'score-low';
-      const scoreDisplay = score !== null ? score : '—';
+      const scoreColor = score===null ? 'var(--ink4)' : score>=15 ? 'var(--teal)' : score>=5 ? 'var(--gold)' : 'var(--coral)';
+      const scoreBg   = score===null ? 'var(--cream2)' : score>=15 ? 'var(--teal-bg)' : score>=5 ? 'var(--gold-bg)' : 'var(--coral-bg)';
       const rate = ts ? Number(ts.avg_completion_rate).toFixed(1) : '—';
-      const tasks = ts ? ts.total_tasks : '—';
-      return `
-        <div class="venue-card" onclick="nav('venues')">
-          <div class="venue-card-top">
-            <div>
-              <div class="venue-card-name">${v.name}</div>
-              <div class="venue-card-type">Cat & Wickets Group</div>
-            </div>
-            <div class="venue-score ${scoreClass}">${scoreDisplay}</div>
-          </div>
-          <div class="venue-metrics">
-            <div class="vm"><div class="vm-label">Trail Rate</div><div class="vm-val">${rate}%</div></div>
-            <div class="vm"><div class="vm-label">Tasks</div><div class="vm-val">${tasks}</div></div>
-            <div class="vm"><div class="vm-label">Location</div><div class="vm-val">${getLocationId(v.name)}</div></div>
-            <div class="vm"><div class="vm-label">Status</div><div class="vm-val" style="color:var(--teal)">Active</div></div>
-          </div>
-        </div>
-      `;
+      const locId = getLocationId(v.name);
+      const vs = venueSales[v.name] || {tx:0, rev:0, covers:0};
+      const sph = vs.covers > 0 ? '£'+(vs.rev/vs.covers).toFixed(2) : '—';
+      const dot = vs.tx > 0 ? 'var(--teal)' : 'var(--coral)';
+      const dotBg = vs.tx > 0 ? 'var(--teal-bg)' : 'var(--coral-bg)';
+      return '<div class="venue-card" onclick="nav('venues')" style="position:relative">'
+        + '<div style="position:absolute;top:12px;right:12px;width:9px;height:9px;border-radius:50%;background:'+dot+';box-shadow:0 0 0 3px '+dotBg+'"></div>'
+        + '<div style="margin-bottom:14px">'
+          + '<div style="font-family:var(--display);font-size:17px;font-weight:700;color:var(--ink);padding-right:24px">'+v.name+'</div>'
+          + '<div style="font-size:11px;color:var(--ink4);margin-top:2px">'+locId+' · Cat & Wickets</div>'
+        + '</div>'
+        + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">'
+          + '<div style="background:'+scoreBg+';border-radius:9px;padding:6px 14px;text-align:center">'
+            + '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:'+scoreColor+';margin-bottom:1px">Trail Score</div>'
+            + '<div style="font-family:var(--display);font-size:22px;font-weight:700;color:'+scoreColor+';line-height:1">'+(score!==null?score:'—')+'</div>'
+          + '</div>'
+          + '<div style="text-align:right">'
+            + '<div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink4);margin-bottom:2px">Trail Rate</div>'
+            + '<div style="font-family:var(--mono);font-size:16px;font-weight:600;color:var(--ink)">'+rate+'%</div>'
+          + '</div>'
+        + '</div>'
+        + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">'
+          + '<div class="vm"><div class="vm-label">Covers</div><div class="vm-val">'+vs.covers+'</div></div>'
+          + '<div class="vm"><div class="vm-label">Revenue</div><div class="vm-val">£'+vs.rev.toFixed(2)+'</div></div>'
+          + '<div class="vm"><div class="vm-label">Spend/Head</div><div class="vm-val">'+sph+'</div></div>'
+        + '</div>'
+      + '</div>';
     }).join('');
-
     // Trail table
     const areas = trailR.data?.areas || [];
     document.getElementById('trail-tbl').innerHTML = areas.length ? areas.map(a => {
@@ -1079,38 +1112,63 @@ async function loadTrail() {
 }
 
 // Sales
+let salesPeriod = 'all';
+
 async function loadSales() {
   try {
-    const [status, txns] = await Promise.all([
-      api('/webhooks/relay/status'),
-      api('/transactions/recent?limit=20')
+    const locFilter = getLocationFilter();
+    const qp = [];
+    if (salesPeriod !== 'all') qp.push('period='+salesPeriod);
+    if (locFilter) qp.push('locationId='+currentVenue);
+    const qs = qp.length ? '?'+qp.join('&') : '';
+    const [sumR, txR] = await Promise.all([
+      api('/transactions/summary'+qs),
+      api('/transactions/recent?limit=100')
     ]);
-
-    if (status.data) {
-      document.getElementById('sales-tx').textContent = Number(status.data.total_transactions||0).toLocaleString();
-      document.getElementById('sales-loc').textContent = status.data.locations||'—';
+    if (sumR.data) {
+      const d = sumR.data;
+      let txC, rev;
+      if (salesPeriod==='today')      { txC=d.today_transactions;  rev=d.today_revenue; }
+      else if (salesPeriod==='week')  { txC=d.week_transactions;   rev=d.week_revenue; }
+      else if (salesPeriod==='month') { txC=d.month_transactions;  rev=d.month_revenue; }
+      else                            { txC=d.total_transactions;  rev=d.total_revenue; }
+      document.getElementById('sales-tx').textContent  = Number(txC||0).toLocaleString();
+      document.getElementById('sales-rev').textContent = '£'+Number(rev||0).toFixed(2);
+      document.getElementById('sales-loc').textContent = d.active_locations||'3';
+      const avg = Number(d.avg_transaction||0);
+      document.getElementById('sales-avg').textContent = avg>0 ? '£'+avg.toFixed(2) : '—';
+      const noteEl = document.getElementById('sales-tx-note');
+      if (noteEl) noteEl.textContent = (salesPeriod==='today'?'Today':salesPeriod==='week'?'This week':salesPeriod==='month'?'This month':'All time')+' · '+(currentVenue==='all'?'All venues':VENUE_NAMES[currentVenue]||currentVenue);
+      const pEl = document.getElementById('sales-period-stats');
+      if (pEl) pEl.innerHTML =
+        '<div class="vm"><div class="vm-label">Today</div><div class="vm-val">'+Number(d.today_transactions||0)+' txns · £'+Number(d.today_revenue||0).toFixed(2)+'</div></div>'
+        +'<div class="vm"><div class="vm-label">This Week</div><div class="vm-val">'+Number(d.week_transactions||0)+' txns · £'+Number(d.week_revenue||0).toFixed(2)+'</div></div>'
+        +'<div class="vm"><div class="vm-label">This Month</div><div class="vm-val">'+Number(d.month_transactions||0)+' txns · £'+Number(d.month_revenue||0).toFixed(2)+'</div></div>'
+        +'<div class="vm"><div class="vm-label">All Time</div><div class="vm-val">'+Number(d.total_transactions||0)+' txns · £'+Number(d.total_revenue||0).toFixed(2)+'</div></div>';
     }
-
-    const list = txns.data || [];
-    const total = list.reduce((s,t)=>s+Number(t.total_gross_item_cost||0),0);
-    document.getElementById('sales-rev').textContent = '£'+total.toFixed(2);
+    let list = txR.data || [];
+    if (locFilter) list = list.filter(t => t.location_id === locFilter);
     document.getElementById('sales-tx-lbl').textContent = list.length+' shown';
-
     document.getElementById('sales-tbl').innerHTML = list.length ? list.map(t => {
-      const venue = LOCATION_MAP[t.location_id] || t.location_id || '—';
-      const items = (t.items||[]).map(i=>i.name).slice(0,2).join(', ') + (t.items?.length>2?'...':'');
-      const tableNo = t.seating_area ? `<span class="b b-dim">Table ${t.seating_area}</span>` : '—';
-      return `<tr>
-        <td class="mono">${fmtDT(t.datetime_opened)}</td>
-        <td class="p">${venue}</td>
-        <td>${tableNo}</td>
-        <td class="mono">${t.covers||0}</td>
-        <td class="mono">£${Number(t.total_gross_item_cost||0).toFixed(2)}</td>
-        <td class="mono">${t.closed_by_clerk_id||'—'}</td>
-        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--ink3)">${items||'—'}</td>
-      </tr>`;
-    }).join('') : '<tr><td colspan="6" class="empty">No transactions yet</td></tr>';
-  } catch(e) {}
+      const venue = LOCATION_MAP[t.location_id] || t.location_id || 'Unknown';
+      const items = (t.items||[]).map(i=>i.name).slice(0,2).join(', ')+(t.items?.length>2?'...':'');
+      return '<tr>'
+        +'<td class="mono">'+fmtDT(t.datetime_opened)+'</td>'
+        +'<td class="p">'+venue+'</td>'
+        +'<td class="mono">'+(t.seating_area||'—')+'</td>'
+        +'<td class="mono">'+(t.covers||0)+'</td>'
+        +'<td class="mono">£'+Number(t.total_gross_item_cost||0).toFixed(2)+'</td>'
+        +'<td class="mono">'+(t.closed_by_clerk_id||'—')+'</td>'
+        +'<td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--ink3)">'+(items||'—')+'</td>'
+        +'</tr>';
+    }).join('') : '<tr><td colspan="7" class="empty">No transactions for this period</td></tr>';
+  } catch(e) { console.error('loadSales',e); }
+}
+
+function setSalesPeriod(period) {
+  salesPeriod = period;
+  document.querySelectorAll('.period-btn').forEach(b => b.classList.toggle('active', b.dataset.period===period));
+  loadSales();
 }
 
 // Venues detail
@@ -1244,6 +1302,52 @@ async function syncTrail() {
 function openM(id)  { document.getElementById('m-'+id)?.classList.add('open'); }
 function closeM(id) { document.getElementById('m-'+id)?.classList.remove('open'); }
 document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open');}));
+
+async function loadAIInsights() {
+  const body = document.getElementById('ai-insights-body');
+  if (!body) return;
+  body.innerHTML = '<div style="display:flex;align-items:center;gap:10px;padding:16px;color:var(--ink3);font-size:13px"><div style="width:16px;height:16px;border:2px solid var(--teal);border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;flex-shrink:0"></div>Analysing today's performance...</div>';
+  try {
+    const [sumR, txR, trailR, clerkR] = await Promise.all([
+      api('/transactions/summary'), api('/transactions/recent?limit=100'),
+      api('/metrics/trail/breakdown?weekEnding=2026-03-15'), api('/clerks')
+    ]);
+    const d = sumR.data || {};
+    const txList = txR.data || [];
+    const trailAreas = trailR.data?.areas || [];
+    const trailSum = trailR.data?.summary || [];
+    const unmatched = (clerkR.data||[]).filter(c => !c.team_member_id).length;
+    const venueLines = Object.entries(LOCATION_MAP).map(([locId, name]) => {
+      const vTx = txList.filter(t => t.location_id === locId);
+      const rev = vTx.reduce((s,t) => s+Number(t.total_gross_item_cost||0), 0);
+      const covers = vTx.reduce((s,t) => s+Number(t.covers||0), 0);
+      const zeroCover = vTx.filter(t => !Number(t.covers||0)).length;
+      const trail = trailSum.find(ts => ts.venue_name === name);
+      return name+': '+vTx.length+' txns, £'+rev.toFixed(2)+' revenue, '+covers+' covers, '+zeroCover+' missing covers, Trail '+Number(trail?.combined_trail_score||0).toFixed(1)+'/100 ('+Number(trail?.avg_completion_rate||0).toFixed(1)+'% rate)';
+    }).join('\n');
+    const trailLines = trailAreas.map(a => a.venue_name+' '+a.area+': '+a.completed_tasks+'/'+a.total_tasks+' tasks ('+a.completion_rate+'%)').join('\n');
+    const prompt = 'You are The Selector, AI performance coach for Cat & Wickets gastro pubs (The Griffin Inn, Long Hop, Tap & Run). Analyse this data and provide 4-5 concise, specific, actionable insights. Use actual numbers. Flag weaknesses, trends, wins, and things to watch.\n\nToday: '+d.total_transactions+' transactions, £'+Number(d.total_revenue||0).toFixed(2)+' revenue, '+unmatched+' unmatched clerks\n\nVenue breakdown:\n'+venueLines+'\n\nTrail compliance:\n'+trailLines+'\n\nRespond ONLY with a valid JSON array. Each item: {"type":"positive"|"warning"|"info","title":"short title","detail":"1-2 sentences with specific numbers"}. No markdown, no preamble.';
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({model:'claude-sonnet-4-20250514', max_tokens:1000, messages:[{role:'user',content:prompt}]})
+    });
+    const ai = await resp.json();
+    const raw = (ai.content?.[0]?.text||'[]').replace(/```json|```/g,'').trim();
+    const insights = JSON.parse(raw);
+    const C = {positive:'var(--teal)',warning:'var(--gold)',info:'#2563eb'};
+    const B = {positive:'var(--teal-bg)',warning:'var(--gold-bg)',info:'#eff6ff'};
+    const I = {positive:'↑',warning:'⚠',info:'→'};
+    body.innerHTML = '<div style="display:flex;flex-direction:column;gap:10px;padding:4px 4px 0">'
+      + insights.map(i => '<div style="display:flex;gap:12px;align-items:flex-start;padding:12px 14px;background:'+(B[i.type]||B.info)+';border-radius:9px;border-left:3px solid '+(C[i.type]||C.info)+'">'
+        + '<span style="font-size:15px;line-height:1.3;flex-shrink:0">'+(I[i.type]||I.info)+'</span>'
+        + '<div><div style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:3px">'+i.title+'</div>'
+        + '<div style="font-size:12px;color:var(--ink3);line-height:1.5">'+i.detail+'</div></div>'
+        + '</div>').join('')
+      + '<div style="text-align:right;padding:8px 2px 4px;font-size:11px;color:var(--ink4)">The Selector · '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})+'</div></div>';
+  } catch(e) {
+    body.innerHTML = '<div style="padding:16px;font-size:13px;color:var(--coral)">Could not generate insights: '+e.message+'</div>';
+  }
+}
 
 // Utils
 function fmtD(s) { try{return new Date(s).toLocaleDateString('en-GB',{day:'numeric',month:'short'});}catch{return s||'—';} }
