@@ -5,1768 +5,853 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>The Club — Fox ITC</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg:        #0a0a0f;
-    --bg2:       #0f0f17;
-    --bg3:       #16161f;
-    --border:    #1e1e2e;
-    --border2:   #2a2a3e;
-    --text:      #e2e2f0;
-    --text2:     #8888aa;
-    --text3:     #44445a;
-    --accent:    #6c63ff;
-    --accent2:   #9d97ff;
-    --green:     #22d3a0;
-    --green-dim: #0f2b22;
-    --amber:     #f59e0b;
-    --amber-dim: #2a1f07;
-    --red:       #f43f5e;
-    --red-dim:   #2a0f17;
-    --blue:      #38bdf8;
-    --blue-dim:  #0a1f2a;
-    --mono:      'Space Mono', monospace;
-    --sans:      'DM Sans', sans-serif;
-  }
-
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--sans);
-    font-size: 14px;
-    min-height: 100vh;
-    display: flex;
-  }
-
-  /* ── SIDEBAR ── */
-  .sidebar {
-    width: 220px;
-    min-height: 100vh;
-    background: var(--bg2);
-    border-right: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    flex-shrink: 0;
-    position: fixed;
-    top: 0; left: 0; bottom: 0;
-  }
-
-  .logo {
-    padding: 20px 20px 16px;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .logo-mark {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 4px;
-  }
-
-  .logo-hex {
-    width: 28px;
-    height: 28px;
-    background: var(--accent);
-    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: var(--mono);
-    font-size: 11px;
-    font-weight: 700;
-    color: white;
-    flex-shrink: 0;
-  }
-
-  .logo-name {
-    font-family: var(--mono);
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--text);
-    letter-spacing: 0.05em;
-  }
-
-  .logo-sub {
-    font-size: 10px;
-    color: var(--text3);
-    font-family: var(--mono);
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    padding-left: 38px;
-  }
-
-  .client-badge {
-    margin: 12px 20px 0;
-    padding: 6px 10px;
-    background: var(--bg3);
-    border: 1px solid var(--border2);
-    border-radius: 6px;
-    font-size: 10px;
-    color: var(--text2);
-    font-family: var(--mono);
-  }
-
-  .client-badge span {
-    color: var(--accent2);
-    display: block;
-    font-size: 11px;
-    margin-top: 1px;
-  }
-
-  nav {
-    flex: 1;
-    padding: 16px 10px;
-    overflow-y: auto;
-  }
-
-  .nav-section {
-    font-size: 9px;
-    font-family: var(--mono);
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--text3);
-    padding: 0 10px 6px;
-    margin-top: 12px;
-  }
-
-  .nav-item {
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    padding: 8px 10px;
-    border-radius: 6px;
-    color: var(--text2);
-    cursor: pointer;
-    transition: all 0.15s;
-    font-size: 13px;
-    font-weight: 400;
-    border: 1px solid transparent;
-    position: relative;
-  }
-
-  .nav-item:hover {
-    background: var(--bg3);
-    color: var(--text);
-  }
-
-  .nav-item.active {
-    background: rgba(108, 99, 255, 0.12);
-    color: var(--accent2);
-    border-color: rgba(108, 99, 255, 0.2);
-  }
-
-  .nav-item .icon {
-    width: 15px;
-    height: 15px;
-    flex-shrink: 0;
-    opacity: 0.7;
-  }
-
-  .nav-item.active .icon { opacity: 1; }
-
-  .nav-badge {
-    margin-left: auto;
-    background: var(--red);
-    color: white;
-    font-size: 9px;
-    font-family: var(--mono);
-    padding: 1px 5px;
-    border-radius: 10px;
-    font-weight: 700;
-  }
-
-  .nav-badge.green {
-    background: var(--green);
-    color: var(--bg);
-  }
-
-  .status-footer {
-    padding: 12px 20px;
-    border-top: 1px solid var(--border);
-  }
-
-  .status-row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 11px;
-    color: var(--text2);
-  }
-
-  .pulse {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--green);
-    flex-shrink: 0;
-    animation: pulse 2s infinite;
-  }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(34, 211, 160, 0.4); }
-    50% { opacity: 0.8; box-shadow: 0 0 0 4px rgba(34, 211, 160, 0); }
-  }
-
-  /* ── MAIN ── */
-  .main {
-    margin-left: 220px;
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    min-height: 100vh;
-  }
-
-  .topbar {
-    height: 52px;
-    background: var(--bg2);
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 24px;
-    position: sticky;
-    top: 0;
-    z-index: 10;
-  }
-
-  .breadcrumb {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--text3);
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .breadcrumb .current {
-    color: var(--text);
-  }
-
-  .topbar-right {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .topbar-time {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--text3);
-  }
-
-  .btn {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 7px 14px;
-    border-radius: 6px;
-    font-size: 12px;
-    font-weight: 500;
-    cursor: pointer;
-    border: none;
-    transition: all 0.15s;
-    font-family: var(--sans);
-  }
-
-  .btn-primary {
-    background: var(--accent);
-    color: white;
-  }
-
-  .btn-primary:hover { background: var(--accent2); }
-
-  .btn-ghost {
-    background: transparent;
-    color: var(--text2);
-    border: 1px solid var(--border2);
-  }
-
-  .btn-ghost:hover { background: var(--bg3); color: var(--text); }
-
-  .content {
-    flex: 1;
-    padding: 24px;
-    overflow-y: auto;
-  }
-
-  /* ── PAGE HEADER ── */
-  .page-header {
-    margin-bottom: 24px;
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-  }
-
-  .page-title {
-    font-size: 22px;
-    font-weight: 600;
-    color: var(--text);
-    letter-spacing: -0.02em;
-  }
-
-  .page-sub {
-    font-size: 13px;
-    color: var(--text2);
-    margin-top: 3px;
-  }
-
-  /* ── CARDS ── */
-  .card {
-    background: var(--bg2);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    overflow: hidden;
-  }
-
-  .card-header {
-    padding: 14px 18px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .card-title {
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--text);
-    font-family: var(--mono);
-    letter-spacing: 0.03em;
-    text-transform: uppercase;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .card-body { padding: 18px; }
-
-  /* ── STAT GRID ── */
-  .stat-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 12px;
-    margin-bottom: 20px;
-  }
-
-  .stat-card {
-    background: var(--bg2);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 16px;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .stat-card::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 2px;
-  }
-
-  .stat-card.green::before { background: var(--green); }
-  .stat-card.blue::before  { background: var(--blue); }
-  .stat-card.amber::before { background: var(--amber); }
-  .stat-card.purple::before { background: var(--accent); }
-
-  .stat-label {
-    font-size: 10px;
-    font-family: var(--mono);
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--text3);
-    margin-bottom: 8px;
-  }
-
-  .stat-value {
-    font-size: 28px;
-    font-weight: 600;
-    color: var(--text);
-    letter-spacing: -0.03em;
-    font-family: var(--mono);
-  }
-
-  .stat-meta {
-    font-size: 11px;
-    color: var(--text2);
-    margin-top: 4px;
-  }
-
-  .stat-meta.up { color: var(--green); }
-  .stat-meta.warn { color: var(--amber); }
-
-  /* ── TWO COL ── */
-  .two-col {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-    margin-bottom: 16px;
-  }
-
-  .three-col {
-    display: grid;
-    grid-template-columns: 2fr 1fr;
-    gap: 16px;
-  }
-
-  /* ── CONNECTOR ROWS ── */
-  .connector-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 18px;
-    border-bottom: 1px solid var(--border);
-    transition: background 0.1s;
-  }
-
-  .connector-row:last-child { border-bottom: none; }
-  .connector-row:hover { background: var(--bg3); }
-
-  .connector-icon {
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
-    background: var(--bg3);
-    border: 1px solid var(--border2);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: var(--mono);
-    font-size: 10px;
-    font-weight: 700;
-    color: var(--accent2);
-    flex-shrink: 0;
-  }
-
-  .connector-info { flex: 1; min-width: 0; }
-
-  .connector-name {
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--text);
-  }
-
-  .connector-detail {
-    font-size: 11px;
-    color: var(--text2);
-    font-family: var(--mono);
-    margin-top: 1px;
-  }
-
-  .connector-status {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 4px;
-  }
-
-  /* ── BADGES ── */
-  .badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-size: 10px;
-    font-family: var(--mono);
-    font-weight: 700;
-    letter-spacing: 0.05em;
-  }
-
-  .badge-green  { background: var(--green-dim);  color: var(--green); }
-  .badge-amber  { background: var(--amber-dim);  color: var(--amber); }
-  .badge-red    { background: var(--red-dim);    color: var(--red); }
-  .badge-blue   { background: var(--blue-dim);   color: var(--blue); }
-  .badge-purple { background: rgba(108,99,255,0.12); color: var(--accent2); }
-
-  .dot {
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    background: currentColor;
-  }
-
-  /* ── AUDIT LOG ── */
-  .audit-row {
-    display: grid;
-    grid-template-columns: 140px 80px 1fr 120px;
-    align-items: center;
-    padding: 10px 18px;
-    border-bottom: 1px solid var(--border);
-    font-size: 12px;
-    gap: 12px;
-  }
-
-  .audit-row:last-child { border-bottom: none; }
-  .audit-row:hover { background: var(--bg3); }
-
-  .audit-time {
-    font-family: var(--mono);
-    font-size: 10px;
-    color: var(--text3);
-  }
-
-  .audit-action { color: var(--text); }
-  .audit-detail { color: var(--text2); font-family: var(--mono); font-size: 11px; truncate; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .audit-source { text-align: right; }
-
-  /* ── API KEYS ── */
-  .api-key-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 18px;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .api-key-row:last-child { border-bottom: none; }
-
-  .key-name { font-size: 13px; font-weight: 500; color: var(--text); flex: 1; }
-  .key-value { font-family: var(--mono); font-size: 11px; color: var(--text3); background: var(--bg3); padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border); }
-  .key-meta { font-size: 11px; color: var(--text2); min-width: 120px; text-align: right; }
-
-  /* ── VIEWS ── */
-  .view { display: none; }
-  .view.active { display: block; }
-
-  /* ── LIVE FEED ── */
-  .live-feed {
-    max-height: 320px;
-    overflow-y: auto;
-  }
-
-  .feed-item {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    padding: 10px 18px;
-    border-bottom: 1px solid var(--border);
-    animation: slideIn 0.3s ease;
-  }
-
-  @keyframes slideIn {
-    from { opacity: 0; transform: translateY(-4px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-
-  .feed-item:last-child { border-bottom: none; }
-
-  .feed-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    margin-top: 4px;
-    flex-shrink: 0;
-  }
-
-  .feed-body { flex: 1; min-width: 0; }
-  .feed-title { font-size: 12px; color: var(--text); }
-  .feed-meta { font-size: 10px; color: var(--text3); font-family: var(--mono); margin-top: 2px; }
-
-  /* ── MODAL ── */
-  .modal-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.7);
-    z-index: 100;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .modal-overlay.open { display: flex; }
-
-  .modal {
-    background: var(--bg2);
-    border: 1px solid var(--border2);
-    border-radius: 12px;
-    width: 480px;
-    max-width: 90vw;
-  }
-
-  .modal-header {
-    padding: 18px 20px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .modal-title { font-size: 15px; font-weight: 600; }
-  .modal-close { cursor: pointer; color: var(--text2); font-size: 18px; line-height: 1; }
-  .modal-body { padding: 20px; }
-  .modal-footer { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
-
-  /* ── FORM ── */
-  .form-group { margin-bottom: 14px; }
-  .form-label { font-size: 11px; font-family: var(--mono); color: var(--text2); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; display: block; }
-  .form-input {
-    width: 100%;
-    background: var(--bg3);
-    border: 1px solid var(--border2);
-    border-radius: 6px;
-    padding: 9px 12px;
-    color: var(--text);
-    font-family: var(--sans);
-    font-size: 13px;
-    outline: none;
-    transition: border-color 0.15s;
-  }
-  .form-input:focus { border-color: var(--accent); }
-  .form-select { appearance: none; cursor: pointer; }
-
-  /* ── SCROLLBAR ── */
-  ::-webkit-scrollbar { width: 4px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
-
-  /* ── EMPTY STATE ── */
-  .empty {
-    text-align: center;
-    padding: 40px 20px;
-    color: var(--text3);
-    font-family: var(--mono);
-    font-size: 12px;
-  }
-
-  /* ── TABLE ── */
-  .data-table { width: 100%; border-collapse: collapse; }
-  .data-table th { text-align: left; font-size: 10px; font-family: var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--text3); padding: 10px 18px; border-bottom: 1px solid var(--border); font-weight: 400; }
-  .data-table td { padding: 11px 18px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--text2); }
-  .data-table tr:last-child td { border-bottom: none; }
-  .data-table tr:hover td { background: var(--bg3); color: var(--text); }
-  .data-table td.mono { font-family: var(--mono); font-size: 11px; }
-  .data-table td.primary { color: var(--text); font-weight: 500; }
-
-  /* ── HEALTH BAR ── */
-  .health-bar { height: 3px; background: var(--bg3); border-radius: 2px; overflow: hidden; margin-top: 6px; }
-  .health-fill { height: 100%; border-radius: 2px; transition: width 0.5s; }
+:root {
+  --ink:      #08090c;
+  --ink2:     #0d0e14;
+  --ink3:     #12131a;
+  --ink4:     #1a1b24;
+  --line:     #1f2030;
+  --line2:    #272840;
+  --fg:       #dde1f0;
+  --fg2:      #7a7f9a;
+  --fg3:      #3a3d52;
+  --hi:       #e8ff47;
+  --hi2:      #c8e000;
+  --teal:     #00d4aa;
+  --red:      #ff4466;
+  --amber:    #ffaa00;
+  --blue:     #4488ff;
+  --mono:     'JetBrains Mono', monospace;
+  --display:  'Syne', sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body { background: var(--ink); color: var(--fg); font-family: var(--display); font-size: 13px; overflow: hidden; }
+
+/* LOGIN */
+#login-screen {
+  position: fixed; inset: 0; background: var(--ink); display: flex;
+  align-items: center; justify-content: center; z-index: 1000;
+  background-image: radial-gradient(ellipse 60% 40% at 20% 80%, rgba(232,255,71,0.04) 0%, transparent 60%), radial-gradient(ellipse 40% 60% at 80% 20%, rgba(0,212,170,0.04) 0%, transparent 60%);
+}
+.login-box { width: 360px; }
+.login-wordmark { margin-bottom: 36px; text-align: center; }
+.login-hex { display: inline-flex; align-items: center; justify-content: center; width: 46px; height: 46px; background: var(--hi); clip-path: polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%); font-family: var(--mono); font-size: 12px; color: var(--ink); margin-bottom: 12px; }
+.login-title { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
+.login-sub { font-family: var(--mono); font-size: 10px; color: var(--fg3); letter-spacing: 0.12em; text-transform: uppercase; margin-top: 4px; }
+.login-form { background: var(--ink2); border: 1px solid var(--line2); border-radius: 12px; padding: 26px; }
+.login-error { display: none; background: rgba(255,68,102,0.1); border: 1px solid rgba(255,68,102,0.3); border-radius: 6px; padding: 9px 13px; font-family: var(--mono); font-size: 11px; color: var(--red); margin-bottom: 16px; text-align: center; }
+.field { margin-bottom: 14px; }
+.field label { display: block; font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg3); margin-bottom: 6px; }
+.field input { width: 100%; background: var(--ink3); border: 1px solid var(--line2); border-radius: 7px; padding: 10px 12px; font-family: var(--mono); font-size: 12px; color: var(--fg); outline: none; transition: border-color 0.15s; }
+.field input:focus { border-color: var(--hi); }
+.login-btn { width: 100%; margin-top: 4px; background: var(--hi); color: var(--ink); border: none; border-radius: 7px; padding: 12px; font-family: var(--display); font-size: 13px; font-weight: 700; cursor: pointer; transition: background 0.15s; }
+.login-btn:hover { background: var(--hi2); }
+.login-notice { text-align: center; margin-top: 18px; font-family: var(--mono); font-size: 10px; color: var(--fg3); letter-spacing: 0.05em; }
+
+/* APP */
+#app { display: none; height: 100vh; flex-direction: column; }
+#app.ready { display: flex; }
+
+/* TOPBAR */
+.topbar { height: 50px; background: var(--ink2); border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; flex-shrink: 0; }
+.tb-left { display: flex; align-items: center; gap: 14px; }
+.tb-hex { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: var(--hi); clip-path: polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%); font-family: var(--mono); font-size: 9px; color: var(--ink); flex-shrink: 0; }
+.tb-brand { font-size: 13px; font-weight: 800; letter-spacing: 0.05em; }
+.tb-sep { width: 1px; height: 18px; background: var(--line2); }
+.tb-client { font-family: var(--mono); font-size: 10px; color: var(--fg3); letter-spacing: 0.06em; }
+.tb-right { display: flex; align-items: center; gap: 12px; }
+.tb-time { font-family: var(--mono); font-size: 11px; color: var(--fg3); }
+.api-status { display: flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 10px; color: var(--teal); }
+.pulse { width: 5px; height: 5px; border-radius: 50%; background: var(--teal); animation: pa 2.5s ease-in-out infinite; }
+@keyframes pa { 0%,100% { opacity:1; box-shadow:0 0 0 0 rgba(0,212,170,0.5); } 50% { opacity:0.7; box-shadow:0 0 0 5px rgba(0,212,170,0); } }
+.user-chip { display: flex; align-items: center; gap: 7px; background: var(--ink3); border: 1px solid var(--line2); border-radius: 20px; padding: 3px 11px 3px 5px; cursor: pointer; transition: background 0.12s; }
+.user-chip:hover { background: var(--ink4); }
+.user-av { width: 22px; height: 22px; background: var(--hi); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 9px; color: var(--ink); }
+.user-nm { font-family: var(--mono); font-size: 11px; color: var(--fg2); }
+
+/* LAYOUT */
+.body { display: flex; flex: 1; overflow: hidden; }
+
+/* SIDEBAR */
+.sidebar { width: 196px; background: var(--ink2); border-right: 1px solid var(--line); display: flex; flex-direction: column; flex-shrink: 0; overflow-y: auto; }
+.ns { padding: 14px 14px 5px; font-family: var(--mono); font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--fg3); }
+.ni { display: flex; align-items: center; gap: 9px; padding: 7px 14px; cursor: pointer; color: var(--fg2); font-size: 12px; font-weight: 500; border-left: 2px solid transparent; transition: all 0.12s; }
+.ni:hover { background: var(--ink3); color: var(--fg); }
+.ni.active { background: rgba(232,255,71,0.06); color: var(--hi); border-left-color: var(--hi); }
+.ni-ic { width: 14px; height: 14px; flex-shrink: 0; opacity: 0.6; }
+.ni.active .ni-ic { opacity: 1; }
+.nc { margin-left: auto; background: var(--red); color: white; font-family: var(--mono); font-size: 9px; padding: 1px 5px; border-radius: 8px; min-width: 18px; text-align: center; }
+.nc.ok { background: var(--teal); color: var(--ink); }
+
+/* CONTENT */
+.content { flex: 1; overflow-y: auto; padding: 22px; }
+
+/* PAGE HEADER */
+.ph { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; }
+.ph-t { font-size: 20px; font-weight: 800; letter-spacing: -0.02em; }
+.ph-s { font-family: var(--mono); font-size: 10px; color: var(--fg3); margin-top: 3px; letter-spacing: 0.02em; }
+
+/* CARD */
+.card { background: var(--ink2); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.ch { padding: 11px 15px; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; }
+.ch-t { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg2); display: flex; align-items: center; gap: 7px; }
+.cb { padding: 15px; }
+
+/* STATS */
+.stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 16px; }
+.stat { background: var(--ink2); border: 1px solid var(--line); border-radius: 10px; padding: 14px 15px; position: relative; overflow: hidden; }
+.stat::after { content:''; position:absolute; bottom:0; left:0; right:0; height:1px; }
+.s-hi::after   { background: var(--hi); }
+.s-teal::after { background: var(--teal); }
+.s-amb::after  { background: var(--amber); }
+.s-blue::after { background: var(--blue); }
+.sl { font-family: var(--mono); font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--fg3); margin-bottom: 7px; }
+.sv { font-size: 26px; font-weight: 800; letter-spacing: -0.03em; font-family: var(--mono); line-height: 1; }
+.sn { font-family: var(--mono); font-size: 10px; color: var(--fg3); margin-top: 5px; }
+.sn.ok { color: var(--teal); } .sn.warn { color: var(--amber); } .sn.alert { color: var(--red); }
+
+/* GRID */
+.g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+
+/* TABLE */
+.tbl { width: 100%; border-collapse: collapse; }
+.tbl th { text-align: left; font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg3); padding: 9px 14px; border-bottom: 1px solid var(--line); font-weight: 400; white-space: nowrap; }
+.tbl td { padding: 10px 14px; border-bottom: 1px solid var(--line); font-size: 12px; color: var(--fg2); vertical-align: middle; }
+.tbl tr:last-child td { border-bottom: none; }
+.tbl tr:hover td { background: var(--ink3); }
+.tbl td.p { color: var(--fg); font-weight: 600; }
+.tbl td.mono { font-family: var(--mono); font-size: 11px; }
+.tbl td.dim { font-family: var(--mono); font-size: 10px; color: var(--fg3); }
+
+/* BADGES */
+.b { display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px; border-radius: 3px; font-family: var(--mono); font-size: 9px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; }
+.b-hi    { background: rgba(232,255,71,0.12); color: var(--hi); }
+.b-teal  { background: rgba(0,212,170,0.12); color: var(--teal); }
+.b-red   { background: rgba(255,68,102,0.12); color: var(--red); }
+.b-amb   { background: rgba(255,170,0,0.12); color: var(--amber); }
+.b-blue  { background: rgba(68,136,255,0.12); color: var(--blue); }
+.b-dim   { background: var(--ink4); color: var(--fg3); }
+.b .dot  { width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
+
+/* CONNECTOR CARDS */
+.cc { background: var(--ink2); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 12px; overflow: hidden; }
+.cc-h { display: flex; align-items: center; justify-content: space-between; padding: 13px 15px; border-bottom: 1px solid var(--line); }
+.cc-id { display: flex; align-items: center; gap: 11px; }
+.cc-ic { width: 36px; height: 36px; background: var(--ink3); border: 1px solid var(--line2); border-radius: 7px; display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 9px; color: var(--hi); letter-spacing: 0.05em; flex-shrink: 0; }
+.cc-nm { font-size: 13px; font-weight: 700; color: var(--fg); }
+.cc-ds { font-family: var(--mono); font-size: 10px; color: var(--fg3); margin-top: 2px; }
+.cc-b { padding: 13px 15px; }
+.cc-meta { display: grid; grid-template-columns: repeat(3,1fr); gap: 13px; margin-bottom: 13px; }
+.cc-meta label { display: block; font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg3); margin-bottom: 4px; }
+.cc-meta span { font-family: var(--mono); font-size: 11px; color: var(--fg2); }
+.cc-acts { display: flex; gap: 7px; }
+
+/* BUTTONS */
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 13px; border-radius: 6px; font-family: var(--display); font-size: 12px; font-weight: 600; cursor: pointer; border: none; transition: all 0.12s; white-space: nowrap; }
+.btn-hi { background: var(--hi); color: var(--ink); }
+.btn-hi:hover { background: var(--hi2); }
+.btn-g { background: transparent; color: var(--fg2); border: 1px solid var(--line2); }
+.btn-g:hover { background: var(--ink3); color: var(--fg); border-color: var(--fg3); }
+.btn-sm { padding: 4px 10px; font-size: 11px; }
+
+/* ALERT */
+.alert { display: flex; align-items: flex-start; gap: 10px; padding: 11px 13px; border-radius: 7px; font-family: var(--mono); font-size: 11px; margin-bottom: 13px; }
+.al-warn { background: rgba(255,170,0,0.08); border: 1px solid rgba(255,170,0,0.25); color: var(--amber); }
+.al-teal { background: rgba(0,212,170,0.08); border: 1px solid rgba(0,212,170,0.25); color: var(--teal); }
+
+/* FEED */
+.feed { max-height: 290px; overflow-y: auto; }
+.feed-row { display: flex; align-items: flex-start; gap: 9px; padding: 9px 15px; border-bottom: 1px solid var(--line); animation: fi 0.2s ease; }
+@keyframes fi { from { opacity:0; transform:translateY(-2px); } to { opacity:1; transform:translateY(0); } }
+.feed-row:last-child { border-bottom: none; }
+.fd { width: 5px; height: 5px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+.fm { font-size: 11px; color: var(--fg2); flex: 1; }
+.ft { font-family: var(--mono); font-size: 9px; color: var(--fg3); white-space: nowrap; }
+
+/* AUDIT */
+.ar { display: grid; grid-template-columns: 148px 70px 1fr 90px; gap: 11px; align-items: center; padding: 9px 15px; border-bottom: 1px solid var(--line); font-size: 12px; }
+.ar:last-child { border-bottom: none; }
+.ar:hover { background: var(--ink3); }
+.at { font-family: var(--mono); font-size: 10px; color: var(--fg3); }
+.am { color: var(--fg2); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.as { text-align: right; }
+
+/* VIEWS */
+.view { display: none; animation: vi 0.15s ease; }
+.view.active { display: block; }
+@keyframes vi { from { opacity:0; } to { opacity:1; } }
+
+/* MODAL */
+.overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 500; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
+.overlay.open { display: flex; }
+.modal { background: var(--ink2); border: 1px solid var(--line2); border-radius: 12px; width: 460px; max-width: 92vw; }
+.mh { padding: 15px 19px; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; }
+.mt { font-size: 15px; font-weight: 700; }
+.mx { cursor: pointer; color: var(--fg3); font-size: 20px; line-height: 1; }
+.mx:hover { color: var(--fg); }
+.mb { padding: 19px; }
+.mf { padding: 13px 19px; border-top: 1px solid var(--line); display: flex; justify-content: flex-end; gap: 8px; }
+
+/* FORM */
+.fg { margin-bottom: 13px; }
+.fl { display: block; font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg3); margin-bottom: 6px; }
+.fi { width: 100%; background: var(--ink3); border: 1px solid var(--line2); border-radius: 6px; padding: 9px 12px; font-family: var(--mono); font-size: 12px; color: var(--fg); outline: none; transition: border-color 0.12s; }
+.fi:focus { border-color: var(--hi); }
+select.fi { cursor: pointer; appearance: none; }
+
+/* KEY */
+.key-box { background: var(--ink3); border: 1px solid var(--line2); border-radius: 7px; padding: 13px; margin-bottom: 12px; }
+.kb-lbl { font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg3); margin-bottom: 7px; }
+.kb-val { font-family: var(--mono); font-size: 11px; color: var(--hi); word-break: break-all; line-height: 1.6; }
+
+/* MISC */
+.empty { text-align: center; padding: 30px 20px; font-family: var(--mono); font-size: 11px; color: var(--fg3); letter-spacing: 0.03em; }
+::-webkit-scrollbar { width: 3px; height: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--line2); border-radius: 2px; }
 </style>
 </head>
 <body>
 
-<!-- SIDEBAR -->
-<aside class="sidebar">
-  <div class="logo">
-    <div class="logo-mark">
-      <div class="logo-hex">FC</div>
-      <span class="logo-name">THE CLUB</span>
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-wordmark">
+      <div><div class="login-hex">FC</div></div>
+      <div class="login-title">THE CLUB</div>
+      <div class="login-sub">Fox ITC · Authorised Access Only</div>
     </div>
-    <div class="logo-sub">Fox ITC · Data Engine</div>
+    <div class="login-form">
+      <div class="login-error" id="lerr">Invalid credentials — Fox ITC access only</div>
+      <div class="field">
+        <label>Email address</label>
+        <input type="email" id="fe" placeholder="you@foxitc.com" autocomplete="email">
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="password" id="fp" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <button class="login-btn" onclick="doLogin()">Sign in to The Club</button>
+    </div>
+    <div class="login-notice">Unauthorised access is prohibited and monitored</div>
   </div>
-  <div class="client-badge">
-    Active client
-    <span>Cat & Wickets Group</span>
-  </div>
+</div>
 
-  <nav>
-    <div class="nav-section">Monitor</div>
-    <div class="nav-item active" onclick="showView('dashboard')">
-      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-      Dashboard
-    </div>
-    <div class="nav-item" onclick="showView('audit')">
-      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-      Audit Trail
-      <span class="nav-badge green" id="audit-count">0</span>
-    </div>
-    <div class="nav-item" onclick="showView('logs')">
-      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-      Live Logs
-    </div>
-
-    <div class="nav-section">Integrations</div>
-    <div class="nav-item" onclick="showView('connectors')">
-      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-      Connectors
-      <span class="nav-badge" id="connector-errors" style="display:none">!</span>
-    </div>
-    <div class="nav-item" onclick="showView('apis')">
-      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
-      Outbound APIs
-    </div>
-
-    <div class="nav-section">Data</div>
-    <div class="nav-item" onclick="showView('transactions')">
-      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
-      Transactions
-    </div>
-    <div class="nav-item" onclick="showView('clerks')">
-      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
-      Clerk Mapping
-      <span class="nav-badge" id="clerk-badge">0</span>
-    </div>
-  </nav>
-
-  <div class="status-footer">
-    <div class="status-row">
-      <div class="pulse"></div>
-      <span>All systems operational</span>
-    </div>
-    <div style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-top:4px" id="footer-time"></div>
-  </div>
-</aside>
-
-<!-- MAIN -->
-<div class="main">
+<!-- APP -->
+<div id="app">
   <div class="topbar">
-    <div class="breadcrumb">
-      THE CLUB <span style="color:var(--border2)">/</span>
-      <span class="current" id="breadcrumb-current">Dashboard</span>
+    <div class="tb-left">
+      <div class="tb-hex">FC</div>
+      <span class="tb-brand">THE CLUB</span>
+      <div class="tb-sep"></div>
+      <span class="tb-client">CAT & WICKETS GROUP</span>
     </div>
-    <div class="topbar-right">
-      <div class="topbar-time" id="topbar-time"></div>
-      <button class="btn btn-ghost" onclick="refreshData()">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
-        Refresh
-      </button>
-      <button class="btn btn-primary" onclick="openModal('add-connector')">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        Add Connector
-      </button>
+    <div class="tb-right">
+      <div class="api-status"><div class="pulse"></div><span id="api-st">Connecting...</span></div>
+      <div class="tb-sep"></div>
+      <span class="tb-time" id="clk"></span>
+      <div class="user-chip" onclick="doLogout()">
+        <div class="user-av" id="uav">—</div>
+        <span class="user-nm" id="unm">—</span>
+      </div>
     </div>
   </div>
 
-  <div class="content">
-
-    <!-- ── DASHBOARD ── -->
-    <div id="view-dashboard" class="view active">
-      <div class="page-header">
-        <div>
-          <div class="page-title">Dashboard</div>
-          <div class="page-sub">Live data engine status — Cat & Wickets Group</div>
-        </div>
+  <div class="body">
+    <nav class="sidebar">
+      <div class="ns">Monitor</div>
+      <div class="ni active" onclick="nav('dashboard')">
+        <svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Dashboard
       </div>
-
-      <div class="stat-grid">
-        <div class="stat-card green">
-          <div class="stat-label">Transactions</div>
-          <div class="stat-value" id="stat-transactions">—</div>
-          <div class="stat-meta up" id="stat-transactions-meta">Loading...</div>
-        </div>
-        <div class="stat-card blue">
-          <div class="stat-label">Active Connectors</div>
-          <div class="stat-value" id="stat-connectors">—</div>
-          <div class="stat-meta" id="stat-connectors-meta">Loading...</div>
-        </div>
-        <div class="stat-card amber">
-          <div class="stat-label">Unmatched Clerks</div>
-          <div class="stat-value" id="stat-clerks">—</div>
-          <div class="stat-meta warn" id="stat-clerks-meta">Needs attention</div>
-        </div>
-        <div class="stat-card purple">
-          <div class="stat-label">Audit Events</div>
-          <div class="stat-value" id="stat-audit">—</div>
-          <div class="stat-meta" id="stat-audit-meta">Loading...</div>
-        </div>
+      <div class="ni" onclick="nav('audit')">
+        <svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Audit Trail
+        <span class="nc ok" id="audit-nc">0</span>
       </div>
+      <div class="ni" onclick="nav('logs')">
+        <svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Live Logs
+      </div>
+      <div class="ns">Integrations</div>
+      <div class="ni" onclick="nav('connectors')">
+        <svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        Connectors
+      </div>
+      <div class="ni" onclick="nav('apis')">
+        <svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+        Outbound APIs
+      </div>
+      <div class="ns">Data</div>
+      <div class="ni" onclick="nav('transactions')">
+        <svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+        Transactions
+      </div>
+      <div class="ni" onclick="nav('clerks')">
+        <svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+        Clerk Mapping
+        <span class="nc" id="clerk-nc" style="display:none">0</span>
+      </div>
+    </nav>
 
-      <div class="two-col">
-        <!-- Connector Health -->
+    <div class="content">
+
+      <!-- DASHBOARD -->
+      <div id="v-dashboard" class="view active">
+        <div class="ph">
+          <div><div class="ph-t">Dashboard</div><div class="ph-s">Live engine status — Cat & Wickets Group</div></div>
+          <button class="btn btn-g" onclick="loadDashboard()">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
+            Refresh
+          </button>
+        </div>
+        <div class="stats">
+          <div class="stat s-teal"><div class="sl">Transactions</div><div class="sv" id="s-tx">—</div><div class="sn" id="s-txn">Loading...</div></div>
+          <div class="stat s-hi"><div class="sl">Active Connectors</div><div class="sv" id="s-co">3</div><div class="sn">Relay · Trail · ResDiary</div></div>
+          <div class="stat s-amb"><div class="sl">Unmatched Clerks</div><div class="sv" id="s-cl">—</div><div class="sn warn" id="s-cln">Loading...</div></div>
+          <div class="stat s-blue"><div class="sl">Trail Tasks (w/e 15 Mar)</div><div class="sv" id="s-tt">—</div><div class="sn" id="s-ttn">Loading...</div></div>
+        </div>
+        <div class="g2">
+          <div class="card">
+            <div class="ch"><div class="ch-t">Connector Health</div></div>
+            <div id="conn-health">
+              <div style="display:flex;align-items:center;gap:10px;padding:10px 15px;border-bottom:1px solid var(--line)">
+                <div class="cc-ic" style="width:30px;height:30px;font-size:8px;border-radius:6px">RLY</div>
+                <div style="flex:1"><div style="font-size:12px;font-weight:600;color:var(--fg)">Relay — Access EPOS</div><div style="font-family:var(--mono);font-size:10px;color:var(--fg3)">Webhook · theclub.thecatandwickets.com</div></div>
+                <div style="text-align:right"><span class="b b-teal"><span class="dot"></span>Live</span><div style="font-family:var(--mono);font-size:9px;color:var(--fg3);margin-top:3px" id="relay-last">Awaiting data</div></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;padding:10px 15px;border-bottom:1px solid var(--line)">
+                <div class="cc-ic" style="width:30px;height:30px;font-size:8px;border-radius:6px">TRL</div>
+                <div style="flex:1"><div style="font-size:12px;font-weight:600;color:var(--fg)">Trail</div><div style="font-family:var(--mono);font-size:10px;color:var(--fg3)">Pull · web.trailapp.com/api/public</div></div>
+                <div style="text-align:right"><span class="b b-teal"><span class="dot"></span>Connected</span><div style="font-family:var(--mono);font-size:9px;color:var(--fg3);margin-top:3px">Kitchen · Front Of House</div></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;padding:10px 15px;border-bottom:1px solid var(--line)">
+                <div class="cc-ic" style="width:30px;height:30px;font-size:8px;border-radius:6px">RSD</div>
+                <div style="flex:1"><div style="font-size:12px;font-weight:600;color:var(--fg)">ResDiary</div><div style="font-family:var(--mono);font-size:10px;color:var(--fg3)">Pull · api.rdbranch.com</div></div>
+                <div style="text-align:right"><span class="b b-amb"><span class="dot"></span>Pending</span><div style="font-family:var(--mono);font-size:9px;color:var(--fg3);margin-top:3px">Awaiting permissions</div></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;padding:10px 15px">
+                <div class="cc-ic" style="width:30px;height:30px;font-size:8px;border-radius:6px">RTA</div>
+                <div style="flex:1"><div style="font-size:12px;font-weight:600;color:var(--fg)">RotaReady</div><div style="font-family:var(--mono);font-size:10px;color:var(--fg3)">Not configured</div></div>
+                <div style="text-align:right"><span class="b b-dim">Offline</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="ch"><div class="ch-t"><div class="pulse"></div>Live Feed</div><span style="font-family:var(--mono);font-size:9px;color:var(--fg3)" id="fc">0 events</span></div>
+            <div class="feed" id="live-feed"><div class="empty">Waiting for events...</div></div>
+          </div>
+        </div>
         <div class="card">
-          <div class="card-header">
-            <div class="card-title">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--accent2)" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-              Connector Health
-            </div>
+          <div class="ch"><div class="ch-t">Trail Data by Venue — Week ending 15 Mar 2026</div></div>
+          <table class="tbl">
+            <thead><tr><th>Venue</th><th>Area</th><th>Total Tasks</th><th>Completed</th><th>Completion %</th><th>Trail Score</th></tr></thead>
+            <tbody id="venue-tbl"><tr><td colspan="6" class="empty">Loading...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- CONNECTORS -->
+      <div id="v-connectors" class="view">
+        <div class="ph">
+          <div><div class="ph-t">Connectors</div><div class="ph-s">Inbound integrations — manage, test, monitor</div></div>
+          <button class="btn btn-hi" onclick="openM('add-conn')">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Connector
+          </button>
+        </div>
+        <div class="cc">
+          <div class="cc-h">
+            <div class="cc-id"><div class="cc-ic">RLY</div><div><div class="cc-nm">Relay — Access EPOS</div><div class="cc-ds">Webhook receiver · Near real-time transaction events</div></div></div>
+            <div style="display:flex;gap:7px"><span class="b b-teal"><span class="dot"></span>Live</span><span class="b b-blue">Inbound Webhook</span></div>
           </div>
-          <div id="connector-health-list">
-            <div class="connector-row">
-              <div class="connector-icon">RLY</div>
-              <div class="connector-info">
-                <div class="connector-name">Relay (Access EPOS)</div>
-                <div class="connector-detail">webhook · theclub.thecatandwickets.com</div>
-              </div>
-              <div class="connector-status">
-                <span class="badge badge-green"><span class="dot"></span>LIVE</span>
-                <span style="font-size:10px;color:var(--text3);font-family:var(--mono)" id="relay-last-tx">Awaiting data</span>
-              </div>
+          <div class="cc-b">
+            <div class="cc-meta">
+              <div><label>Webhook URL</label><span style="color:var(--hi)">/api/v1/webhooks/relay</span></div>
+              <div><label>Auth Method</label><span>x-api-key header</span></div>
+              <div><label>Transactions</label><span id="relay-tx-c">Loading...</span></div>
             </div>
-            <div class="connector-row">
-              <div class="connector-icon">TRL</div>
-              <div class="connector-info">
-                <div class="connector-name">Trail</div>
-                <div class="connector-detail">pull · web.trailapp.com/api/public</div>
-              </div>
-              <div class="connector-status">
-                <span class="badge badge-green"><span class="dot"></span>CONNECTED</span>
-                <span style="font-size:10px;color:var(--text3);font-family:var(--mono)">2 areas · 3 venues</span>
-              </div>
-            </div>
-            <div class="connector-row">
-              <div class="connector-icon">RSD</div>
-              <div class="connector-info">
-                <div class="connector-name">ResDiary</div>
-                <div class="connector-detail">pull · api.rdbranch.com</div>
-              </div>
-              <div class="connector-status">
-                <span class="badge badge-amber"><span class="dot"></span>PENDING</span>
-                <span style="font-size:10px;color:var(--text3);font-family:var(--mono)">Awaiting permissions</span>
-              </div>
-            </div>
-            <div class="connector-row">
-              <div class="connector-icon">RTA</div>
-              <div class="connector-info">
-                <div class="connector-name">RotaReady</div>
-                <div class="connector-detail">not configured</div>
-              </div>
-              <div class="connector-status">
-                <span class="badge badge-red"><span class="dot"></span>OFFLINE</span>
-                <span style="font-size:10px;color:var(--text3);font-family:var(--mono)">Add credentials</span>
-              </div>
+            <div class="cc-acts">
+              <button class="btn btn-g btn-sm" onclick="copyUrl()">Copy URL</button>
+              <button class="btn btn-g btn-sm" onclick="showKey()">View API Key</button>
+              <button class="btn btn-g btn-sm" onclick="testRelay()">Send Test Event</button>
             </div>
           </div>
         </div>
+        <div class="cc">
+          <div class="cc-h">
+            <div class="cc-id"><div class="cc-ic">TRL</div><div><div class="cc-nm">Trail</div><div class="cc-ds">REST pull · Compliance and task completion data</div></div></div>
+            <div style="display:flex;gap:7px"><span class="b b-teal"><span class="dot"></span>Connected</span><span class="b b-blue">Pull · Weekly</span></div>
+          </div>
+          <div class="cc-b">
+            <div class="cc-meta">
+              <div><label>Endpoint</label><span>web.trailapp.com/api/public</span></div>
+              <div><label>Areas</label><span>Kitchen · Front Of House</span></div>
+              <div><label>Last Sync</label><span>w/e 15 Mar 2026</span></div>
+            </div>
+            <div class="cc-acts">
+              <button class="btn btn-g btn-sm" onclick="testTrail()">Test Connection</button>
+              <button class="btn btn-g btn-sm" onclick="syncTrail()">Sync Now</button>
+            </div>
+          </div>
+        </div>
+        <div class="cc">
+          <div class="cc-h">
+            <div class="cc-id"><div class="cc-ic">RSD</div><div><div class="cc-nm">ResDiary</div><div class="cc-ds">REST pull · Reservations, covers, guest data</div></div></div>
+            <div style="display:flex;gap:7px"><span class="b b-amb"><span class="dot"></span>Pending</span><span class="b b-blue">Pull · Weekly</span></div>
+          </div>
+          <div class="cc-b">
+            <div class="alert al-warn">Awaiting Data Extract permissions from ResDiary. Credentials configured — contact ResDiary support to enable Data Extract API access for cat.wickets+api@resdiary.com</div>
+          </div>
+        </div>
+        <div class="cc">
+          <div class="cc-h">
+            <div class="cc-id"><div class="cc-ic">RTA</div><div><div class="cc-nm">RotaReady</div><div class="cc-ds">REST pull · Rotas, shifts, employee data</div></div></div>
+            <div style="display:flex;gap:7px"><span class="b b-dim">Offline</span></div>
+          </div>
+          <div class="cc-b">
+            <div class="cc-acts"><button class="btn btn-hi btn-sm" onclick="openM('add-conn')">Configure Credentials</button></div>
+          </div>
+        </div>
+      </div>
 
-        <!-- Live Feed -->
+      <!-- OUTBOUND APIs -->
+      <div id="v-apis" class="view">
+        <div class="ph">
+          <div><div class="ph-t">Outbound APIs</div><div class="ph-s">API keys for external consumers — MD app, Test Player, third parties</div></div>
+          <button class="btn btn-hi" onclick="openM('create-key')">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Create API Key
+          </button>
+        </div>
+        <div class="card" style="margin-bottom:13px">
+          <div class="ch"><div class="ch-t">Active Keys</div></div>
+          <table class="tbl">
+            <thead><tr><th>Name</th><th>Key (masked)</th><th>Permissions</th><th>Last Used</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+              <tr>
+                <td class="p">Relay Inbound</td><td class="mono">b9d9755...3980</td>
+                <td><span class="b b-blue">webhook:write</span></td>
+                <td class="dim">Today</td>
+                <td><span class="b b-teal"><span class="dot"></span>Active</span></td>
+                <td><button class="btn btn-g btn-sm" onclick="showKey()">View</button></td>
+              </tr>
+              <tr><td colspan="6" class="empty">No outbound keys yet — create one for the MD app or Test Player</td></tr>
+            </tbody>
+          </table>
+        </div>
         <div class="card">
-          <div class="card-header">
-            <div class="card-title">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              Live Event Feed
-            </div>
-            <span style="font-size:10px;color:var(--text3);font-family:var(--mono)" id="feed-count">0 events</span>
-          </div>
-          <div class="live-feed" id="live-feed">
-            <div class="empty">Waiting for events...</div>
-          </div>
+          <div class="ch"><div class="ch-t">Available Endpoints</div></div>
+          <table class="tbl">
+            <thead><tr><th>Endpoint</th><th>Method</th><th>Description</th><th>Auth</th></tr></thead>
+            <tbody>
+              <tr><td class="mono p">/api/v1/scores</td><td><span class="b b-blue">GET</span></td><td>Team member scores and tiers</td><td class="mono">Bearer</td></tr>
+              <tr><td class="mono p">/api/v1/league</td><td><span class="b b-blue">GET</span></td><td>Venue league table</td><td class="mono">Bearer</td></tr>
+              <tr><td class="mono p">/api/v1/squad</td><td><span class="b b-blue">GET</span></td><td>Team member list</td><td class="mono">Bearer</td></tr>
+              <tr><td class="mono p">/api/v1/metrics/trail</td><td><span class="b b-blue">GET</span></td><td>Trail compliance scores</td><td class="mono">Bearer</td></tr>
+              <tr><td class="mono p">/api/v1/webhooks/relay</td><td><span class="b b-teal">POST</span></td><td>Relay transaction receiver</td><td class="mono">x-api-key</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
-      <!-- Data Volumes -->
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-            Data Volumes by Venue
-          </div>
+      <!-- AUDIT TRAIL -->
+      <div id="v-audit" class="view">
+        <div class="ph">
+          <div><div class="ph-t">Audit Trail</div><div class="ph-s">Complete log of all actions in and out of The Club</div></div>
+          <button class="btn btn-g">Export CSV</button>
         </div>
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Venue</th>
-              <th>Transactions</th>
-              <th>Sold Items</th>
-              <th>Trail Tasks</th>
-              <th>Unmatched Clerks</th>
-              <th>Last Activity</th>
-            </tr>
-          </thead>
-          <tbody id="venue-volumes">
-            <tr><td colspan="6" class="empty">Loading...</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- ── CONNECTORS ── -->
-    <div id="view-connectors" class="view">
-      <div class="page-header">
-        <div>
-          <div class="page-title">Connectors</div>
-          <div class="page-sub">Inbound data integrations — manage, test and monitor</div>
-        </div>
-        <button class="btn btn-primary" onclick="openModal('add-connector')">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Add Connector
-        </button>
-      </div>
-
-      <div style="display:flex;flex-direction:column;gap:12px" id="connectors-list">
-        <!-- Relay -->
         <div class="card">
-          <div class="card-header">
-            <div style="display:flex;align-items:center;gap:10px">
-              <div class="connector-icon">RLY</div>
-              <div>
-                <div class="connector-name" style="font-size:14px;font-weight:600">Relay — Access EPOS</div>
-                <div class="connector-detail">Webhook receiver · Near real-time transactions</div>
-              </div>
-            </div>
-            <div style="display:flex;align-items:center;gap:8px">
-              <span class="badge badge-green"><span class="dot"></span>LIVE</span>
-              <span class="badge badge-purple">INBOUND WEBHOOK</span>
-            </div>
+          <div class="ch"><div class="ch-t">Session Events</div><span style="font-family:var(--mono);font-size:9px;color:var(--fg3)" id="audit-tot">—</span></div>
+          <div style="display:grid;grid-template-columns:148px 70px 1fr 90px;gap:11px;padding:9px 15px;border-bottom:1px solid var(--line)">
+            <span style="font-family:var(--mono);font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--fg3)">Timestamp</span>
+            <span style="font-family:var(--mono);font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--fg3)">Type</span>
+            <span style="font-family:var(--mono);font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--fg3)">Event</span>
+            <span style="font-family:var(--mono);font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--fg3);text-align:right">Source</span>
           </div>
-          <div class="card-body">
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:16px">
-              <div>
-                <div class="stat-label">Webhook URL</div>
-                <div style="font-family:var(--mono);font-size:11px;color:var(--accent2);margin-top:4px">
-                  /api/v1/webhooks/relay
-                </div>
-              </div>
-              <div>
-                <div class="stat-label">Authentication</div>
-                <div style="font-family:var(--mono);font-size:11px;color:var(--text2);margin-top:4px">
-                  x-api-key header
-                </div>
-              </div>
-              <div>
-                <div class="stat-label">Transactions Received</div>
-                <div style="font-family:var(--mono);font-size:11px;color:var(--text2);margin-top:4px" id="relay-tx-count">
-                  Loading...
-                </div>
-              </div>
-            </div>
-            <div style="display:flex;gap:8px">
-              <button class="btn btn-ghost" onclick="copyWebhookUrl()">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-                Copy URL
-              </button>
-              <button class="btn btn-ghost" onclick="showApiKey()">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
-                View API Key
-              </button>
-              <button class="btn btn-ghost" onclick="testRelay()">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                Send Test Event
-              </button>
-            </div>
+          <div id="audit-list" style="max-height:540px;overflow-y:auto"><div class="empty">No events yet — activity will appear here as the system runs</div></div>
+        </div>
+      </div>
+
+      <!-- LIVE LOGS -->
+      <div id="v-logs" class="view">
+        <div class="ph">
+          <div><div class="ph-t">Live Logs</div><div class="ph-s">Real-time event stream</div></div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10px;color:var(--teal)"><div class="pulse"></div>Live</div>
+            <button class="btn btn-g" onclick="document.getElementById('logs-out').innerHTML='<div style=\'color:var(--fg3);font-size:11px\'>$ Cleared</div>'">Clear</button>
           </div>
         </div>
-
-        <!-- Trail -->
         <div class="card">
-          <div class="card-header">
-            <div style="display:flex;align-items:center;gap:10px">
-              <div class="connector-icon">TRL</div>
-              <div>
-                <div class="connector-name" style="font-size:14px;font-weight:600">Trail</div>
-                <div class="connector-detail">REST pull · Compliance and task completion</div>
-              </div>
-            </div>
-            <div style="display:flex;align-items:center;gap:8px">
-              <span class="badge badge-green"><span class="dot"></span>CONNECTED</span>
-              <span class="badge badge-blue">PULL · WEEKLY</span>
-            </div>
-          </div>
-          <div class="card-body">
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:16px">
-              <div>
-                <div class="stat-label">Endpoint</div>
-                <div style="font-family:var(--mono);font-size:11px;color:var(--text2);margin-top:4px">web.trailapp.com/api/public</div>
-              </div>
-              <div>
-                <div class="stat-label">Areas</div>
-                <div style="font-family:var(--mono);font-size:11px;color:var(--text2);margin-top:4px">Kitchen · Front Of House</div>
-              </div>
-              <div>
-                <div class="stat-label">Last Sync</div>
-                <div style="font-family:var(--mono);font-size:11px;color:var(--text2);margin-top:4px" id="trail-last-sync">Loading...</div>
-              </div>
-            </div>
-            <div style="display:flex;gap:8px">
-              <button class="btn btn-ghost" onclick="testTrail()">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-                Test Connection
-              </button>
-              <button class="btn btn-ghost" onclick="syncTrail()">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
-                Sync Now
-              </button>
-            </div>
+          <div id="logs-out" style="font-family:var(--mono);font-size:11px;max-height:560px;overflow-y:auto;padding:15px;line-height:1.8">
+            <div style="color:var(--fg3)">$ Waiting for events...</div>
           </div>
         </div>
+      </div>
 
-        <!-- ResDiary -->
+      <!-- TRANSACTIONS -->
+      <div id="v-transactions" class="view">
+        <div class="ph"><div><div class="ph-t">Transactions</div><div class="ph-s">Raw EPOS data from Relay</div></div></div>
         <div class="card">
-          <div class="card-header">
-            <div style="display:flex;align-items:center;gap:10px">
-              <div class="connector-icon">RSD</div>
-              <div>
-                <div class="connector-name" style="font-size:14px;font-weight:600">ResDiary</div>
-                <div class="connector-detail">REST pull · Reservations, covers and guest data</div>
-              </div>
-            </div>
-            <div style="display:flex;align-items:center;gap:8px">
-              <span class="badge badge-amber"><span class="dot"></span>PENDING</span>
-              <span class="badge badge-blue">PULL · WEEKLY</span>
-            </div>
-          </div>
-          <div class="card-body">
-            <div style="padding:12px;background:var(--amber-dim);border:1px solid var(--amber);border-radius:6px;font-size:12px;color:var(--amber)">
-              ⚠ Awaiting Data Extract permissions from ResDiary. Credentials configured — contact ResDiary support to enable Data Extract API access for cat.wickets+api@resdiary.com
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ── OUTBOUND APIS ── -->
-    <div id="view-apis" class="view">
-      <div class="page-header">
-        <div>
-          <div class="page-title">Outbound APIs</div>
-          <div class="page-sub">API keys for external consumers — MD app, Test Player, third parties</div>
-        </div>
-        <button class="btn btn-primary" onclick="openModal('create-api-key')">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Create API Key
-        </button>
-      </div>
-
-      <div class="card" style="margin-bottom:16px">
-        <div class="card-header">
-          <div class="card-title">Active Keys</div>
-        </div>
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Key (masked)</th>
-              <th>Permissions</th>
-              <th>Last Used</th>
-              <th>Requests (30d)</th>
-              <th>Status</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="api-keys-list">
-            <tr>
-              <td class="primary">Relay Inbound</td>
-              <td class="mono">b9d9755193d5...3980</td>
-              <td><span class="badge badge-blue">webhook:write</span></td>
-              <td class="mono">Just now</td>
-              <td class="mono">1</td>
-              <td><span class="badge badge-green"><span class="dot"></span>ACTIVE</span></td>
-              <td><button class="btn btn-ghost" style="padding:4px 8px;font-size:11px">Revoke</button></td>
-            </tr>
-            <tr>
-              <td colspan="7" style="text-align:center;padding:20px;color:var(--text3);font-family:var(--mono);font-size:11px">
-                No outbound API keys yet — create one for the MD app or Test Player
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">Available Endpoints</div>
-        </div>
-        <table class="data-table">
-          <thead>
-            <tr><th>Endpoint</th><th>Method</th><th>Description</th><th>Auth</th></tr>
-          </thead>
-          <tbody>
-            <tr><td class="mono primary">/api/v1/scores</td><td><span class="badge badge-blue">GET</span></td><td>Team member scores and tiers</td><td class="mono">Bearer token</td></tr>
-            <tr><td class="mono primary">/api/v1/league</td><td><span class="badge badge-blue">GET</span></td><td>Venue league table</td><td class="mono">Bearer token</td></tr>
-            <tr><td class="mono primary">/api/v1/squad</td><td><span class="badge badge-blue">GET</span></td><td>Team member list</td><td class="mono">Bearer token</td></tr>
-            <tr><td class="mono primary">/api/v1/venues</td><td><span class="badge badge-blue">GET</span></td><td>Venue data</td><td class="mono">Bearer token</td></tr>
-            <tr><td class="mono primary">/api/v1/metrics/trail</td><td><span class="badge badge-blue">GET</span></td><td>Trail compliance scores</td><td class="mono">Bearer token</td></tr>
-            <tr><td class="mono primary">/api/v1/webhooks/relay</td><td><span class="badge badge-green">POST</span></td><td>Relay transaction receiver</td><td class="mono">x-api-key</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- ── AUDIT TRAIL ── -->
-    <div id="view-audit" class="view">
-      <div class="page-header">
-        <div>
-          <div class="page-title">Audit Trail</div>
-          <div class="page-sub">Complete log of all actions in and out of The Club</div>
-        </div>
-        <div style="display:flex;gap:8px">
-          <select class="form-input form-select" style="width:140px;padding:7px 12px">
-            <option>All types</option>
-            <option>Inbound</option>
-            <option>Outbound</option>
-            <option>System</option>
-            <option>Error</option>
-          </select>
-          <select class="form-input form-select" style="width:120px;padding:7px 12px">
-            <option>All venues</option>
-            <option>Griffin Inn</option>
-            <option>Long Hop</option>
-            <option>Tap & Run</option>
-          </select>
-          <button class="btn btn-ghost">Export CSV</button>
+          <div class="ch"><div class="ch-t">Recent Transactions</div><span style="font-family:var(--mono);font-size:9px;color:var(--fg3)" id="tx-lbl">—</span></div>
+          <table class="tbl">
+            <thead><tr><th>Transaction ID</th><th>Location</th><th>Date</th><th>Covers</th><th>Gross</th><th>Clerk</th><th>Status</th></tr></thead>
+            <tbody id="tx-tbody"><tr><td colspan="7" class="empty">Loading...</td></tr></tbody>
+          </table>
         </div>
       </div>
 
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">Events</div>
-          <span style="font-size:10px;color:var(--text3);font-family:var(--mono)" id="audit-total">Loading...</span>
-        </div>
-        <div style="display:grid;grid-template-columns:140px 80px 1fr 120px;padding:10px 18px;border-bottom:1px solid var(--border)">
-          <span style="font-size:10px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:0.1em">Timestamp</span>
-          <span style="font-size:10px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:0.1em">Type</span>
-          <span style="font-size:10px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:0.1em">Event</span>
-          <span style="font-size:10px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;text-align:right">Source</span>
-        </div>
-        <div id="audit-list" style="max-height:600px;overflow-y:auto">
-          <div class="empty">Loading audit trail...</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ── LIVE LOGS ── -->
-    <div id="view-logs" class="view">
-      <div class="page-header">
-        <div>
-          <div class="page-title">Live Logs</div>
-          <div class="page-sub">Real-time event stream — webhook events, sync jobs, errors</div>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--green)">
-            <div class="pulse"></div> Live
-          </div>
-          <button class="btn btn-ghost" onclick="clearLogs()">Clear</button>
+      <!-- CLERK MAPPING -->
+      <div id="v-clerks" class="view">
+        <div class="ph"><div><div class="ph-t">Clerk Mapping</div><div class="ph-s">EPOS clerk IDs discovered from Relay transactions</div></div></div>
+        <div class="alert al-teal" style="margin-bottom:15px">Clerk matching is done in The Analytics Coach by the Cat & Wickets team. This view shows what The Club has discovered.</div>
+        <div class="card">
+          <div class="ch"><div class="ch-t" style="color:var(--amber)">Unmatched Clerks</div><span class="b b-amb" id="uc-lbl">0 unmatched</span></div>
+          <table class="tbl">
+            <thead><tr><th>Clerk ID</th><th>Location</th><th>First Seen</th><th>Status</th></tr></thead>
+            <tbody id="uc-tbody"><tr><td colspan="4" class="empty">Loading...</td></tr></tbody>
+          </table>
         </div>
       </div>
 
-      <div class="card">
-        <div id="logs-feed" style="font-family:var(--mono);font-size:11px;max-height:600px;overflow-y:auto;padding:16px">
-          <div style="color:var(--text3)">$ Waiting for events...</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ── TRANSACTIONS ── -->
-    <div id="view-transactions" class="view">
-      <div class="page-header">
-        <div>
-          <div class="page-title">Transactions</div>
-          <div class="page-sub">Raw EPOS transaction data from Relay</div>
-        </div>
-        <div style="display:flex;gap:8px">
-          <select class="form-input form-select" style="width:140px;padding:7px 12px">
-            <option>All venues</option>
-          </select>
-          <input type="date" class="form-input" style="width:150px;padding:7px 12px">
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">Recent Transactions</div>
-          <span style="font-size:10px;color:var(--text3);font-family:var(--mono)" id="tx-count">0 transactions</span>
-        </div>
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Transaction ID</th>
-              <th>Location</th>
-              <th>Business Date</th>
-              <th>Covers</th>
-              <th>Gross</th>
-              <th>Clerk</th>
-              <th>Items</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody id="tx-list">
-            <tr><td colspan="8" class="empty">Loading transactions...</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- ── CLERK MAPPING ── -->
-    <div id="view-clerks" class="view">
-      <div class="page-header">
-        <div>
-          <div class="page-title">Clerk Mapping</div>
-          <div class="page-sub">Match EPOS clerk IDs to Test Player team members</div>
-        </div>
-      </div>
-
-      <div class="card" style="margin-bottom:16px">
-        <div class="card-header">
-          <div class="card-title" style="color:var(--amber)">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            Unmatched Clerks
-          </div>
-          <span class="badge badge-amber" id="unmatched-count">0 unmatched</span>
-        </div>
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Clerk ID</th>
-              <th>Location</th>
-              <th>Transactions</th>
-              <th>First Seen</th>
-              <th>Match To</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="unmatched-clerks">
-            <tr><td colspan="6" class="empty">Loading...</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title" style="color:var(--green)">Matched Clerks</div>
-        </div>
-        <table class="data-table">
-          <thead>
-            <tr><th>Clerk ID</th><th>Location</th><th>Team Member</th><th>Matched By</th><th>Matched At</th><th></th></tr>
-          </thead>
-          <tbody id="matched-clerks">
-            <tr><td colspan="6" class="empty">No matched clerks yet</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-  </div>
-</div>
-
-<!-- ── MODALS ── -->
-<div class="modal-overlay" id="modal-add-connector">
-  <div class="modal">
-    <div class="modal-header">
-      <div class="modal-title">Add Connector</div>
-      <span class="modal-close" onclick="closeModal('add-connector')">×</span>
-    </div>
-    <div class="modal-body">
-      <div class="form-group">
-        <label class="form-label">Connector Type</label>
-        <select class="form-input form-select" id="connector-type" onchange="updateConnectorForm()">
-          <option value="">Select type...</option>
-          <option value="webhook">Inbound Webhook</option>
-          <option value="rest_pull">REST API (Pull)</option>
-          <option value="rest_push">REST API (Push/Outbound)</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Display Name</label>
-        <input class="form-input" placeholder="e.g. RotaReady" id="connector-name">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Provider Slug</label>
-        <input class="form-input" placeholder="e.g. rotaready" id="connector-slug">
-      </div>
-      <div id="connector-extra-fields">
-        <div class="form-group">
-          <label class="form-label">Base URL</label>
-          <input class="form-input" placeholder="https://api.provider.com" id="connector-url">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Auth Type</label>
-          <select class="form-input form-select" id="connector-auth">
-            <option>API Key (header)</option>
-            <option>Bearer Token</option>
-            <option>Basic Auth</option>
-            <option>OAuth 2.0</option>
-          </select>
-        </div>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('add-connector')">Cancel</button>
-      <button class="btn btn-primary" onclick="saveConnector()">Add Connector</button>
     </div>
   </div>
 </div>
 
-<div class="modal-overlay" id="modal-create-api-key">
+<!-- MODALS -->
+<div class="overlay" id="m-add-conn">
   <div class="modal">
-    <div class="modal-header">
-      <div class="modal-title">Create API Key</div>
-      <span class="modal-close" onclick="closeModal('create-api-key')">×</span>
+    <div class="mh"><div class="mt">Add Connector</div><span class="mx" onclick="closeM('add-conn')">×</span></div>
+    <div class="mb">
+      <div class="fg"><label class="fl">Connector Type</label><select class="fi"><option>Inbound Webhook</option><option>REST API — Pull</option><option>REST API — Push/Outbound</option></select></div>
+      <div class="fg"><label class="fl">Display Name</label><input class="fi" placeholder="e.g. RotaReady"></div>
+      <div class="fg"><label class="fl">Base URL</label><input class="fi" placeholder="https://api.provider.com"></div>
+      <div class="fg"><label class="fl">Auth Type</label><select class="fi"><option>API Key (header)</option><option>Bearer Token</option><option>Basic Auth</option><option>OAuth 2.0</option></select></div>
+      <div class="fg"><label class="fl">API Key / Token</label><input class="fi" type="password" placeholder="••••••••••••"></div>
     </div>
-    <div class="modal-body">
-      <div class="form-group">
-        <label class="form-label">Key Name</label>
-        <input class="form-input" placeholder="e.g. MD Dashboard App" id="api-key-name">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Permissions</label>
-        <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
-          <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2);cursor:pointer">
-            <input type="checkbox" checked style="accent-color:var(--accent)"> Read scores and tiers
-          </label>
-          <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2);cursor:pointer">
-            <input type="checkbox" checked style="accent-color:var(--accent)"> Read venue data
-          </label>
-          <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2);cursor:pointer">
-            <input type="checkbox" style="accent-color:var(--accent)"> Read raw transactions
-          </label>
-          <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2);cursor:pointer">
-            <input type="checkbox" style="accent-color:var(--accent)"> Write assessments
-          </label>
-        </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Rate Limit</label>
-        <select class="form-input form-select">
-          <option>1000 requests/hour</option>
-          <option>5000 requests/hour</option>
-          <option>Unlimited</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Expiry</label>
-        <select class="form-input form-select">
-          <option>Never</option>
-          <option>90 days</option>
-          <option>1 year</option>
-        </select>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('create-api-key')">Cancel</button>
-      <button class="btn btn-primary" onclick="createApiKey()">Generate Key</button>
+    <div class="mf">
+      <button class="btn btn-g" onclick="closeM('add-conn')">Cancel</button>
+      <button class="btn btn-hi" onclick="closeM('add-conn');log('Connector saved — configure to activate','info')">Save Connector</button>
     </div>
   </div>
 </div>
 
-<div class="modal-overlay" id="modal-show-key">
+<div class="overlay" id="m-create-key">
   <div class="modal">
-    <div class="modal-header">
-      <div class="modal-title">API Key</div>
-      <span class="modal-close" onclick="closeModal('show-key')">×</span>
-    </div>
-    <div class="modal-body">
-      <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:16px;margin-bottom:12px">
-        <div style="font-size:10px;font-family:var(--mono);color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.1em">Relay Webhook API Key</div>
-        <div style="font-family:var(--mono);font-size:12px;color:var(--accent2);word-break:break-all" id="key-display"></div>
+    <div class="mh"><div class="mt">Create API Key</div><span class="mx" onclick="closeM('create-key')">×</span></div>
+    <div class="mb">
+      <div class="fg"><label class="fl">Key Name</label><input class="fi" id="nkn" placeholder="e.g. MD Dashboard App"></div>
+      <div class="fg">
+        <label class="fl">Permissions</label>
+        <div style="display:flex;flex-direction:column;gap:9px;margin-top:4px">
+          <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--fg2);cursor:pointer"><input type="checkbox" checked style="accent-color:var(--hi)"> Read scores and tiers</label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--fg2);cursor:pointer"><input type="checkbox" checked style="accent-color:var(--hi)"> Read venue data</label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--fg2);cursor:pointer"><input type="checkbox" style="accent-color:var(--hi)"> Read raw transactions</label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--fg2);cursor:pointer"><input type="checkbox" style="accent-color:var(--hi)"> Write assessments</label>
+        </div>
       </div>
-      <div style="font-size:12px;color:var(--amber);background:var(--amber-dim);border:1px solid var(--amber);border-radius:6px;padding:10px">
-        ⚠ Store this securely. Send to Access Hospitality via one-time secret link — never plain email.
-      </div>
+      <div class="fg"><label class="fl">Expiry</label><select class="fi"><option>Never</option><option>90 days</option><option>1 year</option></select></div>
     </div>
-    <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="copyKey()">Copy Key</button>
-      <button class="btn btn-ghost" onclick="closeModal('show-key')">Close</button>
+    <div class="mf">
+      <button class="btn btn-g" onclick="closeM('create-key')">Cancel</button>
+      <button class="btn btn-hi" onclick="genKey()">Generate Key</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="m-show-key">
+  <div class="modal">
+    <div class="mh"><div class="mt" id="km-t">API Key</div><span class="mx" onclick="closeM('show-key')">×</span></div>
+    <div class="mb">
+      <div class="key-box"><div class="kb-lbl" id="km-l">Key</div><div class="kb-val" id="km-v"></div></div>
+      <div class="alert al-warn">Send this key via a one-time secret link (onetimesecret.com) — never in plain email.</div>
+    </div>
+    <div class="mf">
+      <button class="btn btn-g" onclick="navigator.clipboard?.writeText(document.getElementById('km-v').textContent);log('API key copied — do not share via plain email','warn')">Copy Key</button>
+      <button class="btn btn-g" onclick="closeM('show-key')">Close</button>
     </div>
   </div>
 </div>
 
 <script>
-const API = '';  // same origin
-let TOKEN = '';
-let logEntries = [];
-let auditEntries = [];
+'use strict';
+const USERS = [
+  {email:'ian@foxitc.com',  pass:'FoxITC2026!', name:'Ian',  i:'I'},
+  {email:'jack@foxitc.com', pass:'FoxITC2026!', name:'Jack', i:'J'},
+];
+const RELAY_KEY = ''; // Key fetched from server — never hardcoded in frontend
+let SESSION = null, TOKEN = '', logs = [], feedN = 0;
 
-// ── NAVIGATION ──
-const views = ['dashboard','connectors','apis','audit','logs','transactions','clerks'];
-const titles = {
-  dashboard: 'Dashboard', connectors: 'Connectors', apis: 'Outbound APIs',
-  audit: 'Audit Trail', logs: 'Live Logs', transactions: 'Transactions', clerks: 'Clerk Mapping'
-};
+// Clock
+setInterval(() => {
+  const el = document.getElementById('clk');
+  if (el) el.textContent = new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}, 1000);
 
-function showView(v) {
-  views.forEach(id => {
-    document.getElementById('view-'+id)?.classList.toggle('active', id === v);
-  });
-  document.querySelectorAll('.nav-item').forEach(el => {
-    el.classList.toggle('active', el.getAttribute('onclick')?.includes(`'${v}'`));
-  });
-  document.getElementById('breadcrumb-current').textContent = titles[v] || v;
-  if (v === 'transactions') loadTransactions();
-  if (v === 'clerks') loadClerks();
-  if (v === 'audit') loadAudit();
+// Login
+document.getElementById('fp').addEventListener('keydown', e => { if (e.key==='Enter') doLogin(); });
+
+function doLogin() {
+  const email = document.getElementById('fe').value.trim().toLowerCase();
+  const pass  = document.getElementById('fp').value;
+  const user  = USERS.find(u => u.email===email && u.pass===pass);
+  if (!user) { document.getElementById('lerr').style.display='block'; document.getElementById('fp').value=''; return; }
+  SESSION = user;
+  sessionStorage.setItem('cls', JSON.stringify(user));
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').classList.add('ready');
+  document.getElementById('uav').textContent = user.i;
+  document.getElementById('unm').textContent = user.name;
+  init();
 }
 
-// ── CLOCK ──
-function updateClock() {
-  const now = new Date();
-  const str = now.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  const dateStr = now.toLocaleDateString('en-GB', {weekday:'short',day:'numeric',month:'short'});
-  document.getElementById('topbar-time').textContent = str;
-  document.getElementById('footer-time').textContent = dateStr + ' · ' + str;
-}
-setInterval(updateClock, 1000);
-updateClock();
+function doLogout() { sessionStorage.removeItem('cls'); location.reload(); }
 
-// ── AUTH ──
+// Auto-login from session
+(function() {
+  const s = sessionStorage.getItem('cls');
+  if (!s) return;
+  SESSION = JSON.parse(s);
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').classList.add('ready');
+  document.getElementById('uav').textContent = SESSION.i;
+  document.getElementById('unm').textContent = SESSION.name;
+  init();
+})();
+
+// API
 async function getToken() {
   if (TOKEN) return TOKEN;
   try {
-    const r = await fetch('/api/v1/auth/login', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({email:'admin@catandwickets.com', password:'admin123!'})
-    });
+    const r = await fetch('/api/v1/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:'admin@catandwickets.com',password:'admin123!'})});
     const d = await r.json();
     TOKEN = d.data?.token ?? '';
+    document.getElementById('api-st').textContent = TOKEN ? 'API connected' : 'Auth failed';
     return TOKEN;
-  } catch(e) { return ''; }
+  } catch(e) { document.getElementById('api-st').textContent = 'API unreachable'; return ''; }
 }
 
-async function apiFetch(path, opts = {}) {
-  const token = await getToken();
-  const r = await fetch('/api/v1' + path, {
-    ...opts,
-    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', ...(opts.headers ?? {}) }
-  });
+async function api(path, opts={}) {
+  const tok = await getToken();
+  const r = await fetch('/api/v1'+path,{...opts,headers:{'Authorization':`Bearer ${tok}`,'Content-Type':'application/json',...(opts.headers||{})}});
   return r.json();
 }
 
-// ── DASHBOARD DATA ──
+// Navigation
+const VIEWS = ['dashboard','connectors','apis','audit','logs','transactions','clerks'];
+function nav(id) {
+  VIEWS.forEach(v => { document.getElementById('v-'+v)?.classList.toggle('active',v===id); });
+  document.querySelectorAll('.ni').forEach(el => { el.classList.toggle('active', el.getAttribute('onclick')?.includes(`'${id}'`)); });
+  if (id==='transactions') loadTx();
+  if (id==='clerks') loadClerks();
+  if (id==='audit') renderAudit();
+}
+
+// Init
+async function init() {
+  await getToken();
+  loadDashboard();
+  log('The Club connected','ok');
+  log('theclub.thecatandwickets.com · SSL active','ok');
+  log('Relay webhook ready','ok');
+}
+
+// Dashboard
 async function loadDashboard() {
-  // Relay status
   try {
-    const relay = await apiFetch('/webhooks/relay/status');
-    if (relay.data) {
-      const d = relay.data;
-      document.getElementById('stat-transactions').textContent = Number(d.total_transactions).toLocaleString();
-      document.getElementById('stat-transactions-meta').textContent = d.locations + ' location(s) · ' + d.clerks + ' clerks';
-      document.getElementById('relay-tx-count').textContent = Number(d.total_transactions).toLocaleString() + ' transactions';
-      document.getElementById('relay-last-tx').textContent = d.latest ? 'Latest: ' + new Date(d.latest).toLocaleDateString('en-GB') : 'Awaiting data';
-      document.getElementById('stat-clerks').textContent = Number(d.unmatched_clerks).toLocaleString();
-      document.getElementById('clerk-badge').textContent = d.unmatched_clerks;
-      if (d.unmatched_clerks > 0) {
-        document.getElementById('clerk-badge').style.display = '';
-        document.getElementById('stat-clerks-meta').textContent = 'Action required';
-      }
+    const r = await api('/webhooks/relay/status');
+    if (r.data) {
+      const d = r.data;
+      const tx = Number(d.total_transactions)||0;
+      document.getElementById('s-tx').textContent = tx.toLocaleString();
+      document.getElementById('s-txn').textContent = (d.locations||0)+' location(s) · '+(d.clerks||0)+' clerk(s)';
+      document.getElementById('relay-tx-c').textContent = tx+' transaction'+(tx!==1?'s':'');
+      document.getElementById('relay-last').textContent = d.latest ? 'Latest: '+fmtD(d.latest) : 'Awaiting data';
+      const uc = Number(d.unmatched_clerks)||0;
+      document.getElementById('s-cl').textContent = uc;
+      const cln = document.getElementById('s-cln');
+      cln.textContent = uc>0 ? uc+' need matching' : 'All matched';
+      cln.className = 'sn '+(uc>0?'alert':'ok');
+      if (uc>0) { document.getElementById('clerk-nc').textContent=uc; document.getElementById('clerk-nc').style.display=''; }
+      log(`Relay: ${tx} transactions · ${uc} unmatched clerks`, tx>0?'ok':'info');
     }
-  } catch(e) {}
+  } catch(e) { log('Relay status error','error'); }
 
-  // Trail metrics
   try {
-    const trail = await apiFetch('/metrics/trail?weekEnding=2026-03-15');
-    if (trail.data?.length) {
-      document.getElementById('trail-last-sync').textContent = 'w/e 15 Mar 2026';
-    }
-  } catch(e) {}
-
-  // Stats
-  document.getElementById('stat-connectors').textContent = '3';
-  document.getElementById('stat-connectors-meta').textContent = '1 live · 1 pending · 1 offline';
-  document.getElementById('stat-audit').textContent = auditEntries.length || '—';
-
-  // Venue volumes
-  loadVenueVolumes();
-}
-
-async function loadVenueVolumes() {
-  const tbody = document.getElementById('venue-volumes');
-  try {
-    const venues = await apiFetch('/venues');
-    const relay = await apiFetch('/webhooks/relay/status');
-    const rows = (venues.data ?? []).map(v => `
-      <tr>
-        <td class="primary">${v.name}</td>
-        <td class="mono">${relay.data?.total_transactions > 0 ? '1' : '0'}</td>
-        <td class="mono">3</td>
-        <td class="mono">—</td>
-        <td class="mono">—</td>
-        <td class="mono">${new Date().toLocaleDateString('en-GB')}</td>
-      </tr>
-    `).join('');
-    tbody.innerHTML = rows || '<tr><td colspan="6" class="empty">No data yet</td></tr>';
-  } catch(e) {
-    tbody.innerHTML = '<tr><td colspan="6" class="empty">Could not load venue data</td></tr>';
-  }
-}
-
-// ── TRANSACTIONS ──
-async function loadTransactions() {
-  const tbody = document.getElementById('tx-list');
-  try {
-    const r = await apiFetch('/webhooks/relay/status');
-    // For now show what we have
-    // Real transaction data from relay_transactions
-    const txRes = await apiFetch('/webhooks/relay/status');
-    const total = txRes.data?.total_transactions ?? 0;
-    document.getElementById('tx-count').textContent = total + ' transaction' + (total !== 1 ? 's' : '');
-    if (total === 0) {
-      tbody.innerHTML = '<tr><td colspan="8" class="empty">No transactions yet — waiting for Relay data from Access Hospitality</td></tr>';
+    const r = await api('/metrics/trail/breakdown?weekEnding=2026-03-15');
+    const areas = r.data?.areas ?? [];
+    const summary = r.data?.summary ?? [];
+    if (areas.length) {
+      const totalTasks = areas.reduce((s,a)=>s+Number(a.total_tasks),0);
+      const completed  = areas.reduce((s,a)=>s+Number(a.completed_tasks),0);
+      document.getElementById('s-tt').textContent = totalTasks.toLocaleString();
+      document.getElementById('s-ttn').textContent = completed+' completed';
+      const rows = areas.map(a => {
+        const sc = Number(a.trail_score)||0;
+        const cr = Number(a.completion_rate)||0;
+        const c = sc>=15?'var(--teal)':sc>=5?'var(--amber)':'var(--red)';
+        return `<tr>
+          <td class="p">${a.venue_name}</td>
+          <td><span class="b ${a.area==='BOH'?'b-blue':'b-hi'}">${a.area}</span></td>
+          <td class="mono">${a.total_tasks}</td>
+          <td class="mono">${a.completed_tasks}</td>
+          <td class="mono">${cr}%</td>
+          <td><span style="font-family:var(--mono);font-size:11px;color:${c};font-weight:600">${sc}/100</span></td>
+        </tr>`;
+      }).join('');
+      document.getElementById('venue-tbl').innerHTML = rows;
+      log(`Trail: ${areas.length} areas loaded across ${summary.length} venues`,'ok');
     } else {
-      tbody.innerHTML = '<tr><td colspan="8" class="empty">Transaction detail view coming soon — ' + total + ' transaction(s) in database</td></tr>';
+      document.getElementById('venue-tbl').innerHTML = '<tr><td colspan="6" class="empty">No Trail data — run a sync first</td></tr>';
+      document.getElementById('s-tt').textContent = '0';
     }
-  } catch(e) {
-    tbody.innerHTML = '<tr><td colspan="8" class="empty">No transactions yet</td></tr>';
-  }
+  } catch(e) { document.getElementById('venue-tbl').innerHTML = '<tr><td colspan="6" class="empty">Could not load Trail data</td></tr>'; }
 }
 
-// ── CLERKS ──
+// Transactions
+async function loadTx() {
+  try {
+    const r = await api('/webhooks/relay/status');
+    const n = Number(r.data?.total_transactions)||0;
+    document.getElementById('tx-lbl').textContent = n+' transaction'+(n!==1?'s':'');
+    document.getElementById('tx-tbody').innerHTML = n===0
+      ? '<tr><td colspan="7" class="empty">No transactions yet — waiting for Relay data from Access Hospitality</td></tr>'
+      : '<tr><td colspan="7" class="empty">'+n+' transaction'+(n!==1?'s':'')+' in database · detailed view coming soon</td></tr>';
+  } catch(e) { document.getElementById('tx-tbody').innerHTML = '<tr><td colspan="7" class="empty">Error loading transactions</td></tr>'; }
+}
+
+// Clerks
 async function loadClerks() {
-  const unmatchedTbody = document.getElementById('unmatched-clerks');
   try {
-    // Query clerk mappings
-    unmatchedTbody.innerHTML = `
-      <tr>
-        <td class="mono primary">42</td>
-        <td>GRIFFIN01</td>
-        <td class="mono">1</td>
-        <td class="mono">2026-03-25</td>
-        <td>
-          <select class="form-input form-select" style="padding:4px 8px;font-size:12px;width:180px">
-            <option value="">— Select team member —</option>
-            <option>Marcus Bennett</option>
-            <option>Amy Chen</option>
-            <option>Darren Walsh</option>
-            <option>Sarah Thompson</option>
-            <option>James Kirk</option>
-          </select>
-        </td>
-        <td><button class="btn btn-primary" style="padding:4px 10px;font-size:11px">Match</button></td>
-      </tr>
-    `;
-    document.getElementById('unmatched-count').textContent = '1 unmatched';
-  } catch(e) {}
+    const r = await api('/webhooks/relay/status');
+    const uc = Number(r.data?.unmatched_clerks)||0;
+    document.getElementById('uc-lbl').textContent = uc+' unmatched';
+    document.getElementById('uc-tbody').innerHTML = uc===0
+      ? '<tr><td colspan="4" class="empty">No unmatched clerks</td></tr>'
+      : '<tr><td colspan="4" class="empty">'+uc+' unmatched clerk(s) — assign in The Analytics Coach</td></tr>';
+  } catch(e) { document.getElementById('uc-tbody').innerHTML = '<tr><td colspan="4" class="empty">Error loading clerks</td></tr>'; }
 }
 
-// ── AUDIT ──
-async function loadAudit() {
-  const list = document.getElementById('audit-list');
-  // Real audit data — pull from API when audit table is built
-  const events = [];
-
-  document.getElementById('audit-total').textContent = events.length + ' events';
-  document.getElementById('audit-count').textContent = events.length;
-  document.getElementById('stat-audit').textContent = events.length;
-
-  list.innerHTML = events.map(e => `
-    <div class="audit-row">
-      <span class="audit-time">${e.time}</span>
-      <span><span class="badge badge-${e.color}">${e.type}</span></span>
-      <div>
-        <div style="font-size:12px;color:var(--text);margin-bottom:2px">${e.action}</div>
-        <div class="audit-detail">${e.detail}</div>
-      </div>
-      <span class="audit-source"><span class="badge badge-purple">${e.source}</span></span>
-    </div>
-  `).join('');
+// Audit
+function renderAudit() {
+  const events = logs.map(l => ({ts:l.ts,type:l.type==='ok'?'SYSTEM':l.type==='error'?'ERROR':'SYSTEM',msg:l.msg,cls:l.type==='error'?'b-red':l.type==='ok'?'b-teal':'b-dim'}));
+  document.getElementById('audit-tot').textContent = events.length+' session events';
+  document.getElementById('audit-nc').textContent = events.length;
+  document.getElementById('audit-list').innerHTML = !events.length
+    ? '<div class="empty">No events yet this session</div>'
+    : [...events].reverse().map(e=>`<div class="ar"><span class="at">${e.ts}</span><span><span class="b ${e.cls}">${e.type}</span></span><span class="am">${e.msg}</span><span class="as"><span class="b b-dim">The Club</span></span></div>`).join('');
 }
 
-// ── LIVE LOGS ──
-function addLog(msg, type = 'info') {
-  const colors = { info: 'var(--text2)', success: 'var(--green)', error: 'var(--red)', warn: 'var(--amber)', relay: 'var(--accent2)' };
-  const prefix = { info: '›', success: '✓', error: '✗', warn: '⚠', relay: '⟳' };
-  const time = new Date().toTimeString().split(' ')[0];
-  const el = document.getElementById('logs-feed');
-  const div = document.createElement('div');
-  div.style.cssText = `color:${colors[type]};margin-bottom:4px`;
-  div.textContent = `[${time}] ${prefix[type]} ${msg}`;
-  if (el.firstChild?.textContent?.includes('Waiting')) el.innerHTML = '';
-  el.insertBefore(div, el.firstChild);
-
-  // Also add to live feed
-  addFeedItem(msg, type);
-}
-
-function addFeedItem(msg, type) {
-  const colors = { success: 'var(--green)', error: 'var(--red)', warn: 'var(--amber)', relay: 'var(--accent2)', info: 'var(--text3)' };
+// Log
+function log(msg, type='info') {
+  const c = {ok:'var(--teal)',error:'var(--red)',info:'var(--fg2)',warn:'var(--amber)'};
+  const i = {ok:'✓',error:'✗',info:'›',warn:'⚠'};
+  const ts = new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  logs.push({ts,msg,type});
+  const out = document.getElementById('logs-out');
+  if (out) {
+    if (out.firstChild?.textContent?.startsWith('$ Waiting')) out.innerHTML='';
+    const d=document.createElement('div');
+    d.style.cssText=`color:${c[type]||'var(--fg2)'};margin-bottom:1px`;
+    d.textContent=`[${ts}] ${i[type]||'›'} ${msg}`;
+    out.insertBefore(d,out.firstChild);
+  }
   const feed = document.getElementById('live-feed');
-  if (feed.querySelector('.empty')) feed.innerHTML = '';
-  const item = document.createElement('div');
-  item.className = 'feed-item';
-  item.innerHTML = `
-    <div class="feed-dot" style="background:${colors[type] || 'var(--text3)'}"></div>
-    <div class="feed-body">
-      <div class="feed-title">${msg}</div>
-      <div class="feed-meta">${new Date().toLocaleTimeString('en-GB')}</div>
-    </div>
-  `;
-  feed.insertBefore(item, feed.firstChild);
-  const count = feed.querySelectorAll('.feed-item').length;
-  document.getElementById('feed-count').textContent = count + ' events';
-  if (count > 20) feed.lastChild?.remove();
+  if (feed) {
+    if (feed.querySelector('.empty')) feed.innerHTML='';
+    const dc={ok:'var(--teal)',error:'var(--red)',info:'var(--fg3)',warn:'var(--amber)'};
+    const item=document.createElement('div');
+    item.className='feed-row';
+    item.innerHTML=`<div class="fd" style="background:${dc[type]||'var(--fg3)'}"></div><div class="fm">${msg}</div><div class="ft">${ts}</div>`;
+    feed.insertBefore(item,feed.firstChild);
+    feedN++;
+    document.getElementById('fc').textContent=feedN+' events';
+    if (feed.children.length>25) feed.lastChild?.remove();
+  }
 }
 
-function clearLogs() {
-  document.getElementById('logs-feed').innerHTML = '<div style="color:var(--text3)">$ Log cleared</div>';
-}
-
-// ── MODALS ──
-function openModal(id) {
-  document.getElementById('modal-' + id)?.classList.add('open');
-}
-function closeModal(id) {
-  document.getElementById('modal-' + id)?.classList.remove('open');
-}
-
-function showApiKey() {
-  const key = 'b9d9755193d5a2d7e0641d67a3388458ff55619e2c10bdc9684ca44c36113980';
-  document.getElementById('key-display').textContent = key;
-  openModal('show-key');
-}
-
-function copyKey() {
-  const key = document.getElementById('key-display').textContent;
-  navigator.clipboard.writeText(key);
-  addLog('API key copied to clipboard', 'warn');
-}
-
-function copyWebhookUrl() {
-  navigator.clipboard.writeText('https://theclub.thecatandwickets.com/api/v1/webhooks/relay');
-  addLog('Webhook URL copied to clipboard', 'info');
-}
-
+// Actions
 async function testTrail() {
-  addLog('Testing Trail connection...', 'info');
+  log('Testing Trail connection...','info');
   try {
-    const token = await getToken();
-    const r = await fetch('/api/v1/sync/trail/test', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
-    });
-    const d = await r.json();
-    if (d.data?.success) {
-      addLog(`Trail connected — ${d.data.areas?.join(', ')}`, 'success');
-    } else {
-      addLog('Trail connection failed: ' + (d.error?.message || 'Unknown error'), 'error');
-    }
-  } catch(e) { addLog('Trail test error: ' + e.message, 'error'); }
+    const tok=await getToken();
+    const r=await fetch('/api/v1/sync/trail/test',{method:'POST',headers:{'Authorization':`Bearer ${tok}`,'Content-Type':'application/json'}});
+    const d=await r.json();
+    d.data?.success ? log(`Trail connected — ${d.data.areas?.join(', ')}`,'ok') : log('Trail failed: '+(d.error?.message||'Unknown'),'error');
+  } catch(e) { log('Trail test error: '+e.message,'error'); }
 }
 
 async function syncTrail() {
-  addLog('Starting Trail sync...', 'info');
+  log('Starting Trail sync...','info');
   try {
-    const token = await getToken();
-    const r = await fetch('/api/v1/sync/trail', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: '{}'
-    });
-    const d = await r.json();
-    addLog(d.data?.message || 'Trail sync started', 'success');
-  } catch(e) { addLog('Trail sync error: ' + e.message, 'error'); }
+    const tok=await getToken();
+    const r=await fetch('/api/v1/sync/trail',{method:'POST',headers:{'Authorization':`Bearer ${tok}`,'Content-Type':'application/json'},body:'{}'});
+    const d=await r.json();
+    log(d.data?.message||'Trail sync started','ok');
+  } catch(e) { log('Trail sync error: '+e.message,'error'); }
 }
 
 async function testRelay() {
-  addLog('Sending test transaction to Relay webhook...', 'relay');
+  log('Sending test Relay event...','info');
   try {
-    const keyRes = await apiFetch('/webhooks/relay/status');
-    // Send a test via the API — in production this comes from Access
-    addLog('Test event sent — check Transactions view', 'success');
-  } catch(e) { addLog('Test failed: ' + e.message, 'error'); }
+    const r=await fetch('/api/v1/webhooks/relay',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':RELAY_KEY},
+      body:JSON.stringify({
+        Id:crypto.randomUUID(),BusinessDate:new Date().toISOString().split('T')[0],
+        DateTimeOpened:new Date().toISOString(),DateTimeClosed:new Date().toISOString(),
+        LocationId:'TEST01',CompanyCode:'CW001',Covers:2,ClosedByClerkId:99,
+        TotalGrossItemCost:45.00,TotalPayments:45.00,
+        SoldItems:[{Id:'TST01',Name:'Test Item',AddedByClerkId:99,DateTimeSold:new Date().toISOString(),Quantity:1,SalesGroup:'TEST',IndividualGrossPrice:45.00,TotalGrossPrice:45.00,TotalTax:7.50,IsRefunded:false}],
+        Payments:[{Amount:45.00,Method:'CARD',PaymentDateTime:new Date().toISOString()}],
+        VoidedItems:[],WastedItems:[]
+      })
+    });
+    const d=await r.json();
+    if (d.data?.status==='ok') { log('Test event accepted — txn: '+d.data.transactionId,'ok'); setTimeout(loadDashboard,500); }
+    else log('Test rejected: '+(d.error?.message||'Unknown'),'error');
+  } catch(e) { log('Test error: '+e.message,'error'); }
 }
 
-function saveConnector() {
-  const name = document.getElementById('connector-name').value;
+function copyUrl() { navigator.clipboard?.writeText('https://theclub.thecatandwickets.com/api/v1/webhooks/relay'); log('Webhook URL copied','info'); }
+
+async function showKey() {
+  document.getElementById('km-l').textContent='Relay Webhook API Key';
+  document.getElementById('km-v').textContent='Loading...';
+  document.getElementById('km-t').textContent='Relay API Key';
+  openM('show-key');
+  try {
+    const r = await api('/connectors/relay/key');
+    if (r.data?.key) {
+      document.getElementById('km-v').textContent = r.data.key;
+    } else {
+      document.getElementById('km-v').textContent = '[Key not available — check server .env]';
+    }
+  } catch(e) {
+    document.getElementById('km-v').textContent = '[Error fetching key]';
+  }
+}
+
+function genKey() {
+  const name=document.getElementById('nkn').value.trim();
   if (!name) return;
-  addLog(`Connector "${name}" added — configure credentials to activate`, 'info');
-  closeModal('add-connector');
+  const key=Array.from(crypto.getRandomValues(new Uint8Array(32))).map(b=>b.toString(16).padStart(2,'0')).join('');
+  closeM('create-key');
+  document.getElementById('km-l').textContent=name;
+  document.getElementById('km-v').textContent=key;
+  document.getElementById('km-t').textContent=name+' — New Key';
+  openM('show-key');
+  log(`Key generated for "${name}" — store securely`,'warn');
 }
 
-function createApiKey() {
-  const name = document.getElementById('api-key-name').value;
-  if (!name) return;
-  const key = Array.from(crypto.getRandomValues(new Uint8Array(32))).map(b => b.toString(16).padStart(2,'0')).join('');
-  addLog(`API key created for "${name}" — store securely`, 'warn');
-  closeModal('create-api-key');
-  document.getElementById('key-display').textContent = key;
-  document.getElementById('modal-show-key').querySelector('.modal-title').textContent = name;
-  openModal('show-key');
-}
+function openM(id)  { document.getElementById('m-'+id)?.classList.add('open'); }
+function closeM(id) { document.getElementById('m-'+id)?.classList.remove('open'); }
+document.querySelectorAll('.overlay').forEach(o => { o.addEventListener('click',e=>{ if(e.target===o) o.classList.remove('open'); }); });
 
-function refreshData() {
-  loadDashboard();
-  addLog('Dashboard refreshed', 'info');
-}
-
-// ── INIT ──
-window.addEventListener('load', async () => {
-  await getToken();
-  loadDashboard();
-  loadAudit();
-  addLog('The Club UI connected to API', 'success');
-  addLog('theclub.thecatandwickets.com · SSL active', 'success');
-  addLog('Relay webhook ready at /api/v1/webhooks/relay', 'relay');
-
-  // Simulate live events
-  setTimeout(() => addLog('Trail sync scheduled — Sunday 23:00', 'info'), 2000);
-  setTimeout(() => addLog('Relay: 1 transaction in database (test)', 'relay'), 3500);
-});
-
-// Close modals on overlay click
-document.querySelectorAll('.modal-overlay').forEach(overlay => {
-  overlay.addEventListener('click', e => {
-    if (e.target === overlay) overlay.classList.remove('open');
-  });
-});
+function fmtD(s) { try { return new Date(s).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}); } catch { return s; } }
 </script>
 </body>
 </html>
-<script>
-// PATCH: Add login gate on top of existing app
-(function() {
-  const CLUB_SESSION_KEY = 'club_session';
-  const VALID_USERS = [
-    { email: 'ian@foxitc.com', password: 'FoxITC2026!', name: 'Ian', role: 'Fox ITC' },
-    { email: 'jack@foxitc.com', password: 'FoxITC2026!', name: 'Jack', role: 'Fox ITC' },
-  ];
-
-  function isLoggedIn() {
-    const s = sessionStorage.getItem(CLUB_SESSION_KEY);
-    return s ? JSON.parse(s) : null;
-  }
-
-  function showLogin() {
-    document.body.style.display = 'none';
-    const overlay = document.createElement('div');
-    overlay.id = 'login-overlay';
-    overlay.style.cssText = `
-      position:fixed;inset:0;background:#0a0a0f;display:flex;
-      align-items:center;justify-content:center;z-index:9999;
-      font-family:'DM Sans',sans-serif;
-    `;
-    overlay.innerHTML = `
-      <div style="width:380px">
-        <div style="text-align:center;margin-bottom:32px">
-          <div style="width:44px;height:44px;background:#6c63ff;clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);display:inline-flex;align-items:center;justify-content:center;font-family:'Space Mono',monospace;font-size:14px;font-weight:700;color:white;margin-bottom:12px">FC</div>
-          <div style="font-family:'Space Mono',monospace;font-size:16px;font-weight:700;color:#e2e2f0;letter-spacing:0.05em">THE CLUB</div>
-          <div style="font-size:12px;color:#44445a;margin-top:4px;font-family:'Space Mono',monospace">Fox ITC · Authorised Access Only</div>
-        </div>
-        <div style="background:#0f0f17;border:1px solid #1e1e2e;border-radius:12px;padding:24px">
-          <div id="login-error" style="display:none;background:#2a0f17;border:1px solid #f43f5e;border-radius:6px;padding:10px;font-size:12px;color:#f43f5e;margin-bottom:16px;text-align:center"></div>
-          <div style="margin-bottom:14px">
-            <label style="display:block;font-size:10px;font-family:'Space Mono',monospace;color:#8888aa;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Email</label>
-            <input id="login-email" type="email" placeholder="you@foxitc.com" style="width:100%;background:#16161f;border:1px solid #2a2a3e;border-radius:6px;padding:10px 12px;color:#e2e2f0;font-family:'DM Sans',sans-serif;font-size:13px;outline:none">
-          </div>
-          <div style="margin-bottom:20px">
-            <label style="display:block;font-size:10px;font-family:'Space Mono',monospace;color:#8888aa;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Password</label>
-            <input id="login-password" type="password" placeholder="••••••••" style="width:100%;background:#16161f;border:1px solid #2a2a3e;border-radius:6px;padding:10px 12px;color:#e2e2f0;font-family:'DM Sans',sans-serif;font-size:13px;outline:none">
-          </div>
-          <button onclick="attemptLogin()" style="width:100%;background:#6c63ff;color:white;border:none;border-radius:6px;padding:11px;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">
-            Sign In to The Club
-          </button>
-        </div>
-        <div style="text-align:center;margin-top:16px;font-size:11px;color:#44445a;font-family:'Space Mono',monospace">
-          Fox ITC internal system · Unauthorised access prohibited
-        </div>
-      </div>
-    `;
-    document.body.appendChild(overlay);
-
-    // Enter key support
-    overlay.addEventListener('keydown', e => {
-      if (e.key === 'Enter') attemptLogin();
-    });
-  }
-
-  window.attemptLogin = function() {
-    const email = document.getElementById('login-email').value.trim().toLowerCase();
-    const password = document.getElementById('login-password').value;
-    const user = VALID_USERS.find(u => u.email === email && u.password === password);
-    if (user) {
-      sessionStorage.setItem(CLUB_SESSION_KEY, JSON.stringify({ email: user.email, name: user.name, role: user.role }));
-      document.getElementById('login-overlay').remove();
-      document.body.style.display = 'flex';
-      // Show user name in sidebar
-      const footer = document.querySelector('.status-footer');
-      if (footer) {
-        const userRow = document.createElement('div');
-        userRow.style.cssText = 'font-size:11px;color:var(--text2);margin-top:6px;font-family:var(--mono)';
-        userRow.textContent = user.name + ' · ' + user.role;
-        footer.appendChild(userRow);
-      }
-    } else {
-      const errEl = document.getElementById('login-error');
-      errEl.style.display = 'block';
-      errEl.textContent = 'Invalid credentials — Fox ITC access only';
-    }
-  };
-
-  // Check on load
-  if (!isLoggedIn()) {
-    document.addEventListener('DOMContentLoaded', showLogin);
-    // If DOM already loaded
-    if (document.readyState !== 'loading') showLogin();
-  }
-})();
-</script>
