@@ -784,7 +784,7 @@ const USERS = [
 ];
 
 const VENUE_NAMES = { griffin:'The Griffin Inn', longhop:'Long Hop', taprun:'Tap & Run', all:'All Venues' };
-const LOCATION_MAP = { '0001':'The Griffin Inn', '0002':'Tap & Run' };
+let LOCATION_MAP = {}; // Loaded dynamically from database
 
 let SESSION = null, TOKEN = '', currentVenue = 'all';
 
@@ -904,7 +904,20 @@ function switchVenue() {
 // Init
 async function init() {
   await getToken();
+  await loadLocationMap(); // Load venue mappings from database first
   loadDashboard();
+}
+
+async function loadLocationMap() {
+  try {
+    const r = await api('/venues/mappings');
+    const mappings = r.data || [];
+    LOCATION_MAP = {};
+    mappings.forEach(m => { LOCATION_MAP[m.location_id] = m.venue_name; });
+    console.log('[Coach] Location map loaded:', LOCATION_MAP);
+  } catch(e) {
+    console.warn('[Coach] Could not load location map:', e.message);
+  }
 }
 
 // Dashboard
