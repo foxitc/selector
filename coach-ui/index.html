@@ -536,7 +536,7 @@ select.fi { cursor:pointer; appearance:none; }
             <div class="stat-icon" style="background:var(--teal-bg)">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
             </div>
-            <div class="stat-label">Transactions Today</div>
+            <div class="stat-label">Today's Transactions</div>
             <div class="stat-val" id="s-tx">—</div>
             <div class="stat-note" id="s-txn">Loading...</div>
           </div>
@@ -645,29 +645,44 @@ select.fi { cursor:pointer; appearance:none; }
       <div id="v-sales" class="view">
         <div class="ph">
           <div><div class="ph-t">Sales Data</div><div class="ph-s">EPOS transaction data from Relay</div></div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <button class="period-btn btn btn-ghost btn-sm active" data-period="all" onclick="setSalesPeriod('all')">All Time</button>
+            <button class="period-btn btn btn-ghost btn-sm" data-period="today" onclick="setSalesPeriod('today')">Today</button>
+            <button class="period-btn btn btn-ghost btn-sm" data-period="week" onclick="setSalesPeriod('week')">This Week</button>
+            <button class="period-btn btn btn-ghost btn-sm" data-period="month" onclick="setSalesPeriod('month')">This Month</button>
+          </div>
         </div>
-        <div class="stats" style="grid-template-columns:repeat(3,1fr)">
+        <div class="stats" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px">
           <div class="stat">
-            <div class="stat-label">Total Transactions</div>
+            <div class="stat-label">Transactions</div>
             <div class="stat-val" id="sales-tx">—</div>
-            <div class="stat-note">All venues · All time</div>
+            <div class="stat-note" id="sales-tx-note">Loading...</div>
           </div>
           <div class="stat">
-            <div class="stat-label">Total Revenue</div>
+            <div class="stat-label">Revenue</div>
             <div class="stat-val" id="sales-rev">—</div>
             <div class="stat-note">Gross item cost</div>
           </div>
           <div class="stat">
-            <div class="stat-label">Active Locations</div>
+            <div class="stat-label">Avg Transaction</div>
+            <div class="stat-val" id="sales-avg">—</div>
+            <div class="stat-note">Per transaction</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Active Venues</div>
             <div class="stat-val" id="sales-loc">—</div>
-            <div class="stat-note">Mapped venues</div>
+            <div class="stat-note">Mapped locations</div>
           </div>
         </div>
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-h"><div class="card-t">Period Breakdown</div></div>
+          <div id="sales-period-stats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:14px 18px"></div>
+        </div>
         <div class="card">
-          <div class="card-h"><div class="card-t">Recent Transactions</div><span style="font-size:12px;color:var(--ink4)" id="sales-tx-lbl">—</span></div>
+          <div class="card-h"><div class="card-t">Transactions</div><span style="font-size:12px;color:var(--ink4)" id="sales-tx-lbl">—</span></div>
           <table class="tbl">
             <thead><tr><th>Date/Time</th><th>Venue</th><th>Table</th><th>Covers</th><th>Gross</th><th>Clerk</th><th>Items</th></tr></thead>
-            <tbody id="sales-tbl"><tr><td colspan="6" class="empty">Loading...</td></tr></tbody>
+            <tbody id="sales-tbl"><tr><td colspan="7" class="empty">Loading...</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -903,6 +918,17 @@ function switchVenue() {
   currentVenue = document.getElementById('venue-sel').value;
   document.getElementById('tb-venue-name').textContent = VENUE_NAMES[currentVenue] || 'All Venues';
   loadDashboard();
+  // Reload whichever view is currently active
+  const activeView = document.querySelector('.view.active')?.id?.replace('v-','');
+  if (activeView === 'sales') loadSales();
+  if (activeView === 'venues') loadVenuesDetail();
+  if (activeView === 'clerks') loadClerks();
+  if (activeView === 'trail') loadTrail();
+}
+
+function getLocationFilter() {
+  const locMap = { griffin:'0001', taprun:'0002', longhop:'0003' };
+  return currentVenue === 'all' ? '' : (locMap[currentVenue] || '');
 }
 
 // Init
@@ -927,16 +953,22 @@ async function loadLocationMap() {
 // Dashboard
 async function loadDashboard() {
   try {
-    const r = await api('/webhooks/relay/status');
-    if (r.data) {
-      const tx = Number(r.data.total_transactions)||0;
-      document.getElementById('s-tx').textContent = tx.toLocaleString();
-      document.getElementById('s-txn').textContent = (r.data.locations||0)+' active location(s)';
-      const uc = Number(r.data.unmatched_clerks)||0;
+    const locParam = currentVenue !== 'all' ? `&locationId=${currentVenue}` : '';
+    const [status, summary] = await Promise.all([
+      api('/webhooks/relay/status'),
+      api(`/transactions/summary?${locParam.slice(1)}`)
+    ]);
+    if (status.data) {
+      const uc = Number(status.data.unmatched_clerks)||0;
       document.getElementById('s-clerks').textContent = uc;
       document.getElementById('s-clerksn').textContent = uc>0 ? 'Needs attention' : 'All matched';
       document.getElementById('s-clerksn').className = 'stat-note '+(uc>0?'down':'up');
       if (uc>0) { document.getElementById('clerk-nc').textContent=uc; document.getElementById('clerk-nc').style.display=''; }
+    }
+    if (summary.data) {
+      const d = summary.data;
+      document.getElementById('s-tx').textContent = Number(d.today_transactions||0).toLocaleString();
+      document.getElementById('s-txn').textContent = `Today · £${Number(d.today_revenue||0).toFixed(2)} · Week: £${Number(d.week_revenue||0).toFixed(2)}`;
     }
   } catch(e) {}
 
