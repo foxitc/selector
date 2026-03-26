@@ -1000,49 +1000,90 @@ async function loadDashboard() {
   } catch(e) {
     document.getElementById('venue-tbl').innerHTML = '<tr><td colspan="6" class="empty">Could not load Trail data</td></tr>';
   }
+
+  // Sync status
+  try {
+    const sr = await api('/sync/status');
+    if (sr.data) {
+      const d = sr.data;
+      // Update Trail last sync
+      if (d.trail?.lastSync) {
+        const trailNote = document.getElementById('s-ttn');
+        if (trailNote) trailNote.textContent = 'Last sync: '+fmtDT(d.trail.lastSync);
+      }
+      // Update Relay last received
+      if (d.relay?.lastReceived) {
+        document.getElementById('relay-last').textContent = 'Last: '+fmtDT(d.relay.lastReceived);
+      }
+      // Update clerk badge
+      const newClerks = (d.clerks||[]).filter(c => !c.team_member_id);
+      if (newClerks.length > 0) {
+        document.getElementById('clerk-nc').textContent = newClerks.length;
+        document.getElementById('clerk-nc').style.display = '';
+      }
+    }
+  } catch(e) {}
 }
 
-// Transactions
+// Transactions — real data
 async function loadTx() {
   try {
-    const r = await api('/webhooks/relay/status');
-    const n = Number(r.data?.total_transactions)||0;
-    document.getElementById('tx-lbl').textContent = n+' transaction'+(n!==1?'s':'');
-    document.getElementById('tx-tbody').innerHTML = n===0
-      ? '<tr><td colspan="7" class="empty">No transactions yet — waiting for Relay data</td></tr>'
-      : '<tr><td colspan="7" class="empty">'+n+' transaction'+(n!==1?'s':'')+' in database · detailed view coming soon</td></tr>';
-  } catch(e) { document.getElementById('tx-tbody').innerHTML = '<tr><td colspan="7" class="empty">Error</td></tr>'; }
+    const r = await api('/transactions/recent?limit=20');
+    const txns = r.data || [];
+    document.getElementById('tx-lbl').textContent = txns.length+' recent transaction'+(txns.length!==1?'s':'');
+    if (!txns.length) {
+      document.getElementById('tx-tbody').innerHTML = '<tr><td colspan="7" class="empty">No transactions yet — waiting for Relay data from Access Hospitality</td></tr>';
+      return;
+    }
+    document.getElementById('tx-tbody').innerHTML = txns.map(tx => {
+      const itemNames = (tx.items||[]).map(i=>i.name).join(', ') || '—';
+      const received = fmtDT(tx.received_at);
+      return `<tr>
+        <td class="mono p" style="font-size:10px">${tx.id.split('-')[0]}...</td>
+        <td><span class="b b-blue">${tx.location_id||'—'}</span></td>
+        <td class="dim">${tx.business_date||'—'}</td>
+        <td class="mono">${tx.covers||0}</td>
+        <td class="mono">£${Number(tx.total_gross_item_cost||0).toFixed(2)}</td>
+        <td class="mono">${tx.closed_by_clerk_id||'—'}</td>
+        <td><span class="b b-green"><span class="dot"></span>Received</span></td>
+      </tr>
+      <tr style="background:var(--bg3)">
+        <td colspan="7" style="padding:4px 16px 10px;font-size:11px;color:var(--fg3)">
+          Items: ${itemNames} · Received: ${received}
+        </td>
+      </tr>`;
+    }).join('');
+  } catch(e) { document.getElementById('tx-tbody').innerHTML = '<tr><td colspan="7" class="empty">Error loading transactions</td></tr>'; }
 }
 
 // Venue Mapping
 async function loadVenues() {
   try {
-    // Get venues from database
-    const vr = await api('/venues');
-    const venues = vr.data || [];
+    const [vr, cr, mr] = await Promise.all([
+      api('/venues'), api('/clerks'), api('/venues/mappings')
+    ]);
+    const venues  = vr.data || [];
+    const clerks  = cr.data || [];
+    const mappings = mr.data || [];
 
-    // Get clerk mappings to find unique location IDs
-    const cr = await api('/clerks');
-    const clerks = cr.data || [];
+    // Find all unique location IDs from clerk mappings
     const locationIds = [...new Set(clerks.map(c => c.location_id).filter(Boolean))];
-
-    // Known mapped venues (Griffin Inn = GRIFFIN01 from our test)
-    const knownMappings = [
-      { location_id: 'GRIFFIN01', connector: 'Relay (test)', venue: 'The Griffin Inn' },
-    ];
-    const unmapped = locationIds.filter(lid => !knownMappings.find(m => m.location_id === lid));
+    const mappedIds   = mappings.map(m => m.location_id);
+    const unmapped    = locationIds.filter(lid => !mappedIds.includes(lid) && lid !== 'GRIFFIN01' && lid !== 'TEST01');
 
     document.getElementById('uv-lbl').textContent = unmapped.length+' unmapped';
+
     if (unmapped.length === 0) {
-      document.getElementById('uv-tbody').innerHTML = '<tr><td colspan="6" class="empty">All locations mapped</td></tr>';
+      document.getElementById('uv-tbody').innerHTML = '<tr><td colspan="6" class="empty">All locations mapped ✓</td></tr>';
     } else {
       const venueOptions = venues.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
-      document.getElementById('uv-tbody').innerHTML = unmapped.map(lid => `
-        <tr>
+      document.getElementById('uv-tbody').innerHTML = unmapped.map(lid => {
+        const clerkCount = clerks.filter(c => c.location_id === lid).length;
+        return `<tr>
           <td class="mono p">${lid}</td>
           <td><span class="b b-blue">Relay</span></td>
-          <td class="dim">Today</td>
-          <td class="mono">${clerks.filter(c=>c.location_id===lid).length} clerk(s)</td>
+          <td class="dim">${fmtD(clerks.find(c=>c.location_id===lid)?.created_at)}</td>
+          <td class="mono">${clerkCount} clerk(s)</td>
           <td>
             <select class="fg-i" style="padding:5px 9px;font-size:12px;width:180px" id="vmap-${lid}">
               <option value="">— Select venue —</option>
@@ -1050,36 +1091,46 @@ async function loadVenues() {
             </select>
           </td>
           <td><button class="btn btn-primary btn-sm" onclick="mapVenue('${lid}')">Map</button></td>
-        </tr>
-      `).join('');
+        </tr>`;
+      }).join('');
     }
 
-    // Show known mappings
-    document.getElementById('mv-tbody').innerHTML = knownMappings.length === 0
-      ? '<tr><td colspan="5" class="empty">No mapped venues yet</td></tr>'
-      : knownMappings.map(m => `
-        <tr>
-          <td class="p">${m.venue}</td>
-          <td class="mono">${m.location_id}</td>
-          <td class="dim">Auto-matched</td>
-          <td class="dim">—</td>
-          <td><span class="b b-green"><span class="dot"></span>Mapped</span></td>
-        </tr>
-      `).join('');
+    // Show saved mappings
+    const allMappings = [
+      ...mappings.map(m => ({ location_id:m.location_id, venue:m.venue_name, connector:'Relay', mapped_at:m.created_at })),
+    ];
+    document.getElementById('mv-tbody').innerHTML = !allMappings.length
+      ? '<tr><td colspan="5" class="empty">No venue mappings saved yet</td></tr>'
+      : allMappings.map(m => `
+          <tr>
+            <td class="p">${m.venue}</td>
+            <td class="mono">${m.location_id}</td>
+            <td class="dim">${m.connector}</td>
+            <td class="dim">${fmtD(m.mapped_at)}</td>
+            <td><span class="b b-green"><span class="dot"></span>Mapped</span></td>
+          </tr>
+        `).join('');
 
-    log(`Venue mapping: ${unmapped.length} unmapped location(s)`,'info');
+    if (unmapped.length > 0) log(`${unmapped.length} unmapped location(s) need attention`,'warn');
   } catch(e) {
-    document.getElementById('uv-tbody').innerHTML = '<tr><td colspan="6" class="empty">Error loading venues</td></tr>';
+    document.getElementById('uv-tbody').innerHTML = '<tr><td colspan="6" class="empty">Error loading venue data</td></tr>';
   }
 }
 
-function mapVenue(locationId) {
+async function mapVenue(locationId) {
   const sel = document.getElementById('vmap-'+locationId);
   const venueId = sel?.value;
   if (!venueId) { log('Please select a venue first','warn'); return; }
-  log(`Location ${locationId} mapped to venue — saving...`,'ok');
-  // TODO: save to connector_venue_mappings table
-  loadVenues();
+  try {
+    const r = await api('/venues/map', {
+      method: 'POST',
+      body: JSON.stringify({ locationId, venueId, connector: 'relay' })
+    });
+    if (r.error) { log('Mapping failed: '+r.error.message,'error'); return; }
+    log('Location '+locationId+' mapped successfully','ok');
+    loadVenues();
+    loadDashboard();
+  } catch(e) { log('Mapping error: '+e.message,'error'); }
 }
 
 // Clerks
@@ -1138,21 +1189,30 @@ async function matchClerk(clerkId, locationId) {
   } catch(e) { log('Match error: '+e.message,'error'); }
 }
 
-// Audit
-function renderAudit() {
-  const events = [...logs].reverse();
-  document.getElementById('audit-tot').textContent = events.length+' session events';
-  document.getElementById('audit-nc').textContent = events.length;
-  document.getElementById('audit-list').innerHTML = !events.length
-    ? '<div class="empty">No events yet</div>'
-    : events.map(e=>`
-        <div class="ar">
-          <span class="at">${e.ts}</span>
-          <span><span class="b ${e.type==='error'?'b-red':e.type==='ok'?'b-green':'b-dim'}">${e.type==='ok'?'SYSTEM':e.type==='error'?'ERROR':'INFO'}</span></span>
-          <span class="am">${e.msg}</span>
-          <span class="as"><span class="b b-dim">The Club</span></span>
-        </div>
-      `).join('');
+// Audit — real data from API
+async function renderAudit() {
+  try {
+    const r = await api('/audit?limit=100');
+    const events = r.data || [];
+    document.getElementById('audit-tot').textContent = events.length+' events';
+    document.getElementById('audit-nc').textContent = events.length;
+    if (!events.length) {
+      document.getElementById('audit-list').innerHTML = '<div class="empty">No events yet</div>';
+      return;
+    }
+    const typeColors = {
+      'WEBHOOK_RECEIVED':'b-green','CLERK_DISCOVERED':'b-amber',
+      'TRAIL_SYNC':'b-blue','SYSTEM':'b-dim','ERROR':'b-red'
+    };
+    document.getElementById('audit-list').innerHTML = events.map(e => `
+      <div class="ar">
+        <span class="at">${fmtDT(e.created_at)}</span>
+        <span><span class="b ${typeColors[e.event_type]||'b-dim'}">${(e.event_type||'').replace('_',' ')}</span></span>
+        <span class="am">${e.description||e.action||'—'}</span>
+        <span class="as"><span class="b b-dim">${e.source||'System'}</span></span>
+      </div>
+    `).join('');
+  } catch(e) { log('Audit load error: '+e.message,'error'); }
 }
 
 // Log
@@ -1261,7 +1321,8 @@ function openM(id)  { document.getElementById('m-'+id)?.classList.add('open'); }
 function closeM(id) { document.getElementById('m-'+id)?.classList.remove('open'); }
 document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open');}));
 
-function fmtD(s) { try{return new Date(s).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});}catch{return s;} }
+function fmtD(s) { try{return new Date(s).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});}catch{return s||'—';} }
+function fmtDT(s) { try{return new Date(s).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',second:'2-digit'});}catch{return s||'—';} }
 </script>
 </body>
 </html>
