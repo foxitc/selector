@@ -507,12 +507,19 @@ select.fi { cursor: pointer; appearance: none; }
       <!-- CLERK MAPPING -->
       <div id="v-clerks" class="view">
         <div class="ph"><div><div class="ph-t">Clerk Mapping</div><div class="ph-s">EPOS clerk IDs discovered from Relay transactions</div></div></div>
-        <div class="alert al-teal" style="margin-bottom:15px">Clerk matching is done in The Analytics Coach by the Cat & Wickets team. This view shows what The Club has discovered.</div>
-        <div class="card">
+        <div class="alert al-teal" style="margin-bottom:15px">Match EPOS clerk IDs to Test Player team members. Once matched, all transactions are automatically attributed to the correct person.</div>
+        <div class="card" style="margin-bottom:14px">
           <div class="ch"><div class="ch-t" style="color:var(--amber)">Unmatched Clerks</div><span class="b b-amb" id="uc-lbl">0 unmatched</span></div>
           <table class="tbl">
-            <thead><tr><th>Clerk ID</th><th>Location</th><th>First Seen</th><th>Status</th></tr></thead>
-            <tbody id="uc-tbody"><tr><td colspan="4" class="empty">Loading...</td></tr></tbody>
+            <thead><tr><th>Clerk ID</th><th>Location</th><th>First Seen</th><th>Match To</th><th></th></tr></thead>
+            <tbody id="uc-tbody"><tr><td colspan="5" class="empty">Loading...</td></tr></tbody>
+          </table>
+        </div>
+        <div class="card">
+          <div class="ch"><div class="ch-t" style="color:var(--teal)">Matched Clerks</div></div>
+          <table class="tbl">
+            <thead><tr><th>Clerk ID</th><th>Location</th><th>Team Member</th><th>Status</th></tr></thead>
+            <tbody id="matched-tbody"><tr><td colspan="4" class="empty">No matched clerks yet</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -726,13 +733,69 @@ async function loadTx() {
 // Clerks
 async function loadClerks() {
   try {
-    const r = await api('/webhooks/relay/status');
-    const uc = Number(r.data?.unmatched_clerks)||0;
-    document.getElementById('uc-lbl').textContent = uc+' unmatched';
-    document.getElementById('uc-tbody').innerHTML = uc===0
-      ? '<tr><td colspan="4" class="empty">No unmatched clerks</td></tr>'
-      : '<tr><td colspan="4" class="empty">'+uc+' unmatched clerk(s) — assign in The Analytics Coach</td></tr>';
-  } catch(e) { document.getElementById('uc-tbody').innerHTML = '<tr><td colspan="4" class="empty">Error loading clerks</td></tr>'; }
+    const r = await api('/clerks');
+    const clerks = r.data || [];
+    const unmatched = clerks.filter(c => !c.team_member_id);
+    const matched = clerks.filter(c => c.team_member_id);
+    document.getElementById('uc-lbl').textContent = unmatched.length+' unmatched';
+
+    // Load team members for dropdown
+    const tmRes = await api('/squad');
+    const members = tmRes.data || [];
+    const memberOptions = members.map(m => `<option value="${m.id}">${m.first_name} ${m.last_name}</option>`).join('');
+
+    if (unmatched.length === 0) {
+      document.getElementById('uc-tbody').innerHTML = '<tr><td colspan="5" class="empty">All clerks matched</td></tr>';
+    } else {
+      document.getElementById('uc-tbody').innerHTML = unmatched.map(c => `
+        <tr>
+          <td class="mono p">${c.clerk_id}</td>
+          <td class="mono">${c.location_id || '—'}</td>
+          <td class="dim">${new Date(c.created_at).toLocaleDateString('en-GB')}</td>
+          <td>
+            <select class="fi" style="padding:4px 8px;font-size:11px;width:180px" id="match-${c.clerk_id}-${c.location_id}">
+              <option value="">— Select team member —</option>
+              ${memberOptions}
+            </select>
+          </td>
+          <td>
+            <button class="btn btn-hi btn-sm" onclick="matchClerk('${c.clerk_id}','${c.location_id}')">Match</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    // Show matched clerks
+    const matchedTbl = document.getElementById('matched-tbody');
+    if (matchedTbl) {
+      matchedTbl.innerHTML = matched.length === 0
+        ? '<tr><td colspan="4" class="empty">No matched clerks yet</td></tr>'
+        : matched.map(c => `
+          <tr>
+            <td class="mono p">${c.clerk_id}</td>
+            <td class="mono">${c.location_id || '—'}</td>
+            <td class="p">${c.first_name} ${c.last_name}</td>
+            <td><span class="b b-teal"><span class="dot"></span>Matched</span></td>
+          </tr>
+        `).join('');
+    }
+  } catch(e) { document.getElementById('uc-tbody').innerHTML = '<tr><td colspan="5" class="empty">Error loading clerks</td></tr>'; }
+}
+
+async function matchClerk(clerkId, locationId) {
+  const sel = document.getElementById('match-'+clerkId+'-'+locationId);
+  const teamMemberId = sel?.value;
+  if (!teamMemberId) { log('Please select a team member first','warn'); return; }
+  try {
+    const r = await api('/clerks/'+clerkId+'/match', {
+      method: 'POST',
+      body: JSON.stringify({ teamMemberId, locationId })
+    });
+    if (r.error) { log('Match failed: '+r.error.message,'error'); return; }
+    log('Clerk '+clerkId+' matched successfully','ok');
+    loadClerks();
+    loadDashboard();
+  } catch(e) { log('Match error: '+e.message,'error'); }
 }
 
 // Audit
