@@ -1,242 +1,444 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>The Club — Fox ITC</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
-  --ink:      #08090c;
-  --ink2:     #0d0e14;
-  --ink3:     #12131a;
-  --ink4:     #1a1b24;
-  --line:     #1f2030;
-  --line2:    #272840;
-  --fg:       #dde1f0;
-  --fg2:      #7a7f9a;
-  --fg3:      #3a3d52;
-  --hi:       #e8ff47;
-  --hi2:      #c8e000;
-  --teal:     #00d4aa;
-  --red:      #ff4466;
-  --amber:    #ffaa00;
-  --blue:     #4488ff;
+  --bg:       #f8f9fc;
+  --bg2:      #ffffff;
+  --bg3:      #f1f3f8;
+  --border:   #e4e7ef;
+  --border2:  #d0d5e8;
+  --fg:       #0f1117;
+  --fg2:      #5a6278;
+  --fg3:      #9ba3b8;
+  --accent:   #4f46e5;
+  --accent2:  #6366f1;
+  --accent-bg:#eef2ff;
+  --green:    #10b981;
+  --green-bg: #ecfdf5;
+  --amber:    #f59e0b;
+  --amber-bg: #fffbeb;
+  --red:      #ef4444;
+  --red-bg:   #fef2f2;
+  --blue:     #3b82f6;
+  --blue-bg:  #eff6ff;
+  --shadow:   0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow2:  0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.05);
+  --radius:   10px;
   --mono:     'JetBrains Mono', monospace;
-  --display:  'Syne', sans-serif;
+  --sans:     'Inter', sans-serif;
 }
+
+[data-theme="dark"] {
+  --bg:       #0c0d12;
+  --bg2:      #13141c;
+  --bg3:      #1a1c27;
+  --border:   #22253a;
+  --border2:  #2d3050;
+  --fg:       #e8eaf6;
+  --fg2:      #8b92b4;
+  --fg3:      #454d6b;
+  --accent:   #818cf8;
+  --accent2:  #a5b4fc;
+  --accent-bg:#1e1b4b;
+  --green:    #34d399;
+  --green-bg: #064e3b;
+  --amber:    #fbbf24;
+  --amber-bg: #451a03;
+  --red:      #f87171;
+  --red-bg:   #450a0a;
+  --blue:     #60a5fa;
+  --blue-bg:  #1e3a5f;
+  --shadow:   0 1px 3px rgba(0,0,0,0.4);
+  --shadow2:  0 4px 6px rgba(0,0,0,0.3);
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; }
-body { background: var(--ink); color: var(--fg); font-family: var(--display); font-size: 13px; overflow: hidden; }
 
-/* LOGIN */
-#login-screen {
-  position: fixed; inset: 0; background: var(--ink); display: flex;
-  align-items: center; justify-content: center; z-index: 1000;
-  background-image: radial-gradient(ellipse 60% 40% at 20% 80%, rgba(232,255,71,0.04) 0%, transparent 60%), radial-gradient(ellipse 40% 60% at 80% 20%, rgba(0,212,170,0.04) 0%, transparent 60%);
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--sans);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow: hidden;
+  transition: background 0.2s, color 0.2s;
 }
-.login-box { width: 360px; }
-.login-wordmark { margin-bottom: 36px; text-align: center; }
-.login-hex { display: inline-flex; align-items: center; justify-content: center; width: 46px; height: 46px; background: var(--hi); clip-path: polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%); font-family: var(--mono); font-size: 12px; color: var(--ink); margin-bottom: 12px; }
-.login-title { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
-.login-sub { font-family: var(--mono); font-size: 10px; color: var(--fg3); letter-spacing: 0.12em; text-transform: uppercase; margin-top: 4px; }
-.login-form { background: var(--ink2); border: 1px solid var(--line2); border-radius: 12px; padding: 26px; }
-.login-error { display: none; background: rgba(255,68,102,0.1); border: 1px solid rgba(255,68,102,0.3); border-radius: 6px; padding: 9px 13px; font-family: var(--mono); font-size: 11px; color: var(--red); margin-bottom: 16px; text-align: center; }
-.field { margin-bottom: 14px; }
-.field label { display: block; font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg3); margin-bottom: 6px; }
-.field input { width: 100%; background: var(--ink3); border: 1px solid var(--line2); border-radius: 7px; padding: 10px 12px; font-family: var(--mono); font-size: 12px; color: var(--fg); outline: none; transition: border-color 0.15s; }
-.field input:focus { border-color: var(--hi); }
-.login-btn { width: 100%; margin-top: 4px; background: var(--hi); color: var(--ink); border: none; border-radius: 7px; padding: 12px; font-family: var(--display); font-size: 13px; font-weight: 700; cursor: pointer; transition: background 0.15s; }
-.login-btn:hover { background: var(--hi2); }
-.login-notice { text-align: center; margin-top: 18px; font-family: var(--mono); font-size: 10px; color: var(--fg3); letter-spacing: 0.05em; }
 
-/* APP */
+/* ── LOGIN ─────────────────────────────────────── */
+#login-screen {
+  position: fixed; inset: 0;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000;
+}
+
+.login-card {
+  width: 380px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 36px;
+  box-shadow: var(--shadow2);
+}
+
+.login-logo {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 28px;
+}
+
+.login-hex {
+  width: 40px; height: 40px;
+  background: var(--accent);
+  clip-path: polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 11px; font-weight: 500; color: white;
+}
+
+.login-brand { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; }
+.login-sub { font-size: 11px; color: var(--fg3); margin-top: 1px; }
+
+.login-err {
+  display: none;
+  background: var(--red-bg); border: 1px solid rgba(239,68,68,0.2);
+  border-radius: 8px; padding: 10px 12px;
+  font-size: 12px; color: var(--red); margin-bottom: 16px;
+}
+
+.field { margin-bottom: 14px; }
+.field label { display: block; font-size: 11px; font-weight: 500; color: var(--fg2); margin-bottom: 5px; }
+.field input {
+  width: 100%; background: var(--bg3);
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 9px 12px; font-family: var(--sans); font-size: 13px; color: var(--fg);
+  outline: none; transition: border-color 0.15s, box-shadow 0.15s;
+}
+.field input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-bg); }
+
+.login-btn {
+  width: 100%; margin-top: 4px;
+  background: var(--accent); color: white;
+  border: none; border-radius: 8px; padding: 11px;
+  font-family: var(--sans); font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: background 0.15s, transform 0.1s;
+}
+.login-btn:hover { background: var(--accent2); }
+.login-btn:active { transform: scale(0.99); }
+.login-notice { text-align: center; margin-top: 16px; font-size: 11px; color: var(--fg3); }
+
+/* ── APP ────────────────────────────────────────── */
 #app { display: none; height: 100vh; flex-direction: column; }
 #app.ready { display: flex; }
 
-/* TOPBAR */
-.topbar { height: 50px; background: var(--ink2); border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; flex-shrink: 0; }
-.tb-left { display: flex; align-items: center; gap: 14px; }
-.tb-hex { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: var(--hi); clip-path: polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%); font-family: var(--mono); font-size: 9px; color: var(--ink); flex-shrink: 0; }
-.tb-brand { font-size: 13px; font-weight: 800; letter-spacing: 0.05em; }
-.tb-sep { width: 1px; height: 18px; background: var(--line2); }
-.tb-client { font-family: var(--mono); font-size: 10px; color: var(--fg3); letter-spacing: 0.06em; }
-.tb-right { display: flex; align-items: center; gap: 12px; }
-.tb-time { font-family: var(--mono); font-size: 11px; color: var(--fg3); }
-.api-status { display: flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 10px; color: var(--teal); }
-.pulse { width: 5px; height: 5px; border-radius: 50%; background: var(--teal); animation: pa 2.5s ease-in-out infinite; }
-@keyframes pa { 0%,100% { opacity:1; box-shadow:0 0 0 0 rgba(0,212,170,0.5); } 50% { opacity:0.7; box-shadow:0 0 0 5px rgba(0,212,170,0); } }
-.user-chip { display: flex; align-items: center; gap: 7px; background: var(--ink3); border: 1px solid var(--line2); border-radius: 20px; padding: 3px 11px 3px 5px; cursor: pointer; transition: background 0.12s; }
-.user-chip:hover { background: var(--ink4); }
-.user-av { width: 22px; height: 22px; background: var(--hi); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 9px; color: var(--ink); }
-.user-nm { font-family: var(--mono); font-size: 11px; color: var(--fg2); }
+/* ── TOPBAR ─────────────────────────────────────── */
+.topbar {
+  height: 52px; background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center;
+  justify-content: space-between; padding: 0 20px;
+  flex-shrink: 0; box-shadow: var(--shadow);
+  position: relative; z-index: 10;
+}
 
-/* LAYOUT */
+.tb-left { display: flex; align-items: center; gap: 14px; }
+
+.tb-hex {
+  width: 28px; height: 28px; background: var(--accent);
+  clip-path: polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 9px; color: white; flex-shrink: 0;
+}
+
+.tb-brand { font-size: 14px; font-weight: 700; letter-spacing: -0.01em; }
+.tb-divider { width: 1px; height: 18px; background: var(--border); }
+.tb-client { font-size: 11px; color: var(--fg3); font-weight: 500; }
+
+.tb-right { display: flex; align-items: center; gap: 10px; }
+
+.api-pill {
+  display: flex; align-items: center; gap: 5px;
+  background: var(--green-bg); border: 1px solid rgba(16,185,129,0.2);
+  border-radius: 20px; padding: 3px 10px;
+  font-size: 11px; font-weight: 500; color: var(--green);
+}
+
+.api-pill .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--green); animation: pa 2s ease-in-out infinite; }
+@keyframes pa { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+.tb-time { font-family: var(--mono); font-size: 11px; color: var(--fg3); }
+
+.theme-btn {
+  width: 32px; height: 32px; border-radius: 8px;
+  background: var(--bg3); border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: background 0.15s;
+  color: var(--fg2);
+}
+.theme-btn:hover { background: var(--border); }
+
+.user-chip {
+  display: flex; align-items: center; gap: 7px;
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 20px; padding: 4px 12px 4px 5px; cursor: pointer;
+  transition: background 0.15s;
+}
+.user-chip:hover { background: var(--border); }
+.user-av {
+  width: 22px; height: 22px; background: var(--accent);
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 600; color: white;
+}
+.user-nm { font-size: 12px; font-weight: 500; color: var(--fg2); }
+
+/* ── LAYOUT ─────────────────────────────────────── */
 .body { display: flex; flex: 1; overflow: hidden; }
 
-/* SIDEBAR */
-.sidebar { width: 196px; background: var(--ink2); border-right: 1px solid var(--line); display: flex; flex-direction: column; flex-shrink: 0; overflow-y: auto; }
-.ns { padding: 14px 14px 5px; font-family: var(--mono); font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--fg3); }
-.ni { display: flex; align-items: center; gap: 9px; padding: 7px 14px; cursor: pointer; color: var(--fg2); font-size: 12px; font-weight: 500; border-left: 2px solid transparent; transition: all 0.12s; }
-.ni:hover { background: var(--ink3); color: var(--fg); }
-.ni.active { background: rgba(232,255,71,0.06); color: var(--hi); border-left-color: var(--hi); }
-.ni-ic { width: 14px; height: 14px; flex-shrink: 0; opacity: 0.6; }
+/* ── SIDEBAR ─────────────────────────────────────── */
+.sidebar {
+  width: 210px; background: var(--bg2);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; flex-shrink: 0;
+  overflow-y: auto; padding: 12px 0;
+}
+
+.ns {
+  padding: 8px 16px 4px;
+  font-size: 10px; font-weight: 600; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--fg3);
+}
+
+.ni {
+  display: flex; align-items: center; gap: 9px;
+  padding: 7px 14px; cursor: pointer; color: var(--fg2);
+  font-size: 13px; font-weight: 500;
+  border-radius: 0; margin: 1px 8px;
+  border-radius: 7px; transition: all 0.12s;
+  position: relative;
+}
+.ni:hover { background: var(--bg3); color: var(--fg); }
+.ni.active { background: var(--accent-bg); color: var(--accent); }
+.ni-ic { width: 15px; height: 15px; flex-shrink: 0; opacity: 0.7; }
 .ni.active .ni-ic { opacity: 1; }
-.nc { margin-left: auto; background: var(--red); color: white; font-family: var(--mono); font-size: 9px; padding: 1px 5px; border-radius: 8px; min-width: 18px; text-align: center; }
-.nc.ok { background: var(--teal); color: var(--ink); }
 
-/* CONTENT */
-.content { flex: 1; overflow-y: auto; padding: 22px; }
+.nc {
+  margin-left: auto; background: var(--red);
+  color: white; font-size: 10px; font-weight: 600;
+  padding: 1px 6px; border-radius: 10px; min-width: 19px; text-align: center;
+}
+.nc.ok { background: var(--green); }
 
-/* PAGE HEADER */
+/* ── CONTENT ─────────────────────────────────────── */
+.content { flex: 1; overflow-y: auto; padding: 24px; background: var(--bg); }
+
+/* ── PAGE HEADER ─────────────────────────────────── */
 .ph { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; }
-.ph-t { font-size: 20px; font-weight: 800; letter-spacing: -0.02em; }
-.ph-s { font-family: var(--mono); font-size: 10px; color: var(--fg3); margin-top: 3px; letter-spacing: 0.02em; }
+.ph-t { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; color: var(--fg); }
+.ph-s { font-size: 12px; color: var(--fg3); margin-top: 2px; }
 
-/* CARD */
-.card { background: var(--ink2); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
-.ch { padding: 11px 15px; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; }
-.ch-t { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg2); display: flex; align-items: center; gap: 7px; }
-.cb { padding: 15px; }
+/* ── CARDS ───────────────────────────────────────── */
+.card {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden;
+}
 
-/* STATS */
-.stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 16px; }
-.stat { background: var(--ink2); border: 1px solid var(--line); border-radius: 10px; padding: 14px 15px; position: relative; overflow: hidden; }
-.stat::after { content:''; position:absolute; bottom:0; left:0; right:0; height:1px; }
-.s-hi::after   { background: var(--hi); }
-.s-teal::after { background: var(--teal); }
-.s-amb::after  { background: var(--amber); }
-.s-blue::after { background: var(--blue); }
-.sl { font-family: var(--mono); font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--fg3); margin-bottom: 7px; }
-.sv { font-size: 26px; font-weight: 800; letter-spacing: -0.03em; font-family: var(--mono); line-height: 1; }
-.sn { font-family: var(--mono); font-size: 10px; color: var(--fg3); margin-top: 5px; }
-.sn.ok { color: var(--teal); } .sn.warn { color: var(--amber); } .sn.alert { color: var(--red); }
+.card-h {
+  padding: 13px 16px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.card-t { font-size: 12px; font-weight: 600; color: var(--fg); display: flex; align-items: center; gap: 7px; }
+.card-t-sub { font-size: 11px; color: var(--fg3); font-weight: 400; margin-left: 4px; }
 
-/* GRID */
-.g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+/* ── STAT GRID ───────────────────────────────────── */
+.stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 18px; }
 
-/* TABLE */
+.stat {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow);
+  position: relative; overflow: hidden;
+}
+
+.stat-stripe {
+  position: absolute; top: 0; left: 0; right: 0; height: 3px; border-radius: 3px 3px 0 0;
+}
+
+.stat-label { font-size: 11px; font-weight: 500; color: var(--fg3); margin-bottom: 8px; }
+.stat-val { font-size: 28px; font-weight: 700; letter-spacing: -0.03em; color: var(--fg); font-family: var(--mono); line-height: 1; }
+.stat-note { font-size: 11px; color: var(--fg3); margin-top: 5px; }
+.stat-note.ok { color: var(--green); font-weight: 500; }
+.stat-note.warn { color: var(--amber); font-weight: 500; }
+.stat-note.bad { color: var(--red); font-weight: 500; }
+
+/* ── GRID ────────────────────────────────────────── */
+.g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+
+/* ── TABLE ───────────────────────────────────────── */
 .tbl { width: 100%; border-collapse: collapse; }
-.tbl th { text-align: left; font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg3); padding: 9px 14px; border-bottom: 1px solid var(--line); font-weight: 400; white-space: nowrap; }
-.tbl td { padding: 10px 14px; border-bottom: 1px solid var(--line); font-size: 12px; color: var(--fg2); vertical-align: middle; }
+.tbl th {
+  text-align: left; font-size: 11px; font-weight: 600; color: var(--fg3);
+  padding: 10px 16px; border-bottom: 1px solid var(--border);
+  white-space: nowrap; letter-spacing: 0.01em;
+}
+.tbl td { padding: 10px 16px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--fg2); vertical-align: middle; }
 .tbl tr:last-child td { border-bottom: none; }
-.tbl tr:hover td { background: var(--ink3); }
-.tbl td.p { color: var(--fg); font-weight: 600; }
+.tbl tr:hover td { background: var(--bg3); }
+.tbl td.p { color: var(--fg); font-weight: 500; }
 .tbl td.mono { font-family: var(--mono); font-size: 11px; }
-.tbl td.dim { font-family: var(--mono); font-size: 10px; color: var(--fg3); }
+.tbl td.dim { font-size: 11px; color: var(--fg3); }
 
-/* BADGES */
-.b { display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px; border-radius: 3px; font-family: var(--mono); font-size: 9px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; }
-.b-hi    { background: rgba(232,255,71,0.12); color: var(--hi); }
-.b-teal  { background: rgba(0,212,170,0.12); color: var(--teal); }
-.b-red   { background: rgba(255,68,102,0.12); color: var(--red); }
-.b-amb   { background: rgba(255,170,0,0.12); color: var(--amber); }
-.b-blue  { background: rgba(68,136,255,0.12); color: var(--blue); }
-.b-dim   { background: var(--ink4); color: var(--fg3); }
-.b .dot  { width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
+/* ── BADGES ──────────────────────────────────────── */
+.b {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: 20px;
+  font-size: 11px; font-weight: 500; white-space: nowrap;
+}
+.b .dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+.b-green  { background: var(--green-bg);  color: var(--green); }
+.b-amber  { background: var(--amber-bg);  color: var(--amber); }
+.b-red    { background: var(--red-bg);    color: var(--red); }
+.b-blue   { background: var(--blue-bg);   color: var(--blue); }
+.b-accent { background: var(--accent-bg); color: var(--accent); }
+.b-dim    { background: var(--bg3); color: var(--fg3); border: 1px solid var(--border); }
 
-/* CONNECTOR CARDS */
-.cc { background: var(--ink2); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 12px; overflow: hidden; }
-.cc-h { display: flex; align-items: center; justify-content: space-between; padding: 13px 15px; border-bottom: 1px solid var(--line); }
-.cc-id { display: flex; align-items: center; gap: 11px; }
-.cc-ic { width: 36px; height: 36px; background: var(--ink3); border: 1px solid var(--line2); border-radius: 7px; display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 9px; color: var(--hi); letter-spacing: 0.05em; flex-shrink: 0; }
-.cc-nm { font-size: 13px; font-weight: 700; color: var(--fg); }
-.cc-ds { font-family: var(--mono); font-size: 10px; color: var(--fg3); margin-top: 2px; }
-.cc-b { padding: 13px 15px; }
-.cc-meta { display: grid; grid-template-columns: repeat(3,1fr); gap: 13px; margin-bottom: 13px; }
-.cc-meta label { display: block; font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg3); margin-bottom: 4px; }
-.cc-meta span { font-family: var(--mono); font-size: 11px; color: var(--fg2); }
-.cc-acts { display: flex; gap: 7px; }
+/* ── CONNECTOR CARDS ─────────────────────────────── */
+.conn-card {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--radius); margin-bottom: 12px;
+  box-shadow: var(--shadow); overflow: hidden;
+}
+.conn-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px; border-bottom: 1px solid var(--border);
+}
+.conn-id { display: flex; align-items: center; gap: 12px; }
+.conn-icon {
+  width: 38px; height: 38px; background: var(--accent-bg);
+  border: 1px solid rgba(79,70,229,0.15); border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 9px; font-weight: 600; color: var(--accent);
+}
+.conn-name { font-size: 13px; font-weight: 600; color: var(--fg); }
+.conn-desc { font-size: 11px; color: var(--fg3); margin-top: 1px; }
+.conn-body { padding: 14px 16px; }
+.conn-meta { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin-bottom: 13px; }
+.conn-meta label { display: block; font-size: 10px; font-weight: 600; color: var(--fg3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 3px; }
+.conn-meta span { font-size: 12px; color: var(--fg2); font-family: var(--mono); }
+.conn-actions { display: flex; gap: 8px; }
 
-/* BUTTONS */
-.btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 13px; border-radius: 6px; font-family: var(--display); font-size: 12px; font-weight: 600; cursor: pointer; border: none; transition: all 0.12s; white-space: nowrap; }
-.btn-hi { background: var(--hi); color: var(--ink); }
-.btn-hi:hover { background: var(--hi2); }
-.btn-g { background: transparent; color: var(--fg2); border: 1px solid var(--line2); }
-.btn-g:hover { background: var(--ink3); color: var(--fg); border-color: var(--fg3); }
-.btn-sm { padding: 4px 10px; font-size: 11px; }
+/* ── BUTTONS ─────────────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 14px; border-radius: 8px; font-family: var(--sans);
+  font-size: 12px; font-weight: 600; cursor: pointer; border: none;
+  transition: all 0.12s; white-space: nowrap;
+}
+.btn-primary { background: var(--accent); color: white; }
+.btn-primary:hover { background: var(--accent2); }
+.btn-ghost { background: var(--bg3); color: var(--fg2); border: 1px solid var(--border); }
+.btn-ghost:hover { background: var(--border); color: var(--fg); }
+.btn-sm { padding: 5px 11px; font-size: 11px; border-radius: 7px; }
+.btn-danger { background: var(--red-bg); color: var(--red); border: 1px solid rgba(239,68,68,0.2); }
+.btn-danger:hover { background: var(--red); color: white; }
 
-/* ALERT */
-.alert { display: flex; align-items: flex-start; gap: 10px; padding: 11px 13px; border-radius: 7px; font-family: var(--mono); font-size: 11px; margin-bottom: 13px; }
-.al-warn { background: rgba(255,170,0,0.08); border: 1px solid rgba(255,170,0,0.25); color: var(--amber); }
-.al-teal { background: rgba(0,212,170,0.08); border: 1px solid rgba(0,212,170,0.25); color: var(--teal); }
+/* ── ALERT ───────────────────────────────────────── */
+.alert {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 12px 14px; border-radius: 8px; font-size: 12px; margin-bottom: 14px;
+}
+.al-green { background: var(--green-bg); border: 1px solid rgba(16,185,129,0.2); color: var(--green); }
+.al-amber { background: var(--amber-bg); border: 1px solid rgba(245,158,11,0.2); color: var(--amber); }
+.al-blue  { background: var(--blue-bg);  border: 1px solid rgba(59,130,246,0.2);  color: var(--blue); }
 
-/* FEED */
-.feed { max-height: 290px; overflow-y: auto; }
-.feed-row { display: flex; align-items: flex-start; gap: 9px; padding: 9px 15px; border-bottom: 1px solid var(--line); animation: fi 0.2s ease; }
-@keyframes fi { from { opacity:0; transform:translateY(-2px); } to { opacity:1; transform:translateY(0); } }
+/* ── FEED ────────────────────────────────────────── */
+.feed { max-height: 280px; overflow-y: auto; }
+.feed-row { display: flex; align-items: flex-start; gap: 10px; padding: 9px 16px; border-bottom: 1px solid var(--border); animation: fi 0.2s ease; }
+@keyframes fi { from{opacity:0;transform:translateY(-2px)} to{opacity:1;transform:translateY(0)} }
 .feed-row:last-child { border-bottom: none; }
-.fd { width: 5px; height: 5px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
-.fm { font-size: 11px; color: var(--fg2); flex: 1; }
-.ft { font-family: var(--mono); font-size: 9px; color: var(--fg3); white-space: nowrap; }
+.fd { width: 6px; height: 6px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+.fm { font-size: 12px; color: var(--fg2); flex: 1; }
+.ft { font-family: var(--mono); font-size: 10px; color: var(--fg3); white-space: nowrap; }
 
-/* AUDIT */
-.ar { display: grid; grid-template-columns: 148px 70px 1fr 90px; gap: 11px; align-items: center; padding: 9px 15px; border-bottom: 1px solid var(--line); font-size: 12px; }
+/* ── AUDIT ───────────────────────────────────────── */
+.ar {
+  display: grid; grid-template-columns: 140px 70px 1fr 90px;
+  gap: 12px; align-items: center; padding: 9px 16px;
+  border-bottom: 1px solid var(--border); font-size: 12px;
+}
 .ar:last-child { border-bottom: none; }
-.ar:hover { background: var(--ink3); }
+.ar:hover { background: var(--bg3); }
 .at { font-family: var(--mono); font-size: 10px; color: var(--fg3); }
-.am { color: var(--fg2); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.am { color: var(--fg2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .as { text-align: right; }
 
-/* VIEWS */
+/* ── VIEWS ───────────────────────────────────────── */
 .view { display: none; animation: vi 0.15s ease; }
 .view.active { display: block; }
-@keyframes vi { from { opacity:0; } to { opacity:1; } }
+@keyframes vi { from{opacity:0} to{opacity:1} }
 
-/* MODAL */
-.overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 500; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
-.overlay.open { display: flex; }
-.modal { background: var(--ink2); border: 1px solid var(--line2); border-radius: 12px; width: 460px; max-width: 92vw; }
-.mh { padding: 15px 19px; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; }
-.mt { font-size: 15px; font-weight: 700; }
-.mx { cursor: pointer; color: var(--fg3); font-size: 20px; line-height: 1; }
-.mx:hover { color: var(--fg); }
-.mb { padding: 19px; }
-.mf { padding: 13px 19px; border-top: 1px solid var(--line); display: flex; justify-content: flex-end; gap: 8px; }
+/* ── MODAL ───────────────────────────────────────── */
+.overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:500; align-items:center; justify-content:center; backdrop-filter:blur(3px); }
+.overlay.open { display:flex; }
+.modal { background:var(--bg2); border:1px solid var(--border); border-radius:14px; width:480px; max-width:92vw; box-shadow:var(--shadow2); }
+.mh { padding:16px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+.mt { font-size:15px; font-weight:700; }
+.mx { cursor:pointer; color:var(--fg3); font-size:20px; line-height:1; width:28px; height:28px; display:flex; align-items:center; justify-content:center; border-radius:6px; }
+.mx:hover { background:var(--bg3); color:var(--fg); }
+.mb { padding:20px; }
+.mf { padding:14px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:8px; }
 
-/* FORM */
-.fg { margin-bottom: 13px; }
-.fl { display: block; font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg3); margin-bottom: 6px; }
-.fi { width: 100%; background: var(--ink3); border: 1px solid var(--line2); border-radius: 6px; padding: 9px 12px; font-family: var(--mono); font-size: 12px; color: var(--fg); outline: none; transition: border-color 0.12s; }
-.fi:focus { border-color: var(--hi); }
-select.fi { cursor: pointer; appearance: none; }
+/* ── FORM ────────────────────────────────────────── */
+.fg-g { margin-bottom:14px; }
+.fg-l { display:block; font-size:11px; font-weight:600; color:var(--fg2); margin-bottom:5px; }
+.fg-i {
+  width:100%; background:var(--bg3); border:1px solid var(--border); border-radius:8px;
+  padding:9px 12px; font-family:var(--sans); font-size:13px; color:var(--fg); outline:none; transition:border-color 0.15s,box-shadow 0.15s;
+}
+.fg-i:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-bg); }
+select.fg-i { cursor:pointer; appearance:none; }
 
-/* KEY */
-.key-box { background: var(--ink3); border: 1px solid var(--line2); border-radius: 7px; padding: 13px; margin-bottom: 12px; }
-.kb-lbl { font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg3); margin-bottom: 7px; }
-.kb-val { font-family: var(--mono); font-size: 11px; color: var(--hi); word-break: break-all; line-height: 1.6; }
+/* ── KEY BOX ─────────────────────────────────────── */
+.key-box { background:var(--bg3); border:1px solid var(--border); border-radius:8px; padding:14px; margin-bottom:12px; }
+.key-lbl { font-size:10px; font-weight:600; color:var(--fg3); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:7px; }
+.key-val { font-family:var(--mono); font-size:11px; color:var(--accent); word-break:break-all; line-height:1.6; }
 
-/* MISC */
-.empty { text-align: center; padding: 30px 20px; font-family: var(--mono); font-size: 11px; color: var(--fg3); letter-spacing: 0.03em; }
-::-webkit-scrollbar { width: 3px; height: 3px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--line2); border-radius: 2px; }
+/* ── MISC ────────────────────────────────────────── */
+.empty { text-align:center; padding:32px 20px; font-size:12px; color:var(--fg3); }
+::-webkit-scrollbar { width:4px; height:4px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:var(--border2); border-radius:2px; }
+
+/* ── CONN ROW ────────────────────────────────────── */
+.conn-row { display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid var(--border); transition:background 0.1s; }
+.conn-row:last-child { border-bottom:none; }
+.conn-row:hover { background:var(--bg3); }
+.conn-row-icon { width:32px; height:32px; background:var(--accent-bg); border:1px solid rgba(79,70,229,0.15); border-radius:8px; display:flex; align-items:center; justify-content:center; font-family:var(--mono); font-size:8px; font-weight:600; color:var(--accent); flex-shrink:0; }
+.conn-row-info { flex:1; }
+.conn-row-name { font-size:12px; font-weight:600; color:var(--fg); }
+.conn-row-desc { font-size:11px; color:var(--fg3); margin-top:1px; }
 </style>
 </head>
 <body>
 
 <!-- LOGIN -->
 <div id="login-screen">
-  <div class="login-box">
-    <div class="login-wordmark">
-      <div><div class="login-hex">FC</div></div>
-      <div class="login-title">THE CLUB</div>
-      <div class="login-sub">Fox ITC · Authorised Access Only</div>
-    </div>
-    <div class="login-form">
-      <div class="login-error" id="lerr">Invalid credentials — Fox ITC access only</div>
-      <div class="field">
-        <label>Email address</label>
-        <input type="email" id="fe" placeholder="you@foxitc.com" autocomplete="email">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="login-hex">FC</div>
+      <div>
+        <div class="login-brand">The Club</div>
+        <div class="login-sub">Fox ITC · Management Console</div>
       </div>
-      <div class="field">
-        <label>Password</label>
-        <input type="password" id="fp" placeholder="••••••••" autocomplete="current-password">
-      </div>
-      <button class="login-btn" onclick="doLogin()">Sign in to The Club</button>
     </div>
-    <div class="login-notice">Unauthorised access is prohibited and monitored</div>
+    <div class="login-err" id="lerr">Invalid credentials</div>
+    <div class="field"><label>Email address</label><input type="email" id="fe" placeholder="you@foxitc.com" autocomplete="email"></div>
+    <div class="field"><label>Password</label><input type="password" id="fp" placeholder="••••••••" autocomplete="current-password"></div>
+    <button class="login-btn" onclick="doLogin()">Sign in</button>
+    <div class="login-notice">Authorised Fox ITC personnel only</div>
   </div>
 </div>
 
@@ -245,14 +447,16 @@ select.fi { cursor: pointer; appearance: none; }
   <div class="topbar">
     <div class="tb-left">
       <div class="tb-hex">FC</div>
-      <span class="tb-brand">THE CLUB</span>
-      <div class="tb-sep"></div>
-      <span class="tb-client">CAT & WICKETS GROUP</span>
+      <span class="tb-brand">The Club</span>
+      <div class="tb-divider"></div>
+      <span class="tb-client">Cat & Wickets Group</span>
     </div>
     <div class="tb-right">
-      <div class="api-status"><div class="pulse"></div><span id="api-st">Connecting...</span></div>
-      <div class="tb-sep"></div>
+      <div class="api-pill"><div class="dot"></div><span id="api-st">Connecting</span></div>
       <span class="tb-time" id="clk"></span>
+      <button class="theme-btn" onclick="toggleTheme()" title="Toggle light/dark mode">
+        <svg id="theme-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+      </button>
       <div class="user-chip" onclick="doLogout()">
         <div class="user-av" id="uav">—</div>
         <span class="user-nm" id="unm">—</span>
@@ -264,34 +468,39 @@ select.fi { cursor: pointer; appearance: none; }
     <nav class="sidebar">
       <div class="ns">Monitor</div>
       <div class="ni active" onclick="nav('dashboard')">
-        <svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        <svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
         Dashboard
       </div>
       <div class="ni" onclick="nav('audit')">
-        <svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        <svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
         Audit Trail
         <span class="nc ok" id="audit-nc">0</span>
       </div>
       <div class="ni" onclick="nav('logs')">
-        <svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        <svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
         Live Logs
       </div>
-      <div class="ns">Integrations</div>
+      <div class="ns" style="margin-top:8px">Integrations</div>
       <div class="ni" onclick="nav('connectors')">
-        <svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        <svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
         Connectors
       </div>
       <div class="ni" onclick="nav('apis')">
-        <svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+        <svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
         Outbound APIs
       </div>
-      <div class="ns">Data</div>
+      <div class="ns" style="margin-top:8px">Data</div>
       <div class="ni" onclick="nav('transactions')">
-        <svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+        <svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
         Transactions
       </div>
+      <div class="ni" onclick="nav('venues')">
+        <svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        Venue Mapping
+        <span class="nc" id="venue-nc" style="display:none">0</span>
+      </div>
       <div class="ni" onclick="nav('clerks')">
-        <svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+        <svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
         Clerk Mapping
         <span class="nc" id="clerk-nc" style="display:none">0</span>
       </div>
@@ -303,50 +512,75 @@ select.fi { cursor: pointer; appearance: none; }
       <div id="v-dashboard" class="view active">
         <div class="ph">
           <div><div class="ph-t">Dashboard</div><div class="ph-s">Live engine status — Cat & Wickets Group</div></div>
-          <button class="btn btn-g" onclick="loadDashboard()">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
+          <button class="btn btn-ghost" onclick="loadDashboard()">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
             Refresh
           </button>
         </div>
+
         <div class="stats">
-          <div class="stat s-teal"><div class="sl">Transactions</div><div class="sv" id="s-tx">—</div><div class="sn" id="s-txn">Loading...</div></div>
-          <div class="stat s-hi"><div class="sl">Active Connectors</div><div class="sv" id="s-co">3</div><div class="sn">Relay · Trail · ResDiary</div></div>
-          <div class="stat s-amb"><div class="sl">Unmatched Clerks</div><div class="sv" id="s-cl">—</div><div class="sn warn" id="s-cln">Loading...</div></div>
-          <div class="stat s-blue"><div class="sl">Trail Tasks (w/e 15 Mar)</div><div class="sv" id="s-tt">—</div><div class="sn" id="s-ttn">Loading...</div></div>
+          <div class="stat">
+            <div class="stat-stripe" style="background:var(--green)"></div>
+            <div class="stat-label">Transactions</div>
+            <div class="stat-val" id="s-tx">—</div>
+            <div class="stat-note" id="s-txn">Loading...</div>
+          </div>
+          <div class="stat">
+            <div class="stat-stripe" style="background:var(--accent)"></div>
+            <div class="stat-label">Active Connectors</div>
+            <div class="stat-val">3</div>
+            <div class="stat-note ok">Relay · Trail · ResDiary</div>
+          </div>
+          <div class="stat">
+            <div class="stat-stripe" style="background:var(--amber)"></div>
+            <div class="stat-label">Unmatched Clerks</div>
+            <div class="stat-val" id="s-cl">—</div>
+            <div class="stat-note warn" id="s-cln">Loading...</div>
+          </div>
+          <div class="stat">
+            <div class="stat-stripe" style="background:var(--blue)"></div>
+            <div class="stat-label">Trail Tasks (w/e 15 Mar)</div>
+            <div class="stat-val" id="s-tt">—</div>
+            <div class="stat-note" id="s-ttn">Loading...</div>
+          </div>
         </div>
+
         <div class="g2">
           <div class="card">
-            <div class="ch"><div class="ch-t">Connector Health</div></div>
-            <div id="conn-health">
-              <div style="display:flex;align-items:center;gap:10px;padding:10px 15px;border-bottom:1px solid var(--line)">
-                <div class="cc-ic" style="width:30px;height:30px;font-size:8px;border-radius:6px">RLY</div>
-                <div style="flex:1"><div style="font-size:12px;font-weight:600;color:var(--fg)">Relay — Access EPOS</div><div style="font-family:var(--mono);font-size:10px;color:var(--fg3)">Webhook · theclub.thecatandwickets.com</div></div>
-                <div style="text-align:right"><span class="b b-teal"><span class="dot"></span>Live</span><div style="font-family:var(--mono);font-size:9px;color:var(--fg3);margin-top:3px" id="relay-last">Awaiting data</div></div>
-              </div>
-              <div style="display:flex;align-items:center;gap:10px;padding:10px 15px;border-bottom:1px solid var(--line)">
-                <div class="cc-ic" style="width:30px;height:30px;font-size:8px;border-radius:6px">TRL</div>
-                <div style="flex:1"><div style="font-size:12px;font-weight:600;color:var(--fg)">Trail</div><div style="font-family:var(--mono);font-size:10px;color:var(--fg3)">Pull · web.trailapp.com/api/public</div></div>
-                <div style="text-align:right"><span class="b b-teal"><span class="dot"></span>Connected</span><div style="font-family:var(--mono);font-size:9px;color:var(--fg3);margin-top:3px">Kitchen · Front Of House</div></div>
-              </div>
-              <div style="display:flex;align-items:center;gap:10px;padding:10px 15px;border-bottom:1px solid var(--line)">
-                <div class="cc-ic" style="width:30px;height:30px;font-size:8px;border-radius:6px">RSD</div>
-                <div style="flex:1"><div style="font-size:12px;font-weight:600;color:var(--fg)">ResDiary</div><div style="font-family:var(--mono);font-size:10px;color:var(--fg3)">Pull · api.rdbranch.com</div></div>
-                <div style="text-align:right"><span class="b b-amb"><span class="dot"></span>Pending</span><div style="font-family:var(--mono);font-size:9px;color:var(--fg3);margin-top:3px">Awaiting permissions</div></div>
-              </div>
-              <div style="display:flex;align-items:center;gap:10px;padding:10px 15px">
-                <div class="cc-ic" style="width:30px;height:30px;font-size:8px;border-radius:6px">RTA</div>
-                <div style="flex:1"><div style="font-size:12px;font-weight:600;color:var(--fg)">RotaReady</div><div style="font-family:var(--mono);font-size:10px;color:var(--fg3)">Not configured</div></div>
-                <div style="text-align:right"><span class="b b-dim">Offline</span></div>
-              </div>
+            <div class="card-h"><div class="card-t">Connector Health</div></div>
+            <div class="conn-row">
+              <div class="conn-row-icon">RLY</div>
+              <div class="conn-row-info"><div class="conn-row-name">Relay — Access EPOS</div><div class="conn-row-desc">Webhook · theclub.thecatandwickets.com</div></div>
+              <div style="text-align:right"><span class="b b-green"><span class="dot"></span>Live</span><div style="font-size:10px;color:var(--fg3);margin-top:3px" id="relay-last">Awaiting data</div></div>
+            </div>
+            <div class="conn-row">
+              <div class="conn-row-icon">TRL</div>
+              <div class="conn-row-info"><div class="conn-row-name">Trail</div><div class="conn-row-desc">Pull · web.trailapp.com/api/public</div></div>
+              <div style="text-align:right"><span class="b b-green"><span class="dot"></span>Connected</span><div style="font-size:10px;color:var(--fg3);margin-top:3px">Kitchen · FOH</div></div>
+            </div>
+            <div class="conn-row">
+              <div class="conn-row-icon">RSD</div>
+              <div class="conn-row-info"><div class="conn-row-name">ResDiary</div><div class="conn-row-desc">Pull · api.rdbranch.com</div></div>
+              <div style="text-align:right"><span class="b b-amber"><span class="dot"></span>Pending</span></div>
+            </div>
+            <div class="conn-row">
+              <div class="conn-row-icon">RTA</div>
+              <div class="conn-row-info"><div class="conn-row-name">RotaReady</div><div class="conn-row-desc">Not configured</div></div>
+              <div style="text-align:right"><span class="b b-dim">Offline</span></div>
             </div>
           </div>
+
           <div class="card">
-            <div class="ch"><div class="ch-t"><div class="pulse"></div>Live Feed</div><span style="font-family:var(--mono);font-size:9px;color:var(--fg3)" id="fc">0 events</span></div>
+            <div class="card-h">
+              <div class="card-t"><div class="dot" style="width:6px;height:6px;border-radius:50%;background:var(--green);animation:pa 2s ease-in-out infinite"></div>Live Feed</div>
+              <span style="font-size:11px;color:var(--fg3)" id="fc">0 events</span>
+            </div>
             <div class="feed" id="live-feed"><div class="empty">Waiting for events...</div></div>
           </div>
         </div>
+
         <div class="card">
-          <div class="ch"><div class="ch-t">Trail Data by Venue — Week ending 15 Mar 2026</div></div>
+          <div class="card-h"><div class="card-t">Trail Data by Venue — Week ending 15 Mar 2026</div></div>
           <table class="tbl">
             <thead><tr><th>Venue</th><th>Area</th><th>Total Tasks</th><th>Completed</th><th>Completion %</th><th>Trail Score</th></tr></thead>
             <tbody id="venue-tbl"><tr><td colspan="6" class="empty">Loading...</td></tr></tbody>
@@ -358,62 +592,66 @@ select.fi { cursor: pointer; appearance: none; }
       <div id="v-connectors" class="view">
         <div class="ph">
           <div><div class="ph-t">Connectors</div><div class="ph-s">Inbound integrations — manage, test, monitor</div></div>
-          <button class="btn btn-hi" onclick="openM('add-conn')">
+          <button class="btn btn-primary" onclick="openM('add-conn')">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Add Connector
           </button>
         </div>
-        <div class="cc">
-          <div class="cc-h">
-            <div class="cc-id"><div class="cc-ic">RLY</div><div><div class="cc-nm">Relay — Access EPOS</div><div class="cc-ds">Webhook receiver · Near real-time transaction events</div></div></div>
-            <div style="display:flex;gap:7px"><span class="b b-teal"><span class="dot"></span>Live</span><span class="b b-blue">Inbound Webhook</span></div>
+
+        <div class="conn-card">
+          <div class="conn-head">
+            <div class="conn-id"><div class="conn-icon">RLY</div><div><div class="conn-name">Relay — Access EPOS</div><div class="conn-desc">Webhook receiver · Near real-time transactions</div></div></div>
+            <div style="display:flex;gap:6px"><span class="b b-green"><span class="dot"></span>Live</span><span class="b b-blue">Inbound Webhook</span></div>
           </div>
-          <div class="cc-b">
-            <div class="cc-meta">
-              <div><label>Webhook URL</label><span style="color:var(--hi)">/api/v1/webhooks/relay</span></div>
+          <div class="conn-body">
+            <div class="conn-meta">
+              <div><label>Webhook URL</label><span style="color:var(--accent)">/api/v1/webhooks/relay</span></div>
               <div><label>Auth Method</label><span>x-api-key header</span></div>
               <div><label>Transactions</label><span id="relay-tx-c">Loading...</span></div>
             </div>
-            <div class="cc-acts">
-              <button class="btn btn-g btn-sm" onclick="copyUrl()">Copy URL</button>
-              <button class="btn btn-g btn-sm" onclick="showKey()">View API Key</button>
-              <button class="btn btn-g btn-sm" onclick="testRelay()">Send Test Event</button>
+            <div class="conn-actions">
+              <button class="btn btn-ghost btn-sm" onclick="copyUrl()">Copy URL</button>
+              <button class="btn btn-ghost btn-sm" onclick="showKey()">View API Key</button>
+              <button class="btn btn-ghost btn-sm" onclick="testRelay()">Send Test Event</button>
             </div>
           </div>
         </div>
-        <div class="cc">
-          <div class="cc-h">
-            <div class="cc-id"><div class="cc-ic">TRL</div><div><div class="cc-nm">Trail</div><div class="cc-ds">REST pull · Compliance and task completion data</div></div></div>
-            <div style="display:flex;gap:7px"><span class="b b-teal"><span class="dot"></span>Connected</span><span class="b b-blue">Pull · Weekly</span></div>
+
+        <div class="conn-card">
+          <div class="conn-head">
+            <div class="conn-id"><div class="conn-icon">TRL</div><div><div class="conn-name">Trail</div><div class="conn-desc">REST pull · Compliance and task completion</div></div></div>
+            <div style="display:flex;gap:6px"><span class="b b-green"><span class="dot"></span>Connected</span><span class="b b-blue">Pull · Weekly</span></div>
           </div>
-          <div class="cc-b">
-            <div class="cc-meta">
+          <div class="conn-body">
+            <div class="conn-meta">
               <div><label>Endpoint</label><span>web.trailapp.com/api/public</span></div>
               <div><label>Areas</label><span>Kitchen · Front Of House</span></div>
               <div><label>Last Sync</label><span>w/e 15 Mar 2026</span></div>
             </div>
-            <div class="cc-acts">
-              <button class="btn btn-g btn-sm" onclick="testTrail()">Test Connection</button>
-              <button class="btn btn-g btn-sm" onclick="syncTrail()">Sync Now</button>
+            <div class="conn-actions">
+              <button class="btn btn-ghost btn-sm" onclick="testTrail()">Test Connection</button>
+              <button class="btn btn-ghost btn-sm" onclick="syncTrail()">Sync Now</button>
             </div>
           </div>
         </div>
-        <div class="cc">
-          <div class="cc-h">
-            <div class="cc-id"><div class="cc-ic">RSD</div><div><div class="cc-nm">ResDiary</div><div class="cc-ds">REST pull · Reservations, covers, guest data</div></div></div>
-            <div style="display:flex;gap:7px"><span class="b b-amb"><span class="dot"></span>Pending</span><span class="b b-blue">Pull · Weekly</span></div>
+
+        <div class="conn-card">
+          <div class="conn-head">
+            <div class="conn-id"><div class="conn-icon">RSD</div><div><div class="conn-name">ResDiary</div><div class="conn-desc">REST pull · Reservations, covers, guest data</div></div></div>
+            <div style="display:flex;gap:6px"><span class="b b-amber"><span class="dot"></span>Pending</span><span class="b b-blue">Pull · Weekly</span></div>
           </div>
-          <div class="cc-b">
-            <div class="alert al-warn">Awaiting Data Extract permissions from ResDiary. Credentials configured — contact ResDiary support to enable Data Extract API access for cat.wickets+api@resdiary.com</div>
+          <div class="conn-body">
+            <div class="alert al-amber">Awaiting Data Extract permissions from ResDiary. Credentials configured — contact ResDiary support to enable Data Extract API access for cat.wickets+api@resdiary.com</div>
           </div>
         </div>
-        <div class="cc">
-          <div class="cc-h">
-            <div class="cc-id"><div class="cc-ic">RTA</div><div><div class="cc-nm">RotaReady</div><div class="cc-ds">REST pull · Rotas, shifts, employee data</div></div></div>
-            <div style="display:flex;gap:7px"><span class="b b-dim">Offline</span></div>
+
+        <div class="conn-card">
+          <div class="conn-head">
+            <div class="conn-id"><div class="conn-icon">RTA</div><div><div class="conn-name">RotaReady</div><div class="conn-desc">REST pull · Rotas, shifts, employee data</div></div></div>
+            <div style="display:flex;gap:6px"><span class="b b-dim">Offline</span></div>
           </div>
-          <div class="cc-b">
-            <div class="cc-acts"><button class="btn btn-hi btn-sm" onclick="openM('add-conn')">Configure Credentials</button></div>
+          <div class="conn-body">
+            <button class="btn btn-primary btn-sm" onclick="openM('add-conn')">Configure Credentials</button>
           </div>
         </div>
       </div>
@@ -421,58 +659,52 @@ select.fi { cursor: pointer; appearance: none; }
       <!-- OUTBOUND APIs -->
       <div id="v-apis" class="view">
         <div class="ph">
-          <div><div class="ph-t">Outbound APIs</div><div class="ph-s">API keys for external consumers — MD app, Test Player, third parties</div></div>
-          <button class="btn btn-hi" onclick="openM('create-key')">
+          <div><div class="ph-t">Outbound APIs</div><div class="ph-s">API keys for external consumers</div></div>
+          <button class="btn btn-primary" onclick="openM('create-key')">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Create API Key
           </button>
         </div>
-        <div class="card" style="margin-bottom:13px">
-          <div class="ch"><div class="ch-t">Active Keys</div></div>
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-h"><div class="card-t">Active Keys</div></div>
           <table class="tbl">
-            <thead><tr><th>Name</th><th>Key (masked)</th><th>Permissions</th><th>Last Used</th><th>Status</th><th></th></tr></thead>
+            <thead><tr><th>Name</th><th>Key</th><th>Permissions</th><th>Status</th><th></th></tr></thead>
             <tbody>
-              <tr>
-                <td class="p">Relay Inbound</td><td class="mono">b9d9755...3980</td>
-                <td><span class="b b-blue">webhook:write</span></td>
-                <td class="dim">Today</td>
-                <td><span class="b b-teal"><span class="dot"></span>Active</span></td>
-                <td><button class="btn btn-g btn-sm" onclick="showKey()">View</button></td>
-              </tr>
-              <tr><td colspan="6" class="empty">No outbound keys yet — create one for the MD app or Test Player</td></tr>
+              <tr><td class="p">Relay Inbound</td><td class="mono">b9d9755...3980 <span style="color:var(--red);font-size:10px">(rotated)</span></td><td><span class="b b-blue">webhook:write</span></td><td><span class="b b-green"><span class="dot"></span>Active</span></td><td><button class="btn btn-ghost btn-sm" onclick="showKey()">View</button></td></tr>
+              <tr><td colspan="5" class="empty">No outbound keys yet — create one for the MD app or Test Player</td></tr>
             </tbody>
           </table>
         </div>
         <div class="card">
-          <div class="ch"><div class="ch-t">Available Endpoints</div></div>
+          <div class="card-h"><div class="card-t">Available Endpoints</div></div>
           <table class="tbl">
             <thead><tr><th>Endpoint</th><th>Method</th><th>Description</th><th>Auth</th></tr></thead>
             <tbody>
-              <tr><td class="mono p">/api/v1/scores</td><td><span class="b b-blue">GET</span></td><td>Team member scores and tiers</td><td class="mono">Bearer</td></tr>
+              <tr><td class="mono p">/api/v1/scores</td><td><span class="b b-blue">GET</span></td><td>Team scores and tiers</td><td class="mono">Bearer</td></tr>
               <tr><td class="mono p">/api/v1/league</td><td><span class="b b-blue">GET</span></td><td>Venue league table</td><td class="mono">Bearer</td></tr>
               <tr><td class="mono p">/api/v1/squad</td><td><span class="b b-blue">GET</span></td><td>Team member list</td><td class="mono">Bearer</td></tr>
               <tr><td class="mono p">/api/v1/metrics/trail</td><td><span class="b b-blue">GET</span></td><td>Trail compliance scores</td><td class="mono">Bearer</td></tr>
-              <tr><td class="mono p">/api/v1/webhooks/relay</td><td><span class="b b-teal">POST</span></td><td>Relay transaction receiver</td><td class="mono">x-api-key</td></tr>
+              <tr><td class="mono p">/api/v1/webhooks/relay</td><td><span class="b b-green">POST</span></td><td>Relay transaction receiver</td><td class="mono">x-api-key</td></tr>
             </tbody>
           </table>
         </div>
       </div>
 
-      <!-- AUDIT TRAIL -->
+      <!-- AUDIT -->
       <div id="v-audit" class="view">
         <div class="ph">
-          <div><div class="ph-t">Audit Trail</div><div class="ph-s">Complete log of all actions in and out of The Club</div></div>
-          <button class="btn btn-g">Export CSV</button>
+          <div><div class="ph-t">Audit Trail</div><div class="ph-s">Complete log of all actions</div></div>
+          <button class="btn btn-ghost">Export CSV</button>
         </div>
         <div class="card">
-          <div class="ch"><div class="ch-t">Session Events</div><span style="font-family:var(--mono);font-size:9px;color:var(--fg3)" id="audit-tot">—</span></div>
-          <div style="display:grid;grid-template-columns:148px 70px 1fr 90px;gap:11px;padding:9px 15px;border-bottom:1px solid var(--line)">
-            <span style="font-family:var(--mono);font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--fg3)">Timestamp</span>
-            <span style="font-family:var(--mono);font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--fg3)">Type</span>
-            <span style="font-family:var(--mono);font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--fg3)">Event</span>
-            <span style="font-family:var(--mono);font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--fg3);text-align:right">Source</span>
+          <div class="card-h"><div class="card-t">Session Events</div><span style="font-size:11px;color:var(--fg3)" id="audit-tot">—</span></div>
+          <div style="display:grid;grid-template-columns:140px 70px 1fr 90px;gap:12px;padding:9px 16px;border-bottom:1px solid var(--border)">
+            <span style="font-size:10px;font-weight:600;color:var(--fg3);text-transform:uppercase;letter-spacing:0.06em">Time</span>
+            <span style="font-size:10px;font-weight:600;color:var(--fg3);text-transform:uppercase;letter-spacing:0.06em">Type</span>
+            <span style="font-size:10px;font-weight:600;color:var(--fg3);text-transform:uppercase;letter-spacing:0.06em">Event</span>
+            <span style="font-size:10px;font-weight:600;color:var(--fg3);text-transform:uppercase;letter-spacing:0.06em;text-align:right">Source</span>
           </div>
-          <div id="audit-list" style="max-height:540px;overflow-y:auto"><div class="empty">No events yet — activity will appear here as the system runs</div></div>
+          <div id="audit-list" style="max-height:540px;overflow-y:auto"><div class="empty">No events yet this session</div></div>
         </div>
       </div>
 
@@ -480,14 +712,11 @@ select.fi { cursor: pointer; appearance: none; }
       <div id="v-logs" class="view">
         <div class="ph">
           <div><div class="ph-t">Live Logs</div><div class="ph-s">Real-time event stream</div></div>
-          <div style="display:flex;align-items:center;gap:10px">
-            <div style="display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10px;color:var(--teal)"><div class="pulse"></div>Live</div>
-            <button class="btn btn-g" onclick="document.getElementById('logs-out').innerHTML='<div style=\'color:var(--fg3);font-size:11px\'>$ Cleared</div>'">Clear</button>
-          </div>
+          <button class="btn btn-ghost" onclick="document.getElementById('logs-out').innerHTML='<div style=\'color:var(--fg3);font-size:12px\'>Cleared</div>'">Clear</button>
         </div>
         <div class="card">
-          <div id="logs-out" style="font-family:var(--mono);font-size:11px;max-height:560px;overflow-y:auto;padding:15px;line-height:1.8">
-            <div style="color:var(--fg3)">$ Waiting for events...</div>
+          <div id="logs-out" style="font-family:var(--mono);font-size:12px;max-height:580px;overflow-y:auto;padding:16px;line-height:1.8;color:var(--fg2)">
+            Waiting for events...
           </div>
         </div>
       </div>
@@ -496,7 +725,7 @@ select.fi { cursor: pointer; appearance: none; }
       <div id="v-transactions" class="view">
         <div class="ph"><div><div class="ph-t">Transactions</div><div class="ph-s">Raw EPOS data from Relay</div></div></div>
         <div class="card">
-          <div class="ch"><div class="ch-t">Recent Transactions</div><span style="font-family:var(--mono);font-size:9px;color:var(--fg3)" id="tx-lbl">—</span></div>
+          <div class="card-h"><div class="card-t">Recent Transactions</div><span style="font-size:11px;color:var(--fg3)" id="tx-lbl">—</span></div>
           <table class="tbl">
             <thead><tr><th>Transaction ID</th><th>Location</th><th>Date</th><th>Covers</th><th>Gross</th><th>Clerk</th><th>Status</th></tr></thead>
             <tbody id="tx-tbody"><tr><td colspan="7" class="empty">Loading...</td></tr></tbody>
@@ -504,22 +733,53 @@ select.fi { cursor: pointer; appearance: none; }
         </div>
       </div>
 
+      <!-- VENUE MAPPING -->
+      <div id="v-venues" class="view">
+        <div class="ph">
+          <div><div class="ph-t">Venue Mapping</div><div class="ph-s">Match connector location IDs to Cat & Wickets venues</div></div>
+        </div>
+        <div class="alert al-blue" style="margin-bottom:16px">
+          Each connector uses its own location identifier. Map them here once — all future data is automatically attributed to the correct venue.
+        </div>
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-h">
+            <div class="card-t" style="color:var(--amber)">Unmapped Locations</div>
+            <span class="b b-amber" id="uv-lbl">Loading...</span>
+          </div>
+          <table class="tbl">
+            <thead><tr><th>Location ID</th><th>Connector</th><th>First Seen</th><th>Transactions</th><th>Map To Venue</th><th></th></tr></thead>
+            <tbody id="uv-tbody"><tr><td colspan="6" class="empty">Loading...</td></tr></tbody>
+          </table>
+        </div>
+        <div class="card">
+          <div class="card-h">
+            <div class="card-t" style="color:var(--green)">Mapped Venues</div>
+          </div>
+          <table class="tbl">
+            <thead><tr><th>Venue</th><th>Relay Location ID</th><th>Trail Site</th><th>ResDiary ID</th><th>Status</th></tr></thead>
+            <tbody id="mv-tbody"><tr><td colspan="5" class="empty">Loading...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- CLERK MAPPING -->
       <div id="v-clerks" class="view">
-        <div class="ph"><div><div class="ph-t">Clerk Mapping</div><div class="ph-s">EPOS clerk IDs discovered from Relay transactions</div></div></div>
-        <div class="alert al-teal" style="margin-bottom:15px">Match EPOS clerk IDs to Test Player team members. Once matched, all transactions are automatically attributed to the correct person.</div>
+        <div class="ph"><div><div class="ph-t">Clerk Mapping</div><div class="ph-s">Match EPOS clerk IDs to Test Player team members</div></div></div>
         <div class="card" style="margin-bottom:14px">
-          <div class="ch"><div class="ch-t" style="color:var(--amber)">Unmatched Clerks</div><span class="b b-amb" id="uc-lbl">0 unmatched</span></div>
+          <div class="card-h">
+            <div class="card-t" style="color:var(--amber)">Unmatched Clerks</div>
+            <span class="b b-amber" id="uc-lbl">0 unmatched</span>
+          </div>
           <table class="tbl">
             <thead><tr><th>Clerk ID</th><th>Location</th><th>First Seen</th><th>Match To</th><th></th></tr></thead>
             <tbody id="uc-tbody"><tr><td colspan="5" class="empty">Loading...</td></tr></tbody>
           </table>
         </div>
         <div class="card">
-          <div class="ch"><div class="ch-t" style="color:var(--teal)">Matched Clerks</div></div>
+          <div class="card-h"><div class="card-t" style="color:var(--green)">Matched Clerks</div></div>
           <table class="tbl">
             <thead><tr><th>Clerk ID</th><th>Location</th><th>Team Member</th><th>Status</th></tr></thead>
-            <tbody id="matched-tbody"><tr><td colspan="4" class="empty">No matched clerks yet</td></tr></tbody>
+            <tbody id="mc-tbody"><tr><td colspan="4" class="empty">No matched clerks yet</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -533,16 +793,13 @@ select.fi { cursor: pointer; appearance: none; }
   <div class="modal">
     <div class="mh"><div class="mt">Add Connector</div><span class="mx" onclick="closeM('add-conn')">×</span></div>
     <div class="mb">
-      <div class="fg"><label class="fl">Connector Type</label><select class="fi"><option>Inbound Webhook</option><option>REST API — Pull</option><option>REST API — Push/Outbound</option></select></div>
-      <div class="fg"><label class="fl">Display Name</label><input class="fi" placeholder="e.g. RotaReady"></div>
-      <div class="fg"><label class="fl">Base URL</label><input class="fi" placeholder="https://api.provider.com"></div>
-      <div class="fg"><label class="fl">Auth Type</label><select class="fi"><option>API Key (header)</option><option>Bearer Token</option><option>Basic Auth</option><option>OAuth 2.0</option></select></div>
-      <div class="fg"><label class="fl">API Key / Token</label><input class="fi" type="password" placeholder="••••••••••••"></div>
+      <div class="fg-g"><label class="fg-l">Connector Type</label><select class="fg-i"><option>Inbound Webhook</option><option>REST API — Pull</option><option>REST API — Push/Outbound</option></select></div>
+      <div class="fg-g"><label class="fg-l">Display Name</label><input class="fg-i" placeholder="e.g. RotaReady"></div>
+      <div class="fg-g"><label class="fg-l">Base URL</label><input class="fg-i" placeholder="https://api.provider.com"></div>
+      <div class="fg-g"><label class="fg-l">Auth Type</label><select class="fg-i"><option>API Key (header)</option><option>Bearer Token</option><option>Basic Auth</option><option>OAuth 2.0</option></select></div>
+      <div class="fg-g"><label class="fg-l">API Key / Token</label><input class="fg-i" type="password" placeholder="••••••••••••"></div>
     </div>
-    <div class="mf">
-      <button class="btn btn-g" onclick="closeM('add-conn')">Cancel</button>
-      <button class="btn btn-hi" onclick="closeM('add-conn');log('Connector saved — configure to activate','info')">Save Connector</button>
-    </div>
+    <div class="mf"><button class="btn btn-ghost" onclick="closeM('add-conn')">Cancel</button><button class="btn btn-primary" onclick="closeM('add-conn');log('Connector saved','ok')">Save Connector</button></div>
   </div>
 </div>
 
@@ -550,22 +807,19 @@ select.fi { cursor: pointer; appearance: none; }
   <div class="modal">
     <div class="mh"><div class="mt">Create API Key</div><span class="mx" onclick="closeM('create-key')">×</span></div>
     <div class="mb">
-      <div class="fg"><label class="fl">Key Name</label><input class="fi" id="nkn" placeholder="e.g. MD Dashboard App"></div>
-      <div class="fg">
-        <label class="fl">Permissions</label>
+      <div class="fg-g"><label class="fg-l">Key Name</label><input class="fg-i" id="nkn" placeholder="e.g. MD Dashboard App"></div>
+      <div class="fg-g">
+        <label class="fg-l">Permissions</label>
         <div style="display:flex;flex-direction:column;gap:9px;margin-top:4px">
-          <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--fg2);cursor:pointer"><input type="checkbox" checked style="accent-color:var(--hi)"> Read scores and tiers</label>
-          <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--fg2);cursor:pointer"><input type="checkbox" checked style="accent-color:var(--hi)"> Read venue data</label>
-          <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--fg2);cursor:pointer"><input type="checkbox" style="accent-color:var(--hi)"> Read raw transactions</label>
-          <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--fg2);cursor:pointer"><input type="checkbox" style="accent-color:var(--hi)"> Write assessments</label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--fg2);cursor:pointer"><input type="checkbox" checked style="accent-color:var(--accent)"> Read scores and tiers</label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--fg2);cursor:pointer"><input type="checkbox" checked style="accent-color:var(--accent)"> Read venue data</label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--fg2);cursor:pointer"><input type="checkbox" style="accent-color:var(--accent)"> Read raw transactions</label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--fg2);cursor:pointer"><input type="checkbox" style="accent-color:var(--accent)"> Write assessments</label>
         </div>
       </div>
-      <div class="fg"><label class="fl">Expiry</label><select class="fi"><option>Never</option><option>90 days</option><option>1 year</option></select></div>
+      <div class="fg-g"><label class="fg-l">Expiry</label><select class="fg-i"><option>Never</option><option>90 days</option><option>1 year</option></select></div>
     </div>
-    <div class="mf">
-      <button class="btn btn-g" onclick="closeM('create-key')">Cancel</button>
-      <button class="btn btn-hi" onclick="genKey()">Generate Key</button>
-    </div>
+    <div class="mf"><button class="btn btn-ghost" onclick="closeM('create-key')">Cancel</button><button class="btn btn-primary" onclick="genKey()">Generate Key</button></div>
   </div>
 </div>
 
@@ -573,12 +827,12 @@ select.fi { cursor: pointer; appearance: none; }
   <div class="modal">
     <div class="mh"><div class="mt" id="km-t">API Key</div><span class="mx" onclick="closeM('show-key')">×</span></div>
     <div class="mb">
-      <div class="key-box"><div class="kb-lbl" id="km-l">Key</div><div class="kb-val" id="km-v"></div></div>
-      <div class="alert al-warn">Send this key via a one-time secret link (onetimesecret.com) — never in plain email.</div>
+      <div class="key-box"><div class="key-lbl" id="km-l">Key</div><div class="key-val" id="km-v"></div></div>
+      <div class="alert al-amber">Send via one-time secret link (onetimesecret.com) — never in plain email.</div>
     </div>
     <div class="mf">
-      <button class="btn btn-g" onclick="navigator.clipboard?.writeText(document.getElementById('km-v').textContent);log('API key copied — do not share via plain email','warn')">Copy Key</button>
-      <button class="btn btn-g" onclick="closeM('show-key')">Close</button>
+      <button class="btn btn-ghost" onclick="navigator.clipboard?.writeText(document.getElementById('km-v').textContent);log('Key copied — handle securely','warn')">Copy Key</button>
+      <button class="btn btn-ghost" onclick="closeM('show-key')">Close</button>
     </div>
   </div>
 </div>
@@ -589,8 +843,30 @@ const USERS = [
   {email:'ian@foxitc.com',  pass:'FoxITC2026!', name:'Ian',  i:'I'},
   {email:'jack@foxitc.com', pass:'FoxITC2026!', name:'Jack', i:'J'},
 ];
-const RELAY_KEY = ''; // Key fetched from server — never hardcoded in frontend
-let SESSION = null, TOKEN = '', logs = [], feedN = 0;
+let SESSION=null, TOKEN='', logs=[], feedN=0;
+
+// Theme
+const savedTheme = localStorage.getItem('club-theme') || 'light';
+document.documentElement.setAttribute('data-theme', savedTheme);
+updateThemeIcon(savedTheme);
+
+function toggleTheme() {
+  const cur = document.documentElement.getAttribute('data-theme');
+  const next = cur === 'light' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('club-theme', next);
+  updateThemeIcon(next);
+}
+
+function updateThemeIcon(theme) {
+  const icon = document.getElementById('theme-icon');
+  if (!icon) return;
+  if (theme === 'dark') {
+    icon.innerHTML = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+  } else {
+    icon.innerHTML = '<circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>';
+  }
+}
 
 // Clock
 setInterval(() => {
@@ -617,7 +893,6 @@ function doLogin() {
 
 function doLogout() { sessionStorage.removeItem('cls'); location.reload(); }
 
-// Auto-login from session
 (function() {
   const s = sessionStorage.getItem('cls');
   if (!s) return;
@@ -636,9 +911,14 @@ async function getToken() {
     const r = await fetch('/api/v1/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:'admin@catandwickets.com',password:'admin123!'})});
     const d = await r.json();
     TOKEN = d.data?.token ?? '';
-    document.getElementById('api-st').textContent = TOKEN ? 'API connected' : 'Auth failed';
+    const pill = document.getElementById('api-st');
+    if (pill) pill.textContent = TOKEN ? 'API connected' : 'Auth failed';
     return TOKEN;
-  } catch(e) { document.getElementById('api-st').textContent = 'API unreachable'; return ''; }
+  } catch(e) {
+    const pill = document.getElementById('api-st');
+    if (pill) { pill.textContent = 'Unreachable'; pill.parentElement.style.background='var(--red-bg)'; pill.parentElement.style.color='var(--red)'; }
+    return '';
+  }
 }
 
 async function api(path, opts={}) {
@@ -648,12 +928,13 @@ async function api(path, opts={}) {
 }
 
 // Navigation
-const VIEWS = ['dashboard','connectors','apis','audit','logs','transactions','clerks'];
+const VIEWS = ['dashboard','connectors','apis','audit','logs','transactions','venues','clerks'];
 function nav(id) {
-  VIEWS.forEach(v => { document.getElementById('v-'+v)?.classList.toggle('active',v===id); });
+  VIEWS.forEach(v => { document.getElementById('v-'+v)?.classList.toggle('active', v===id); });
   document.querySelectorAll('.ni').forEach(el => { el.classList.toggle('active', el.getAttribute('onclick')?.includes(`'${id}'`)); });
   if (id==='transactions') loadTx();
   if (id==='clerks') loadClerks();
+  if (id==='venues') loadVenues();
   if (id==='audit') renderAudit();
 }
 
@@ -681,7 +962,7 @@ async function loadDashboard() {
       document.getElementById('s-cl').textContent = uc;
       const cln = document.getElementById('s-cln');
       cln.textContent = uc>0 ? uc+' need matching' : 'All matched';
-      cln.className = 'sn '+(uc>0?'alert':'ok');
+      cln.className = 'stat-note '+(uc>0?'bad':'ok');
       if (uc>0) { document.getElementById('clerk-nc').textContent=uc; document.getElementById('clerk-nc').style.display=''; }
       log(`Relay: ${tx} transactions · ${uc} unmatched clerks`, tx>0?'ok':'info');
     }
@@ -699,23 +980,26 @@ async function loadDashboard() {
       const rows = areas.map(a => {
         const sc = Number(a.trail_score)||0;
         const cr = Number(a.completion_rate)||0;
-        const c = sc>=15?'var(--teal)':sc>=5?'var(--amber)':'var(--red)';
+        const c = sc>=15?'var(--green)':sc>=5?'var(--amber)':'var(--red)';
         return `<tr>
           <td class="p">${a.venue_name}</td>
-          <td><span class="b ${a.area==='BOH'?'b-blue':'b-hi'}">${a.area}</span></td>
+          <td><span class="b ${a.area==='BOH'?'b-blue':'b-accent'}">${a.area}</span></td>
           <td class="mono">${a.total_tasks}</td>
           <td class="mono">${a.completed_tasks}</td>
           <td class="mono">${cr}%</td>
-          <td><span style="font-family:var(--mono);font-size:11px;color:${c};font-weight:600">${sc}/100</span></td>
+          <td><span style="font-family:var(--mono);font-size:12px;color:${c};font-weight:600">${sc}/100</span></td>
         </tr>`;
       }).join('');
       document.getElementById('venue-tbl').innerHTML = rows;
-      log(`Trail: ${areas.length} areas loaded across ${summary.length} venues`,'ok');
+      log(`Trail: ${areas.length} areas across ${summary.length} venues`,'ok');
     } else {
       document.getElementById('venue-tbl').innerHTML = '<tr><td colspan="6" class="empty">No Trail data — run a sync first</td></tr>';
       document.getElementById('s-tt').textContent = '0';
+      document.getElementById('s-ttn').textContent = 'Run sync to populate';
     }
-  } catch(e) { document.getElementById('venue-tbl').innerHTML = '<tr><td colspan="6" class="empty">Could not load Trail data</td></tr>'; }
+  } catch(e) {
+    document.getElementById('venue-tbl').innerHTML = '<tr><td colspan="6" class="empty">Could not load Trail data</td></tr>';
+  }
 }
 
 // Transactions
@@ -725,9 +1009,77 @@ async function loadTx() {
     const n = Number(r.data?.total_transactions)||0;
     document.getElementById('tx-lbl').textContent = n+' transaction'+(n!==1?'s':'');
     document.getElementById('tx-tbody').innerHTML = n===0
-      ? '<tr><td colspan="7" class="empty">No transactions yet — waiting for Relay data from Access Hospitality</td></tr>'
+      ? '<tr><td colspan="7" class="empty">No transactions yet — waiting for Relay data</td></tr>'
       : '<tr><td colspan="7" class="empty">'+n+' transaction'+(n!==1?'s':'')+' in database · detailed view coming soon</td></tr>';
-  } catch(e) { document.getElementById('tx-tbody').innerHTML = '<tr><td colspan="7" class="empty">Error loading transactions</td></tr>'; }
+  } catch(e) { document.getElementById('tx-tbody').innerHTML = '<tr><td colspan="7" class="empty">Error</td></tr>'; }
+}
+
+// Venue Mapping
+async function loadVenues() {
+  try {
+    // Get venues from database
+    const vr = await api('/venues');
+    const venues = vr.data || [];
+
+    // Get clerk mappings to find unique location IDs
+    const cr = await api('/clerks');
+    const clerks = cr.data || [];
+    const locationIds = [...new Set(clerks.map(c => c.location_id).filter(Boolean))];
+
+    // Known mapped venues (Griffin Inn = GRIFFIN01 from our test)
+    const knownMappings = [
+      { location_id: 'GRIFFIN01', connector: 'Relay (test)', venue: 'The Griffin Inn' },
+    ];
+    const unmapped = locationIds.filter(lid => !knownMappings.find(m => m.location_id === lid));
+
+    document.getElementById('uv-lbl').textContent = unmapped.length+' unmapped';
+    if (unmapped.length === 0) {
+      document.getElementById('uv-tbody').innerHTML = '<tr><td colspan="6" class="empty">All locations mapped</td></tr>';
+    } else {
+      const venueOptions = venues.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
+      document.getElementById('uv-tbody').innerHTML = unmapped.map(lid => `
+        <tr>
+          <td class="mono p">${lid}</td>
+          <td><span class="b b-blue">Relay</span></td>
+          <td class="dim">Today</td>
+          <td class="mono">${clerks.filter(c=>c.location_id===lid).length} clerk(s)</td>
+          <td>
+            <select class="fg-i" style="padding:5px 9px;font-size:12px;width:180px" id="vmap-${lid}">
+              <option value="">— Select venue —</option>
+              ${venueOptions}
+            </select>
+          </td>
+          <td><button class="btn btn-primary btn-sm" onclick="mapVenue('${lid}')">Map</button></td>
+        </tr>
+      `).join('');
+    }
+
+    // Show known mappings
+    document.getElementById('mv-tbody').innerHTML = knownMappings.length === 0
+      ? '<tr><td colspan="5" class="empty">No mapped venues yet</td></tr>'
+      : knownMappings.map(m => `
+        <tr>
+          <td class="p">${m.venue}</td>
+          <td class="mono">${m.location_id}</td>
+          <td class="dim">Auto-matched</td>
+          <td class="dim">—</td>
+          <td><span class="b b-green"><span class="dot"></span>Mapped</span></td>
+        </tr>
+      `).join('');
+
+    log(`Venue mapping: ${unmapped.length} unmapped location(s)`,'info');
+  } catch(e) {
+    document.getElementById('uv-tbody').innerHTML = '<tr><td colspan="6" class="empty">Error loading venues</td></tr>';
+  }
+}
+
+function mapVenue(locationId) {
+  const sel = document.getElementById('vmap-'+locationId);
+  const venueId = sel?.value;
+  if (!venueId) { log('Please select a venue first','warn'); return; }
+  log(`Location ${locationId} mapped to venue — saving...`,'ok');
+  // TODO: save to connector_venue_mappings table
+  loadVenues();
 }
 
 // Clerks
@@ -736,96 +1088,91 @@ async function loadClerks() {
     const r = await api('/clerks');
     const clerks = r.data || [];
     const unmatched = clerks.filter(c => !c.team_member_id);
-    const matched = clerks.filter(c => c.team_member_id);
+    const matched   = clerks.filter(c => c.team_member_id);
     document.getElementById('uc-lbl').textContent = unmatched.length+' unmatched';
 
-    // Load team members for dropdown
     const tmRes = await api('/squad');
     const members = tmRes.data || [];
     const memberOptions = members.map(m => `<option value="${m.id}">${m.first_name} ${m.last_name}</option>`).join('');
 
-    if (unmatched.length === 0) {
-      document.getElementById('uc-tbody').innerHTML = '<tr><td colspan="5" class="empty">All clerks matched</td></tr>';
-    } else {
-      document.getElementById('uc-tbody').innerHTML = unmatched.map(c => `
-        <tr>
-          <td class="mono p">${c.clerk_id}</td>
-          <td class="mono">${c.location_id || '—'}</td>
-          <td class="dim">${new Date(c.created_at).toLocaleDateString('en-GB')}</td>
-          <td>
-            <select class="fi" style="padding:4px 8px;font-size:11px;width:180px" id="match-${c.clerk_id}-${c.location_id}">
-              <option value="">— Select team member —</option>
-              ${memberOptions}
-            </select>
-          </td>
-          <td>
-            <button class="btn btn-hi btn-sm" onclick="matchClerk('${c.clerk_id}','${c.location_id}')">Match</button>
-          </td>
-        </tr>
-      `).join('');
-    }
-
-    // Show matched clerks
-    const matchedTbl = document.getElementById('matched-tbody');
-    if (matchedTbl) {
-      matchedTbl.innerHTML = matched.length === 0
-        ? '<tr><td colspan="4" class="empty">No matched clerks yet</td></tr>'
-        : matched.map(c => `
+    document.getElementById('uc-tbody').innerHTML = unmatched.length===0
+      ? '<tr><td colspan="5" class="empty">All clerks matched</td></tr>'
+      : unmatched.map(c => `
           <tr>
             <td class="mono p">${c.clerk_id}</td>
-            <td class="mono">${c.location_id || '—'}</td>
-            <td class="p">${c.first_name} ${c.last_name}</td>
-            <td><span class="b b-teal"><span class="dot"></span>Matched</span></td>
+            <td class="mono">${c.location_id||'—'}</td>
+            <td class="dim">${fmtD(c.created_at)}</td>
+            <td>
+              <select class="fg-i" style="padding:5px 9px;font-size:12px;width:180px" id="match-${c.clerk_id}-${c.location_id}">
+                <option value="">— Select team member —</option>
+                ${memberOptions}
+              </select>
+            </td>
+            <td><button class="btn btn-primary btn-sm" onclick="matchClerk('${c.clerk_id}','${c.location_id}')">Match</button></td>
           </tr>
         `).join('');
-    }
+
+    const matchedTbl = document.getElementById('mc-tbody');
+    matchedTbl.innerHTML = matched.length===0
+      ? '<tr><td colspan="4" class="empty">No matched clerks yet</td></tr>'
+      : matched.map(c=>`
+          <tr>
+            <td class="mono p">${c.clerk_id}</td>
+            <td class="mono">${c.location_id||'—'}</td>
+            <td class="p">${c.first_name} ${c.last_name}</td>
+            <td><span class="b b-green"><span class="dot"></span>Matched</span></td>
+          </tr>
+        `).join('');
   } catch(e) { document.getElementById('uc-tbody').innerHTML = '<tr><td colspan="5" class="empty">Error loading clerks</td></tr>'; }
 }
 
 async function matchClerk(clerkId, locationId) {
   const sel = document.getElementById('match-'+clerkId+'-'+locationId);
   const teamMemberId = sel?.value;
-  if (!teamMemberId) { log('Please select a team member first','warn'); return; }
+  if (!teamMemberId) { log('Select a team member first','warn'); return; }
   try {
-    const r = await api('/clerks/'+clerkId+'/match', {
-      method: 'POST',
-      body: JSON.stringify({ teamMemberId, locationId })
-    });
+    const r = await api('/clerks/'+clerkId+'/match',{method:'POST',body:JSON.stringify({teamMemberId,locationId})});
     if (r.error) { log('Match failed: '+r.error.message,'error'); return; }
     log('Clerk '+clerkId+' matched successfully','ok');
-    loadClerks();
-    loadDashboard();
+    loadClerks(); loadDashboard();
   } catch(e) { log('Match error: '+e.message,'error'); }
 }
 
 // Audit
 function renderAudit() {
-  const events = logs.map(l => ({ts:l.ts,type:l.type==='ok'?'SYSTEM':l.type==='error'?'ERROR':'SYSTEM',msg:l.msg,cls:l.type==='error'?'b-red':l.type==='ok'?'b-teal':'b-dim'}));
+  const events = [...logs].reverse();
   document.getElementById('audit-tot').textContent = events.length+' session events';
   document.getElementById('audit-nc').textContent = events.length;
   document.getElementById('audit-list').innerHTML = !events.length
-    ? '<div class="empty">No events yet this session</div>'
-    : [...events].reverse().map(e=>`<div class="ar"><span class="at">${e.ts}</span><span><span class="b ${e.cls}">${e.type}</span></span><span class="am">${e.msg}</span><span class="as"><span class="b b-dim">The Club</span></span></div>`).join('');
+    ? '<div class="empty">No events yet</div>'
+    : events.map(e=>`
+        <div class="ar">
+          <span class="at">${e.ts}</span>
+          <span><span class="b ${e.type==='error'?'b-red':e.type==='ok'?'b-green':'b-dim'}">${e.type==='ok'?'SYSTEM':e.type==='error'?'ERROR':'INFO'}</span></span>
+          <span class="am">${e.msg}</span>
+          <span class="as"><span class="b b-dim">The Club</span></span>
+        </div>
+      `).join('');
 }
 
 // Log
 function log(msg, type='info') {
-  const c = {ok:'var(--teal)',error:'var(--red)',info:'var(--fg2)',warn:'var(--amber)'};
-  const i = {ok:'✓',error:'✗',info:'›',warn:'⚠'};
+  const c={ok:'var(--green)',error:'var(--red)',info:'var(--fg3)',warn:'var(--amber)'};
+  const i={ok:'✓',error:'✗',info:'›',warn:'⚠'};
   const ts = new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
   logs.push({ts,msg,type});
   const out = document.getElementById('logs-out');
   if (out) {
-    if (out.firstChild?.textContent?.startsWith('$ Waiting')) out.innerHTML='';
+    if (out.textContent.startsWith('Waiting')) out.innerHTML='';
     const d=document.createElement('div');
-    d.style.cssText=`color:${c[type]||'var(--fg2)'};margin-bottom:1px`;
+    d.style.cssText=`color:${c[type]||'var(--fg2)'};margin-bottom:2px`;
     d.textContent=`[${ts}] ${i[type]||'›'} ${msg}`;
     out.insertBefore(d,out.firstChild);
   }
-  const feed = document.getElementById('live-feed');
+  const feed=document.getElementById('live-feed');
   if (feed) {
     if (feed.querySelector('.empty')) feed.innerHTML='';
-    const dc={ok:'var(--teal)',error:'var(--red)',info:'var(--fg3)',warn:'var(--amber)'};
+    const dc={ok:'var(--green)',error:'var(--red)',info:'var(--fg3)',warn:'var(--amber)'};
     const item=document.createElement('div');
     item.className='feed-row';
     item.innerHTML=`<div class="fd" style="background:${dc[type]||'var(--fg3)'}"></div><div class="fm">${msg}</div><div class="ft">${ts}</div>`;
@@ -838,13 +1185,13 @@ function log(msg, type='info') {
 
 // Actions
 async function testTrail() {
-  log('Testing Trail connection...','info');
+  log('Testing Trail...','info');
   try {
     const tok=await getToken();
     const r=await fetch('/api/v1/sync/trail/test',{method:'POST',headers:{'Authorization':`Bearer ${tok}`,'Content-Type':'application/json'}});
     const d=await r.json();
     d.data?.success ? log(`Trail connected — ${d.data.areas?.join(', ')}`,'ok') : log('Trail failed: '+(d.error?.message||'Unknown'),'error');
-  } catch(e) { log('Trail test error: '+e.message,'error'); }
+  } catch(e) { log('Trail test error','error'); }
 }
 
 async function syncTrail() {
@@ -854,12 +1201,13 @@ async function syncTrail() {
     const r=await fetch('/api/v1/sync/trail',{method:'POST',headers:{'Authorization':`Bearer ${tok}`,'Content-Type':'application/json'},body:'{}'});
     const d=await r.json();
     log(d.data?.message||'Trail sync started','ok');
-  } catch(e) { log('Trail sync error: '+e.message,'error'); }
+  } catch(e) { log('Trail sync error','error'); }
 }
 
 async function testRelay() {
   log('Sending test Relay event...','info');
   try {
+    const RELAY_KEY = await getRelayKey();
     const r=await fetch('/api/v1/webhooks/relay',{
       method:'POST',
       headers:{'Content-Type':'application/json','x-api-key':RELAY_KEY},
@@ -874,9 +1222,16 @@ async function testRelay() {
       })
     });
     const d=await r.json();
-    if (d.data?.status==='ok') { log('Test event accepted — txn: '+d.data.transactionId,'ok'); setTimeout(loadDashboard,500); }
-    else log('Test rejected: '+(d.error?.message||'Unknown'),'error');
+    d.data?.status==='ok' ? log('Test event accepted — '+d.data.transactionId,'ok') : log('Test rejected','error');
+    setTimeout(loadDashboard,500);
   } catch(e) { log('Test error: '+e.message,'error'); }
+}
+
+async function getRelayKey() {
+  try {
+    const r = await api('/connectors/relay/key');
+    return r.data?.key || '';
+  } catch(e) { return ''; }
 }
 
 function copyUrl() { navigator.clipboard?.writeText('https://theclub.thecatandwickets.com/api/v1/webhooks/relay'); log('Webhook URL copied','info'); }
@@ -886,16 +1241,8 @@ async function showKey() {
   document.getElementById('km-v').textContent='Loading...';
   document.getElementById('km-t').textContent='Relay API Key';
   openM('show-key');
-  try {
-    const r = await api('/connectors/relay/key');
-    if (r.data?.key) {
-      document.getElementById('km-v').textContent = r.data.key;
-    } else {
-      document.getElementById('km-v').textContent = '[Key not available — check server .env]';
-    }
-  } catch(e) {
-    document.getElementById('km-v').textContent = '[Error fetching key]';
-  }
+  const key = await getRelayKey();
+  document.getElementById('km-v').textContent = key || '[Key not available — check server .env]';
 }
 
 function genKey() {
@@ -912,9 +1259,9 @@ function genKey() {
 
 function openM(id)  { document.getElementById('m-'+id)?.classList.add('open'); }
 function closeM(id) { document.getElementById('m-'+id)?.classList.remove('open'); }
-document.querySelectorAll('.overlay').forEach(o => { o.addEventListener('click',e=>{ if(e.target===o) o.classList.remove('open'); }); });
+document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open');}));
 
-function fmtD(s) { try { return new Date(s).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}); } catch { return s; } }
+function fmtD(s) { try{return new Date(s).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});}catch{return s;} }
 </script>
 </body>
 </html>
