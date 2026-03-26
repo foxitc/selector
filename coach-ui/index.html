@@ -662,7 +662,7 @@ select.fi { cursor:pointer; appearance:none; }
         <div class="card">
           <div class="card-h"><div class="card-t">Recent Transactions</div><span style="font-size:12px;color:var(--ink4)" id="sales-tx-lbl">—</span></div>
           <table class="tbl">
-            <thead><tr><th>Date/Time</th><th>Venue</th><th>Covers</th><th>Gross</th><th>Clerk</th><th>Items</th></tr></thead>
+            <thead><tr><th>Date/Time</th><th>Venue</th><th>Table</th><th>Covers</th><th>Gross</th><th>Clerk</th><th>Items</th></tr></thead>
             <tbody id="sales-tbl"><tr><td colspan="6" class="empty">Loading...</td></tr></tbody>
           </table>
         </div>
@@ -1063,9 +1063,11 @@ async function loadSales() {
     document.getElementById('sales-tbl').innerHTML = list.length ? list.map(t => {
       const venue = LOCATION_MAP[t.location_id] || t.location_id || '—';
       const items = (t.items||[]).map(i=>i.name).slice(0,2).join(', ') + (t.items?.length>2?'...':'');
+      const tableNo = t.seating_area ? `<span class="b b-dim">Table ${t.seating_area}</span>` : '—';
       return `<tr>
         <td class="mono">${fmtDT(t.datetime_opened)}</td>
         <td class="p">${venue}</td>
+        <td>${tableNo}</td>
         <td class="mono">${t.covers||0}</td>
         <td class="mono">£${Number(t.total_gross_item_cost||0).toFixed(2)}</td>
         <td class="mono">${t.closed_by_clerk_id||'—'}</td>
