@@ -1243,6 +1243,43 @@ function log(msg, type='info') {
   }
 }
 
+// Google Reviews
+function connectGoogle() {
+  window.open('https://theclub.thecatandwickets.com/api/v1/auth/google', '_blank', 'width=600,height=700');
+  log('Opening Google authorisation...', 'info');
+  setTimeout(checkGoogleStatus, 5000);
+}
+
+async function syncGoogle() {
+  log('Syncing Google reviews...', 'info');
+  try {
+    const r = await api('/sync/google/reviews', { method: 'POST' });
+    if (r.error) { log('Google sync error: ' + r.error.message, 'error'); return; }
+    log('Google reviews synced — ' + (r.data?.locations || 0) + ' locations', 'ok');
+  } catch(e) { log('Google sync error: ' + e.message, 'error'); }
+}
+
+async function checkGoogleStatus() {
+  try {
+    const r = await api('/metrics/google/reviews');
+    const badge = document.getElementById('google-status-badge');
+    if (badge && r.data && r.data.length > 0) {
+      badge.innerHTML = '<span class="b b-green"><span class="dot"></span>Connected</span>';
+    }
+  } catch(e) {}
+}
+
+async function testCPL() {
+  log('Testing CPL connection...', 'info');
+  try {
+    const resp = await fetch('https://clientapi.cplonline.co.uk/sites/active', {
+      headers: { 'x-api-key': 'E7B947D3-9F19-4BD7-8282-6A584C711AEB' }
+    });
+    const data = await resp.json();
+    log('CPL connected — ' + (data.length || 0) + ' site(s)', 'ok');
+  } catch(e) { log('CPL error: ' + e.message, 'error'); }
+}
+
 // Actions
 async function testTrail() {
   log('Testing Trail...','info');
