@@ -1350,8 +1350,8 @@ async function loadAIInsights() {
 }
 
 // Utils
-function fmtD(s) { try{return new Date(s).toLocaleDateString('en-GB',{day:'numeric',month:'short'});}catch{return s||'—';} }
-function fmtDT(s) { try{return new Date(s).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});}catch{return s||'—';} }
+function fmtD(s) { try{return new Date(s).toLocaleDateString('en-GB',{day:'numeric',month:'short',timeZone:'Europe/London'});}catch{return s||'—';} }
+function fmtDT(s) { try{return new Date(s).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',timeZone:'Europe/London'});}catch{return s||'—';} }
 </script>
 </body>
 </html>
