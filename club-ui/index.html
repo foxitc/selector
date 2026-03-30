@@ -365,15 +365,18 @@ body {
 
 /* ── AUDIT ───────────────────────────────────────── */
 .ar {
-  display: grid; grid-template-columns: 140px 70px 1fr 90px;
-  gap: 12px; align-items: center; padding: 9px 16px;
+  display: grid; grid-template-columns: 130px 160px 1fr 130px;
+  gap: 12px; align-items: center; padding: 10px 16px;
   border-bottom: 1px solid var(--border); font-size: 12px;
 }
 .ar:last-child { border-bottom: none; }
 .ar:hover { background: var(--bg3); }
 .at { font-family: var(--mono); font-size: 10px; color: var(--fg3); }
+.ab { display:flex; align-items:center; gap:6px; overflow:hidden; }
+.ab-icon { width:20px; height:20px; border-radius:5px; display:flex; align-items:center; justify-content:center; font-size:8px; font-weight:700; flex-shrink:0; }
+.ab-label { font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:0.04em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .am { color: var(--fg2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.as { text-align: right; }
+.as { text-align: right; font-size:11px; color:var(--fg3); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
 /* ── VIEWS ───────────────────────────────────────── */
 .view { display: none; animation: vi 0.15s ease; }
@@ -627,6 +630,7 @@ select.fg-i { cursor:pointer; appearance:none; }
               <div><label>Endpoint</label><span>web.trailapp.com/api/public</span></div>
               <div><label>Areas</label><span>Kitchen · Front Of House</span></div>
               <div><label>Last Sync</label><span>w/e 15 Mar 2026</span></div>
+              <div><label>Frequency</label><span style="color:var(--amber)">Weekly → needs Daily</span></div>
             </div>
             <div class="conn-actions">
               <button class="btn btn-ghost btn-sm" onclick="testTrail()">Test Connection</button>
@@ -637,11 +641,20 @@ select.fg-i { cursor:pointer; appearance:none; }
 
         <div class="conn-card">
           <div class="conn-head">
-            <div class="conn-id"><div class="conn-icon">RSD</div><div><div class="conn-name">ResDiary</div><div class="conn-desc">REST pull · Reservations, covers, guest data</div></div></div>
-            <div style="display:flex;gap:6px"><span class="b b-amber"><span class="dot"></span>Pending</span><span class="b b-blue">Pull · Weekly</span></div>
+            <div class="conn-id"><div class="conn-icon">RSD</div><div><div class="conn-name">ResDiary</div><div class="conn-desc">Webhook + REST pull · Reservations, covers, guest data</div></div></div>
+            <div style="display:flex;gap:6px"><span class="b b-green"><span class="dot"></span>Webhook Live</span><span class="b b-blue">Real-time + Daily</span></div>
           </div>
           <div class="conn-body">
-            <div class="alert al-amber">Awaiting Data Extract permissions from ResDiary. Credentials configured — contact ResDiary support to enable Data Extract API access for cat.wickets+api@resdiary.com</div>
+            <div class="conn-meta">
+              <div><label>Webhook URL</label><span style="color:var(--accent)">/api/v1/webhooks/resdiary</span></div>
+              <div><label>Events</label><span>Bookings · Cancellations · No-shows</span></div>
+              <div><label>Data Extract</label><span id="rsd-extract-status">Pending IP whitelist</span></div>
+            </div>
+            <div class="alert al-teal" style="margin-top:12px">Webhooks enabled on test diary. Awaiting Cloudflare whitelist from ResDiary for Data Extract API pull.</div>
+            <div class="conn-actions" style="margin-top:10px">
+              <button class="btn btn-ghost btn-sm" onclick="checkResDiaryWebhook()">Check Webhooks</button>
+              <button class="btn btn-ghost btn-sm" onclick="testResDiary()">Test Connection</button>
+            </div>
           </div>
         </div>
 
@@ -1200,18 +1213,39 @@ async function renderAudit() {
       document.getElementById('audit-list').innerHTML = '<div class="empty">No events yet</div>';
       return;
     }
-    const typeColors = {
-      'WEBHOOK_RECEIVED':'b-green','CLERK_DISCOVERED':'b-amber',
-      'TRAIL_SYNC':'b-blue','SYSTEM':'b-dim','ERROR':'b-red'
+    const iconMap = {
+      'Relay':      {bg:'#dcfce7',c:'#16a34a',l:'RLY'},
+      'Trail':      {bg:'#dbeafe',c:'#2563eb',l:'TRL'},
+      'ResDiary':   {bg:'#fef3c7',c:'#d97706',l:'RSD'},
+      'RotaReady':  {bg:'#f3e8ff',c:'#7c3aed',l:'RTA'},
+      'Google':     {bg:'#fee2e2',c:'#dc2626',l:'GGL'},
+      'CPL':        {bg:'#fef9c3',c:'#ca8a04',l:'CPL'},
+      'Auth':       {bg:'#e0f2fe',c:'#0284c7',l:'AUTH'},
+      'System':     {bg:'#f1f5f9',c:'#64748b',l:'SYS'},
     };
-    document.getElementById('audit-list').innerHTML = events.map(e => `
-      <div class="ar">
-        <span class="at">${fmtDT(e.created_at)}</span>
-        <span><span class="b ${typeColors[e.event_type]||'b-dim'}">${(e.event_type||'').replace('_',' ')}</span></span>
-        <span class="am">${e.description||e.action||'—'}</span>
-        <span class="as"><span class="b b-dim">${e.source||'System'}</span></span>
-      </div>
-    `).join('');
+    const typeColors = {
+      'WEBHOOK_RECEIVED': '#16a34a',
+      'CLERK_DISCOVERED': '#2563eb',
+      'TRAIL_SYNC':       '#2563eb',
+      'RESDIARY_EVENT':   '#d97706',
+      'USER_LOGIN':       '#0284c7',
+      'ALERT':            '#dc2626',
+      'SYNC_ALERT':       '#dc2626',
+    };
+    document.getElementById('audit-list').innerHTML = events.map(e => {
+      const ic = iconMap[e.source] || {bg:'#f1f5f9',c:'#64748b',l:(e.source||'SYS').substring(0,3).toUpperCase()};
+      const tc = typeColors[e.event_type] || 'var(--fg3)';
+      const typeLabel = (e.event_type||'').replace(/_/g,' ');
+      return '<div class="ar">'
+        + '<span class="at">' + fmtDT(e.created_at) + '</span>'
+        + '<div class="ab">'
+          + '<div class="ab-icon" style="background:' + ic.bg + ';color:' + ic.c + '">' + ic.l + '</div>'
+          + '<span class="ab-label" style="color:' + tc + '">' + typeLabel + '</span>'
+        + '</div>'
+        + '<span class="am">' + (e.description||'—') + '</span>'
+        + '<span class="as">' + (e.source||'—') + '</span>'
+        + '</div>';
+    }).join('');
   } catch(e) { log('Audit load error: '+e.message,'error'); }
 }
 
@@ -1299,6 +1333,26 @@ async function syncTrail() {
     const d=await r.json();
     log(d.data?.message||'Trail sync started','ok');
   } catch(e) { log('Trail sync error','error'); }
+}
+
+async function checkResDiaryWebhook() {
+  log('Checking ResDiary webhook status...', 'info');
+  try {
+    const r = await api('/webhooks/resdiary/status');
+    if (r.data) {
+      log('ResDiary webhook: ' + r.data.total_events + ' events received · Last: ' + (r.data.last_received ? fmtDT(r.data.last_received) : 'none'), 'ok');
+    }
+  } catch(e) { log('ResDiary check error: ' + e.message, 'error'); }
+}
+
+async function testResDiary() {
+  log('Testing ResDiary connection...', 'info');
+  try {
+    const r = await api('/sync/resdiary/test', { method: 'POST' });
+    r.data?.success
+      ? log('ResDiary connected — ' + (r.data.diaries?.join(', ') || 'no diaries'), 'ok')
+      : log('ResDiary failed: ' + r.data?.message, 'error');
+  } catch(e) { log('ResDiary error: ' + e.message, 'error'); }
 }
 
 async function testRelay() {
