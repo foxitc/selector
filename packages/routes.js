@@ -1041,14 +1041,26 @@ router.post('/sync/google/reviews', auth, async (req, res, next) => {
       return newToken;
     }
 
-    // Helper: make an authenticated GET request, refreshing token on 401
+    // Helper: make an authenticated GET request, refreshing token on 401/403
     async function googleGet(url) {
       try {
         return await axios.get(url, { headers: { 'Authorization': 'Bearer ' + accessToken } });
       } catch (e) {
-        if (e.response && e.response.status === 401 && refreshToken) {
-          accessToken = await refreshAccessToken();
-          return await axios.get(url, { headers: { 'Authorization': 'Bearer ' + accessToken } });
+        if (e.response && (e.response.status === 401 || e.response.status === 403) && refreshToken) {
+          console.log('[Google] Got ' + e.response.status + ' from ' + url + ', attempting token refresh...');
+          if (e.response.data) console.log('[Google] Error detail:', JSON.stringify(e.response.data));
+          try {
+            accessToken = await refreshAccessToken();
+            return await axios.get(url, { headers: { 'Authorization': 'Bearer ' + accessToken } });
+          } catch (retryErr) {
+            if (retryErr.response && retryErr.response.data) {
+              console.error('[Google] Retry failed:', JSON.stringify(retryErr.response.data));
+            }
+            throw retryErr;
+          }
+        }
+        if (e.response && e.response.data) {
+          console.error('[Google] API error ' + e.response.status + ':', JSON.stringify(e.response.data));
         }
         throw e;
       }
@@ -1106,7 +1118,12 @@ router.post('/sync/google/reviews', auth, async (req, res, next) => {
         console.error('[Google Reviews]', location.title, e.message);
       }
     }
-  } catch(e) { next(e); }
+  } catch(e) {
+    const detail = e.response && e.response.data && e.response.data.error;
+    const msg = detail ? (detail.message || JSON.stringify(detail)) : e.message;
+    console.error('[Google Sync Error]', msg);
+    return err(res, 'Google API error: ' + msg, e.response ? e.response.status : 500);
+  }
 });
 
 // Get Google review stats
@@ -1362,6 +1379,111 @@ router.get('/connectors/status', auth, async (req, res, next) => {
   } catch(e) { next(e); }
 });
 
+
+// Google Places - sync reviews for all venues using Places API
+router.post('/sync/google/places', auth, async (req, res, next) => {
+  try {
+    const axios = (await import('axios')).default;
+    const apiKey = process.env['GOOGLE_PLACES_API_KEY'];
+    if (!apiKey) return err(res, 'GOOGLE_PLACES_API_KEY not configured', 400);
+
+    const venues = [
+      { placeId: 'ChIJkY6ikuPfeUgRTwYKwMOxnRQ', name: 'The Griffin Inn', locationId: '0001' },
+      { placeId: 'ChIJL1fXX1rReUgRoasMv1zsgZI', name: 'Tap & Run', locationId: '0002' },
+      { placeId: 'ChIJF_oJeAADekgRpSlCi0O92BI', name: 'The Long Hop', locationId: '0003' },
+    ];
+
+    // Get team member names for named mention matching
+    const membersRes = await database_js_1.db.query(
+      "SELECT first_name, last_name, venue_id FROM team_members WHERE is_active = true"
+    );
+    const members = membersRes.rows;
+
+    const results = [];
+    for (const venue of venues) {
+      const r = await axios.get('https://maps.googleapis.com/maps/api/place/details/json', {
+        params: {
+          place_id: venue.placeId,
+          fields: 'name,rating,user_ratings_total,reviews',
+          key: apiKey,
+          language: 'en'
+        }
+      });
+
+      const place = r.data.result || {};
+      const rating = place.rating || 0;
+      const totalReviews = place.user_ratings_total || 0;
+      const reviews = place.reviews || [];
+
+      // Store overall rating
+      await database_js_1.db.query(
+        "INSERT INTO google_place_ratings (location_id, venue_name, rating, total_reviews, synced_at) " +
+        "VALUES ($1, $2, $3, $4, NOW()) " +
+        "ON CONFLICT (location_id) DO UPDATE SET rating=$3, total_reviews=$4, synced_at=NOW()",
+        [venue.locationId, venue.name, rating, totalReviews]
+      ).catch(async () => {
+        await database_js_1.db.query(`
+          CREATE TABLE IF NOT EXISTS google_place_ratings (
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            location_id VARCHAR(10) UNIQUE,
+            venue_name VARCHAR(255),
+            rating NUMERIC(3,1),
+            total_reviews INTEGER,
+            synced_at TIMESTAMPTZ DEFAULT NOW()
+          )
+        `);
+        await database_js_1.db.query(
+          "INSERT INTO google_place_ratings (location_id, venue_name, rating, total_reviews) VALUES ($1,$2,$3,$4) ON CONFLICT (location_id) DO UPDATE SET rating=$3, total_reviews=$4, synced_at=NOW()",
+          [venue.locationId, venue.name, rating, totalReviews]
+        );
+      });
+
+      // Process each review for named mentions
+      for (const review of reviews) {
+        const text = review.text || '';
+        const reviewDate = new Date(review.time * 1000).toISOString();
+        
+        // Find staff name mentions
+        const venueMembers = members.filter(m => {
+          const locMap = {'0001':'e87b5986-0826-4464-ad62-e55175f9c3c4','0002':'38749619-c192-45d1-806b-2fdc5922adea','0003':'d9657ea0-19c4-4793-9c0c-21fd4179ac56'};
+          return m.venue_id === locMap[venue.locationId];
+        });
+        const namedStaff = venueMembers
+          .filter(m => text.toLowerCase().includes(m.first_name.toLowerCase()) && m.first_name.length > 2)
+          .map(m => m.first_name + ' ' + m.last_name);
+
+        await database_js_1.db.query(
+          "INSERT INTO google_reviews (location_name, reviewer_name, star_rating, comment, create_time, named_staff) " +
+          "VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING",
+          [venue.name, review.author_name, String(review.rating), text, reviewDate, namedStaff]
+        ).catch(() => {});
+      }
+
+      results.push({ venue: venue.name, rating, totalReviews, reviewsProcessed: reviews.length });
+      console.log('[Google Places]', venue.name, rating, totalReviews, 'reviews');
+    }
+
+    ok(res, { synced: results });
+  } catch(e) {
+    console.error('[Google Places]', e.message);
+    err(res, 'Google Places error: ' + e.message, 500);
+  }
+});
+
+// Google place ratings endpoint
+router.get('/metrics/google/ratings', auth, async (req, res, next) => {
+  try {
+    const ratings = await database_js_1.db.query(
+      "SELECT * FROM google_place_ratings ORDER BY location_id"
+    ).catch(() => ({ rows: [] }));
+    const reviews = await database_js_1.db.query(
+      "SELECT location_name, reviewer_name, star_rating, comment, create_time, named_staff " +
+      "FROM google_reviews ORDER BY create_time DESC LIMIT 50"
+    ).catch(() => ({ rows: [] }));
+    ok(res, { ratings: ratings.rows, reviews: reviews.rows });
+  } catch(e) { next(e); }
+});
+
 // ── SYNC SCHEDULER ──────────────────────────────────────────────
 async function runScheduledSyncs() {
   const now = new Date();
@@ -1419,6 +1541,33 @@ async function runScheduledSyncs() {
         console.log('[Scheduler] ResDiary complete');
       }
     } catch(e) { console.error('[Scheduler] ResDiary error:', e.message); }
+  }
+
+  // GOOGLE PLACES - hourly between 07:00-23:00 UTC
+  if (hour >= 7 && hour <= 23) {
+    console.log('[Scheduler] Google Places sync');
+    try {
+      const apiKey = process.env['GOOGLE_PLACES_API_KEY'];
+      if (apiKey) {
+        const axios = (await import('axios')).default;
+        const venues = [
+          {placeId:'ChIJkY6ikuPfeUgRTwYKwMOxnRQ', name:'The Griffin Inn', locationId:'0001'},
+          {placeId:'ChIJL1fXX1rReUgRoasMv1zsgZI', name:'Tap & Run', locationId:'0002'},
+          {placeId:'ChIJF_oJeAADekgRpSlCi0O92BI', name:'The Long Hop', locationId:'0003'},
+        ];
+        for (const venue of venues) {
+          const r = await axios.get('https://maps.googleapis.com/maps/api/place/details/json', {
+            params: {place_id: venue.placeId, fields: 'name,rating,user_ratings_total,reviews', key: apiKey, language: 'en'}
+          });
+          const place = r.data.result || {};
+          await database_js_1.db.query(
+            "INSERT INTO google_place_ratings (location_id, venue_name, rating, total_reviews, synced_at) VALUES ($1,$2,$3,$4,NOW()) ON CONFLICT (location_id) DO UPDATE SET rating=$3, total_reviews=$4, synced_at=NOW()",
+            [venue.locationId, venue.name, place.rating||0, place.user_ratings_total||0]
+          ).catch(()=>{});
+          console.log('[Scheduler] Google Places:', venue.name, place.rating, place.user_ratings_total);
+        }
+      }
+    } catch(e) { console.error('[Scheduler] Google Places error:', e.message); }
   }
 
   // CPL - daily at 08:00 UTC
