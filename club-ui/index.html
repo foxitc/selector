@@ -566,6 +566,7 @@ select.fg-i { cursor:pointer; appearance:none; }
               <div class="conn-row-info"><div class="conn-row-name">ResDiary</div><div class="conn-row-desc">Pull · api.rdbranch.com</div></div>
               <div style="text-align:right"><span class="b b-amber"><span class="dot"></span>Pending</span></div>
             </div>
+            <div id="resdiary-badge-note" style="display:none"></div>
             <div class="conn-row">
               <div class="conn-row-icon">RTA</div>
               <div class="conn-row-info"><div class="conn-row-name">RotaReady</div><div class="conn-row-desc">Not configured</div></div>
@@ -1014,7 +1015,7 @@ async function loadDashboard() {
     document.getElementById('venue-tbl').innerHTML = '<tr><td colspan="6" class="empty">Could not load Trail data</td></tr>';
   }
 
-  // Sync status
+  // Sync status + dynamic connector badges
   try {
     const sr = await api('/sync/status');
     if (sr.data) {
@@ -1034,6 +1035,45 @@ async function loadDashboard() {
         document.getElementById('clerk-nc').textContent = newClerks.length;
         document.getElementById('clerk-nc').style.display = '';
       }
+    }
+
+    // Dynamic connector status badges
+    const connStatus = await api('/connectors/status');
+    if (connStatus.data) {
+      const cs = connStatus.data;
+      // Update active connector count
+      const activeCount = Object.values(cs).filter(v => v.status === 'live' || v.status === 'connected').length;
+      const acEl = document.getElementById('s-ac');
+      if (acEl) acEl.textContent = activeCount;
+
+      // Update each connector row badge
+      const badges = {
+        'relay-badge': cs.relay,
+        'trail-badge': cs.trail,
+        'resdiary-badge': cs.resdiary,
+        'rotaready-badge': cs.rotaready,
+        'google-badge': cs.google,
+        'cpl-badge': cs.cpl,
+      };
+      Object.entries(badges).forEach(([id, info]) => {
+        const el = document.getElementById(id);
+        if (!el || !info) return;
+        if (info.status === 'live') {
+          el.innerHTML = '<span class="b b-green"><span class="dot"></span>Live</span>';
+        } else if (info.status === 'connected') {
+          el.innerHTML = '<span class="b b-green"><span class="dot"></span>Connected</span>';
+        } else if (info.status === 'pending') {
+          el.innerHTML = '<span class="b b-amber"><span class="dot"></span>Pending</span>';
+        } else if (info.status === 'configured') {
+          el.innerHTML = '<span class="b b-blue"><span class="dot"></span>Configured</span>';
+        } else {
+          el.innerHTML = '<span class="b b-dim">Offline</span>';
+        }
+        if (info.lastSync) {
+          const noteEl = document.getElementById(id+'-note');
+          if (noteEl) noteEl.textContent = 'Last: '+fmtDT(info.lastSync);
+        }
+      });
     }
   } catch(e) {}
 }
@@ -1150,44 +1190,47 @@ async function mapVenue(locationId) {
 async function loadClerks() {
   try {
     const r = await api('/clerks');
-    const clerks = r.data || [];
+    // New API returns {clerks, teamMembers} - handle both formats
+    const clerks = r.data?.clerks || r.data || [];
+    const allMembers = r.data?.teamMembers || [];
     const unmatched = clerks.filter(c => !c.team_member_id);
     const matched   = clerks.filter(c => c.team_member_id);
     document.getElementById('uc-lbl').textContent = unmatched.length+' unmatched';
 
-    const tmRes = await api('/squad');
-    const members = tmRes.data || [];
-    const memberOptions = members.map(m => `<option value="${m.id}">${m.first_name} ${m.last_name}</option>`).join('');
+    const locVenue = {'0001':'e87b5986-0826-4464-ad62-e55175f9c3c4','0002':'38749619-c192-45d1-806b-2fdc5922adea','0003':'d9657ea0-19c4-4793-9c0c-21fd4179ac56'};
+    const venueNames = {'0001':'Griffin Inn','0002':'Tap & Run','0003':'Long Hop'};
 
     document.getElementById('uc-tbody').innerHTML = unmatched.length===0
-      ? '<tr><td colspan="5" class="empty">All clerks matched</td></tr>'
-      : unmatched.map(c => `
-          <tr>
-            <td class="mono p">${c.clerk_id}</td>
-            <td class="mono">${c.location_id||'—'}</td>
-            <td class="dim">${fmtD(c.created_at)}</td>
-            <td>
-              <select class="fg-i" style="padding:5px 9px;font-size:12px;width:180px" id="match-${c.clerk_id}-${c.location_id}">
-                <option value="">— Select team member —</option>
-                ${memberOptions}
-              </select>
-            </td>
-            <td><button class="btn btn-primary btn-sm" onclick="matchClerk('${c.clerk_id}','${c.location_id}')">Match</button></td>
-          </tr>
-        `).join('');
+      ? '<tr><td colspan="6" class="empty">All clerks matched</td></tr>'
+      : unmatched.map(c => {
+          // Filter members to same venue
+          const venueId = locVenue[c.location_id];
+          const venueMembers = allMembers.length
+            ? allMembers.filter(m => m.venue_id === venueId)
+            : [];
+          const opts = '<option value="">— Select team member —</option>' +
+            venueMembers.map(m => '<option value="'+m.id+'">'+m.display_name+'</option>').join('');
+          return '<tr>'
+            + '<td class="mono p">'+c.clerk_id+'</td>'
+            + '<td class="mono">'+c.location_id+'</td>'
+            + '<td class="dim">'+(venueNames[c.location_id]||c.location_id)+'</td>'
+            + '<td class="dim">'+fmtD(c.created_at)+'</td>'
+            + '<td><select class="fg-i" style="padding:5px 9px;font-size:12px;width:200px" id="match-'+c.clerk_id+'-'+c.location_id+'">'
+            + opts + '</select></td>'
+            + '<td><button class="btn btn-primary btn-sm" onclick="matchClerk(''+c.clerk_id+'',''+c.location_id+'')">Match</button></td>'
+            + '</tr>';
+        }).join('');
 
     const matchedTbl = document.getElementById('mc-tbody');
     matchedTbl.innerHTML = matched.length===0
       ? '<tr><td colspan="4" class="empty">No matched clerks yet</td></tr>'
-      : matched.map(c=>`
-          <tr>
-            <td class="mono p">${c.clerk_id}</td>
-            <td class="mono">${c.location_id||'—'}</td>
-            <td class="p">${c.first_name} ${c.last_name}</td>
-            <td><span class="b b-green"><span class="dot"></span>Matched</span></td>
-          </tr>
-        `).join('');
-  } catch(e) { document.getElementById('uc-tbody').innerHTML = '<tr><td colspan="5" class="empty">Error loading clerks</td></tr>'; }
+      : matched.map(c=>'<tr>'
+          + '<td class="mono p">'+c.clerk_id+'</td>'
+          + '<td class="mono">'+c.location_id+'</td>'
+          + '<td class="p">'+(c.display_name||c.first_name+' '+c.last_name)+'</td>'
+          + '<td><span class="b b-green"><span class="dot"></span>Matched</span></td>'
+          + '</tr>').join('');
+  } catch(e) { document.getElementById('uc-tbody').innerHTML = '<tr><td colspan="6" class="empty">Error loading clerks</td></tr>'; }
 }
 
 async function matchClerk(clerkId, locationId) {
