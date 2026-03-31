@@ -668,6 +668,39 @@ select.fg-i { cursor:pointer; appearance:none; }
             <button class="btn btn-primary btn-sm" onclick="openM('add-conn')">Configure Credentials</button>
           </div>
         </div>
+        <div class="conn-card">
+          <div class="conn-head">
+            <div class="conn-id"><div class="conn-icon" style="background:#fce7f3;color:#9d174d">GRV</div><div><div class="conn-name">Google Reviews</div><div class="conn-desc">OAuth · Google Business Profile reviews</div></div></div>
+            <div style="display:flex;gap:6px" id="rotaready-badge"><span class="b b-dim">Not connected</span></div>
+          </div>
+          <div class="conn-body">
+            <div class="conn-meta">
+              <div><label>Auth Method</label><span>OAuth 2.0</span></div>
+              <div><label>Data</label><span>Reviews, ratings, named mentions</span></div>
+              <div><label>Venues</label><span>All 3 pubs</span></div>
+            </div>
+            <div class="conn-actions">
+              <button class="btn btn-primary btn-sm" onclick="connectGoogle()">Connect Google</button>
+              <button class="btn btn-ghost btn-sm" onclick="syncGoogle()">Sync Reviews</button>
+            </div>
+          </div>
+        </div>
+        <div class="conn-card">
+          <div class="conn-head">
+            <div class="conn-id"><div class="conn-icon" style="background:#fef3c7;color:#d97706">CPL</div><div><div class="conn-name">CPL Learning</div><div class="conn-desc">REST pull · Training completions, compliance</div></div></div>
+            <div style="display:flex;gap:6px"><span class="b b-teal"><span class="dot"></span>Connected</span></div>
+          </div>
+          <div class="conn-body">
+            <div class="conn-meta">
+              <div><label>API Key</label><span style="color:var(--accent)">Configured</span></div>
+              <div><label>Site</label><span>Cat and Wickets (152426)</span></div>
+              <div><label>Status</label><span style="color:var(--green)">Demo account</span></div>
+            </div>
+            <div class="conn-actions">
+              <button class="btn btn-ghost btn-sm" onclick="testCPL()">Test Connection</button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- OUTBOUND APIs -->
