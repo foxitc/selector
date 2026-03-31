@@ -662,10 +662,11 @@ select.fg-i { cursor:pointer; appearance:none; }
         <div class="conn-card">
           <div class="conn-head">
             <div class="conn-id"><div class="conn-icon">RTA</div><div><div class="conn-name">RotaReady</div><div class="conn-desc">REST pull · Rotas, shifts, employee data</div></div></div>
-            <div style="display:flex;gap:6px"><span class="b b-dim">Offline</span></div>
+            <div style="display:flex;gap:6px" id="rotaready-conn-badge"><span class="b b-green"><span class="dot"></span>Connected</span><span class="b b-blue">Hourly</span></div>
           </div>
           <div class="conn-body">
-            <button class="btn btn-primary btn-sm" onclick="openM('add-conn')">Configure Credentials</button>
+            <div class="conn-meta"><div><label>Staff</label><span id="rta-staff-count">Loading...</span></div><div><label>Last Sync</label><span id="rta-last-sync">—</span></div></div>
+            <div class="conn-actions"><button class="btn btn-ghost btn-sm" onclick="syncRotaReady()">Sync Now</button></div>
           </div>
         </div>
         <div class="conn-card">
