@@ -1076,9 +1076,9 @@ async function loadDashboard() {
         let trend = '';
         if (prev !== undefined && curr !== prev) {
           const up = curr > prev;
-          trend = '<span style="font-size:14px;color:'+(up?'var(--green)':'var(--red)')+'" title="Was '+prev+'★">'+(up?'↑':'↓')+'</span>';
+          trend = '<span style="font-size:24px;font-weight:700;color:'+(up?'#16a34a':'#dc2626')+'" title="Was '+prev+'★">'+(up?'↑':'↓')+'</span>';
         } else if (prev !== undefined && curr === prev) {
-          trend = '<span style="font-size:12px;color:var(--fg3)" title="No change">→</span>';
+          trend = '<span style="font-size:24px;font-weight:700;color:#d97706" title="No change">→</span>';
         }
         if (ratingEl) ratingEl.innerHTML = curr + '★ ' + trend;
         if (reviewEl) {
