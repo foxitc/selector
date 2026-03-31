@@ -531,8 +531,8 @@ select.fg-i { cursor:pointer; appearance:none; }
           <div class="stat">
             <div class="stat-stripe" style="background:var(--accent)"></div>
             <div class="stat-label">Active Connectors</div>
-            <div class="stat-val">3</div>
-            <div class="stat-note ok">Relay · Trail · ResDiary</div>
+            <div class="stat-val" id="s-ac">—</div>
+            <div class="stat-note ok" id="s-ac-names">Loading...</div>
           </div>
           <div class="stat">
             <div class="stat-stripe" style="background:var(--amber)"></div>
@@ -545,6 +545,34 @@ select.fg-i { cursor:pointer; appearance:none; }
             <div class="stat-label">Trail Tasks (w/e 15 Mar)</div>
             <div class="stat-val" id="s-tt">—</div>
             <div class="stat-note" id="s-ttn">Loading...</div>
+          </div>
+        </div>
+
+        <!-- Metrics row -->
+        <div class="stats" style="margin-top:0;border-top:1px solid var(--border);padding-top:16px">
+          <div class="stat">
+            <div class="stat-stripe" style="background:var(--green)"></div>
+            <div class="stat-label">Team Members</div>
+            <div class="stat-val" id="s-staff">—</div>
+            <div class="stat-note" id="s-staffn">Active staff</div>
+          </div>
+          <div class="stat">
+            <div class="stat-stripe" style="background:#f59e0b"></div>
+            <div class="stat-label">Griffin Inn</div>
+            <div class="stat-val" id="s-gri-rating">—</div>
+            <div class="stat-note" id="s-gri-reviews">Google reviews</div>
+          </div>
+          <div class="stat">
+            <div class="stat-stripe" style="background:#f59e0b"></div>
+            <div class="stat-label">Tap & Run</div>
+            <div class="stat-val" id="s-tap-rating">—</div>
+            <div class="stat-note" id="s-tap-reviews">Google reviews</div>
+          </div>
+          <div class="stat">
+            <div class="stat-stripe" style="background:#f59e0b"></div>
+            <div class="stat-label">Long Hop</div>
+            <div class="stat-val" id="s-tlh-rating">—</div>
+            <div class="stat-note" id="s-tlh-reviews">Google reviews</div>
           </div>
         </div>
 
@@ -569,8 +597,13 @@ select.fg-i { cursor:pointer; appearance:none; }
             <div id="resdiary-badge-note" style="display:none"></div>
             <div class="conn-row">
               <div class="conn-row-icon">RTA</div>
-              <div class="conn-row-info"><div class="conn-row-name">RotaReady</div><div class="conn-row-desc">Not configured</div></div>
-              <div style="text-align:right"><span class="b b-dim">Offline</span></div>
+              <div class="conn-row-info"><div class="conn-row-name">RotaReady</div><div class="conn-row-desc">REST pull · Hourly</div></div>
+              <div style="text-align:right" id="rta-dashboard-badge"><span class="b b-green"><span class="dot"></span>Connected</span><div style="font-size:10px;color:var(--fg3);margin-top:3px" id="rta-last">Loading...</div></div>
+            </div>
+            <div class="conn-row">
+              <div class="conn-row-icon" style="background:#fce7f3;color:#9d174d">GRV</div>
+              <div class="conn-row-info"><div class="conn-row-name">Google Reviews</div><div class="conn-row-desc">Places API · Hourly</div></div>
+              <div style="text-align:right" id="grv-dashboard-badge"><span class="b b-green"><span class="dot"></span>Connected</span><div style="font-size:10px;color:var(--fg3);margin-top:3px" id="grv-last">Loading...</div></div>
             </div>
           </div>
 
@@ -1015,7 +1048,38 @@ async function loadDashboard() {
     document.getElementById('venue-tbl').innerHTML = '<tr><td colspan="6" class="empty">Could not load Trail data</td></tr>';
   }
 
-  // Sync status + dynamic connector badges
+  // Load extra metrics
+  try {
+    // Team members count
+    const squadR = await api('/squad');
+    const squad = squadR.data || [];
+    const activeStaff = squad.filter(s => s.is_active !== false).length;
+    document.getElementById('s-staff').textContent = activeStaff;
+    document.getElementById('s-staffn').textContent = squad.length + ' total · ' + activeStaff + ' active';
+
+    // Google ratings
+    const gR = await api('/metrics/google/ratings');
+    if (gR.data?.ratings) {
+      const locMap = {'0001':'gri','0002':'tap','0003':'tlh'};
+      gR.data.ratings.forEach(r => {
+        const key = locMap[r.location_id];
+        if (!key) return;
+        const ratingEl = document.getElementById('s-'+key+'-rating');
+        const reviewEl = document.getElementById('s-'+key+'-reviews');
+        if (ratingEl) ratingEl.textContent = r.rating + '★';
+        if (reviewEl) reviewEl.textContent = Number(r.total_reviews).toLocaleString() + ' reviews';
+      });
+    }
+
+    // RotaReady last sync
+    const rrR = await api('/sync/rotaready/status');
+    if (rrR.data) {
+      const rtaEl = document.getElementById('rta-last');
+      if (rtaEl) rtaEl.textContent = rrR.data.staffCount + ' staff · Last: ' + (rrR.data.last_sync ? fmtDT(rrR.data.last_sync) : '—');
+    }
+  } catch(e) {}
+
+// Sync status + dynamic connector badges
   try {
     const sr = await api('/sync/status');
     if (sr.data) {
