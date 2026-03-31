@@ -559,19 +559,19 @@ select.fg-i { cursor:pointer; appearance:none; }
           <div class="stat">
             <div class="stat-stripe" style="background:#f59e0b"></div>
             <div class="stat-label">Griffin Inn</div>
-            <div class="stat-val" id="s-gri-rating">—</div>
+            <div class="stat-val" id="s-gri-rating" style="display:flex;align-items:center;gap:6px">—</div>
             <div class="stat-note" id="s-gri-reviews">Google reviews</div>
           </div>
           <div class="stat">
             <div class="stat-stripe" style="background:#f59e0b"></div>
             <div class="stat-label">Tap & Run</div>
-            <div class="stat-val" id="s-tap-rating">—</div>
+            <div class="stat-val" id="s-tap-rating" style="display:flex;align-items:center;gap:6px">—</div>
             <div class="stat-note" id="s-tap-reviews">Google reviews</div>
           </div>
           <div class="stat">
             <div class="stat-stripe" style="background:#f59e0b"></div>
             <div class="stat-label">Long Hop</div>
-            <div class="stat-val" id="s-tlh-rating">—</div>
+            <div class="stat-val" id="s-tlh-rating" style="display:flex;align-items:center;gap:6px">—</div>
             <div class="stat-note" id="s-tlh-reviews">Google reviews</div>
           </div>
         </div>
@@ -695,44 +695,10 @@ select.fg-i { cursor:pointer; appearance:none; }
         <div class="conn-card">
           <div class="conn-head">
             <div class="conn-id"><div class="conn-icon">RTA</div><div><div class="conn-name">RotaReady</div><div class="conn-desc">REST pull · Rotas, shifts, employee data</div></div></div>
-            <div style="display:flex;gap:6px" id="rotaready-conn-badge"><span class="b b-green"><span class="dot"></span>Connected</span><span class="b b-blue">Hourly</span></div>
+            <div style="display:flex;gap:6px"><span class="b b-dim">Offline</span></div>
           </div>
           <div class="conn-body">
-            <div class="conn-meta"><div><label>Staff</label><span id="rta-staff-count">Loading...</span></div><div><label>Last Sync</label><span id="rta-last-sync">—</span></div></div>
-            <div class="conn-actions"><button class="btn btn-ghost btn-sm" onclick="syncRotaReady()">Sync Now</button></div>
-          </div>
-        </div>
-        <div class="conn-card">
-          <div class="conn-head">
-            <div class="conn-id"><div class="conn-icon" style="background:#fce7f3;color:#9d174d">GRV</div><div><div class="conn-name">Google Reviews</div><div class="conn-desc">OAuth · Google Business Profile reviews</div></div></div>
-            <div style="display:flex;gap:6px" id="rotaready-badge"><span class="b b-dim">Not connected</span></div>
-          </div>
-          <div class="conn-body">
-            <div class="conn-meta">
-              <div><label>Auth Method</label><span>OAuth 2.0</span></div>
-              <div><label>Data</label><span>Reviews, ratings, named mentions</span></div>
-              <div><label>Venues</label><span>All 3 pubs</span></div>
-            </div>
-            <div class="conn-actions">
-              <button class="btn btn-primary btn-sm" onclick="connectGoogle()">Connect Google</button>
-              <button class="btn btn-ghost btn-sm" onclick="syncGoogle()">Sync Reviews</button>
-            </div>
-          </div>
-        </div>
-        <div class="conn-card">
-          <div class="conn-head">
-            <div class="conn-id"><div class="conn-icon" style="background:#fef3c7;color:#d97706">CPL</div><div><div class="conn-name">CPL Learning</div><div class="conn-desc">REST pull · Training completions, compliance</div></div></div>
-            <div style="display:flex;gap:6px"><span class="b b-teal"><span class="dot"></span>Connected</span></div>
-          </div>
-          <div class="conn-body">
-            <div class="conn-meta">
-              <div><label>API Key</label><span style="color:var(--accent)">Configured</span></div>
-              <div><label>Site</label><span>Cat and Wickets (152426)</span></div>
-              <div><label>Status</label><span style="color:var(--green)">Demo account</span></div>
-            </div>
-            <div class="conn-actions">
-              <button class="btn btn-ghost btn-sm" onclick="testCPL()">Test Connection</button>
-            </div>
+            <button class="btn btn-primary btn-sm" onclick="openM('add-conn')">Configure Credentials</button>
           </div>
         </div>
       </div>
@@ -1091,18 +1057,39 @@ async function loadDashboard() {
     document.getElementById('s-staff').textContent = activeStaff;
     document.getElementById('s-staffn').textContent = squad.length + ' total · ' + activeStaff + ' active';
 
-    // Google ratings
+    // Google ratings with trend
     const gR = await api('/metrics/google/ratings');
     if (gR.data?.ratings) {
       const locMap = {'0001':'gri','0002':'tap','0003':'tlh'};
+      // Get previous ratings from localStorage for trend comparison
+      const prevRatings = JSON.parse(localStorage.getItem('prev_google_ratings') || '{}');
+      const newRatings = {};
       gR.data.ratings.forEach(r => {
         const key = locMap[r.location_id];
         if (!key) return;
         const ratingEl = document.getElementById('s-'+key+'-rating');
         const reviewEl = document.getElementById('s-'+key+'-reviews');
-        if (ratingEl) ratingEl.textContent = r.rating + '★';
-        if (reviewEl) reviewEl.textContent = Number(r.total_reviews).toLocaleString() + ' reviews';
+        const prev = prevRatings[key];
+        const curr = Number(r.rating);
+        newRatings[key] = curr;
+        // Trend indicator
+        let trend = '';
+        if (prev !== undefined && curr !== prev) {
+          const up = curr > prev;
+          trend = '<span style="font-size:14px;color:'+(up?'var(--green)':'var(--red)')+'" title="Was '+prev+'★">'+(up?'↑':'↓')+'</span>';
+        } else if (prev !== undefined && curr === prev) {
+          trend = '<span style="font-size:12px;color:var(--fg3)" title="No change">→</span>';
+        }
+        if (ratingEl) ratingEl.innerHTML = curr + '★ ' + trend;
+        if (reviewEl) {
+          const prevCount = prevRatings[key+'_count'];
+          const currCount = Number(r.total_reviews);
+          const newReviews = prevCount ? currCount - prevCount : 0;
+          reviewEl.textContent = currCount.toLocaleString() + ' reviews' + (newReviews > 0 ? ' (+'+newReviews+' new)' : '');
+          newRatings[key+'_count'] = currCount;
+        }
       });
+      localStorage.setItem('prev_google_ratings', JSON.stringify({...prevRatings, ...newRatings}));
     }
 
     // RotaReady last sync
