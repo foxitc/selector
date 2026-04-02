@@ -584,7 +584,7 @@ select.fi { cursor:pointer; appearance:none; }
           <span style="font-size:18px" id="context-icon">📅</span>
           <div>
             <div id="context-message" style="font-weight:500"></div>
-            <div id="context-weather" style="font-size:11px;opacity:0.8;margin-top:2px"></div>
+            <div id="context-weather" style="display:none"></div>
           </div>
         </div>
 
@@ -1100,24 +1100,7 @@ async function loadContextBanner() {
       banner.style.display = 'flex';
     }
 
-    // Weather - show all venues
-    if (d.weather && d.weather.length > 0) {
-      const venueNames = {'0001':'Griffin','0002':'Tap & Run','0003':'Long Hop'};
-      const iconMap = {'01d':'☀️','01n':'🌙','02d':'🌤️','02n':'🌤️','03d':'🌥️','03n':'🌥️','04d':'☁️','04n':'☁️','09d':'🌧️','09n':'🌧️','10d':'🌦️','10n':'🌦️','11d':'⛈️','11n':'⛈️','13d':'❄️','13n':'❄️','50d':'🌫️','50n':'🌫️'};
-      const parts = d.weather.map(w => {
-        const icon = iconMap[w.icon] || '🌡️';
-        const lyW = d.weatherLastYear.find(x => x.location_id === w.location_id);
-        let txt = icon + ' ' + (venueNames[w.location_id]||w.location_id) + ': ' + w.avg_temp + '°C';
-        if (lyW) {
-          const diff = (Number(w.avg_temp) - Number(lyW.avg_temp)).toFixed(1);
-          const sign = diff > 0 ? '+' : '';
-          txt += ' (' + sign + diff + '° vs LY)';
-        }
-        return txt;
-      });
-      weather.textContent = parts.join('  ·  ');
-      banner.style.display = 'flex';
-    }
+    // Weather shown in venue cards only - not in banner
   } catch(e) {}
 }
 
@@ -1233,7 +1216,7 @@ async function loadDashboard() {
       const vs = venueSales[v.name] || {tx:0, rev:0, covers:0};
        const wx = weatherByLoc[locId] || null;
        const wxIcons = {'01d':'☀️','01n':'🌙','02d':'🌤️','02n':'🌤️','03d':'🌥️','03n':'🌥️','04d':'☁️','04n':'☁️','09d':'🌧️','09n':'🌧️','10d':'🌦️','10n':'🌦️','11d':'⛈️','11n':'⛈️','13d':'❄️','13n':'❄️','50d':'🌫️','50n':'🌫️'};
-       const wxStr = wx ? (wxIcons[wx.icon]||'🌡️') + ' ' + wx.avg_temp + '°C' : '';
+       const wxStr = wx ? (wxIcons[wx.icon]||'🌡️') + ' ' + (wx.avg_temp_c||wx.avg_temp||'') + '°C' : '';
       const sph = vs.covers > 0 ? '£'+(vs.rev/vs.covers).toFixed(2) : '—';
       const dot = vs.tx > 0 ? 'var(--teal)' : 'var(--coral)';
       const dotBg = vs.tx > 0 ? 'var(--teal-bg)' : 'var(--coral-bg)';
