@@ -1608,6 +1608,126 @@ router.get('/bookings/resdiary/today', auth, async (req, res, next) => {
   } catch(e) { next(e); }
 });
 
+
+// ── WEATHER + CALENDAR CONTEXT ───────────────────────────────────────────────
+
+// Venue locations for weather API
+const VENUE_LOCATIONS = {
+  '0001': { name: 'The Griffin Inn', lat: 52.7018, lon: -1.1745 },  // Swithland, Leicestershire
+  '0002': { name: 'Tap & Run', lat: 52.8584, lon: -1.0244 },        // Upper Broughton, Nottinghamshire
+  '0003': { name: 'The Long Hop', lat: 52.8065, lon: -1.6444 },     // Burton-on-Trent, Staffordshire
+};
+
+async function syncWeather() {
+  const apiKey = process.env['OPENWEATHER_API_KEY'];
+  if (!apiKey) { console.log('[Weather] No API key configured'); return; }
+  const axios = (await import('axios')).default;
+
+  for (const [locationId, venue] of Object.entries(VENUE_LOCATIONS)) {
+    try {
+      const r = await axios.get('https://api.openweathermap.org/data/2.5/weather', {
+        params: { lat: venue.lat, lon: venue.lon, appid: apiKey, units: 'metric' }
+      });
+      const d = r.data;
+      await database_js_1.db.query(
+        "INSERT INTO weather_history (location_id, recorded_date, avg_temp_c, min_temp_c, max_temp_c, description, icon) " +
+        "VALUES ($1, CURRENT_DATE, $2, $3, $4, $5, $6) " +
+        "ON CONFLICT (location_id, recorded_date) DO UPDATE SET avg_temp_c=$2, min_temp_c=$3, max_temp_c=$4, description=$5, icon=$6",
+        [locationId, d.main.temp, d.main.temp_min, d.main.temp_max, d.weather[0].description, d.weather[0].icon]
+      );
+      console.log('[Weather]', venue.name, d.main.temp + 'C', d.weather[0].description);
+    } catch(e) { console.error('[Weather]', venue.name, e.message); }
+  }
+}
+
+// Calendar context for a given week
+router.get('/context/calendar', auth, async (req, res, next) => {
+  try {
+    const { date } = req.query;
+    const baseDate = date ? new Date(date) : new Date();
+    
+    // Current week events
+    const r = await database_js_1.db.query(
+      "SELECT event_date, event_name, event_type, trade_impact FROM calendar_events " +
+      "WHERE event_date >= DATE_TRUNC('week', $1::date) " +
+      "AND event_date < DATE_TRUNC('week', $1::date) + INTERVAL '7 days' " +
+      "ORDER BY event_date",
+      [baseDate.toISOString().split('T')[0]]
+    );
+
+    // Same week last year events
+    const lastYear = new Date(baseDate);
+    lastYear.setFullYear(lastYear.getFullYear() - 1);
+    const r2 = await database_js_1.db.query(
+      "SELECT event_date, event_name, event_type, trade_impact FROM calendar_events " +
+      "WHERE event_date >= DATE_TRUNC('week', $1::date) " +
+      "AND event_date < DATE_TRUNC('week', $1::date) + INTERVAL '7 days' " +
+      "ORDER BY event_date",
+      [lastYear.toISOString().split('T')[0]]
+    );
+
+    // Weather this week vs last year
+    const w1 = await database_js_1.db.query(
+      "SELECT location_id, ROUND(AVG(avg_temp_c)::numeric,1) as avg_temp, MAX(description) as description, MAX(icon) as icon " +
+      "FROM weather_history " +
+      "WHERE recorded_date >= DATE_TRUNC('week', CURRENT_DATE) " +
+      "GROUP BY location_id"
+    );
+    const w2 = await database_js_1.db.query(
+      "SELECT location_id, ROUND(AVG(avg_temp_c)::numeric,1) as avg_temp " +
+      "FROM weather_history " +
+      "WHERE recorded_date >= DATE_TRUNC('week', CURRENT_DATE - INTERVAL '1 year') " +
+      "AND recorded_date < DATE_TRUNC('week', CURRENT_DATE - INTERVAL '1 year') + INTERVAL '7 days' " +
+      "GROUP BY location_id"
+    );
+
+    // Build context message
+    const thisWeekEvents = r.rows;
+    const lastYearEvents = r2.rows;
+    let contextMsg = '';
+    
+    if (thisWeekEvents.length > 0 && lastYearEvents.length === 0) {
+      contextMsg = '📅 ' + thisWeekEvents.map(e => e.event_name).join(', ') + ' this week vs normal trading last year — expect higher footfall';
+    } else if (thisWeekEvents.length === 0 && lastYearEvents.length > 0) {
+      contextMsg = '📅 ' + lastYearEvents.map(e => e.event_name).join(', ') + ' last year vs normal trading this week — figures may be lower';
+    } else if (thisWeekEvents.length > 0 && lastYearEvents.length > 0) {
+      contextMsg = '📅 ' + thisWeekEvents.map(e => e.event_name).join(', ') + ' this year vs ' + lastYearEvents.map(e => e.event_name).join(', ') + ' last year';
+    }
+
+    ok(res, {
+      thisWeek: thisWeekEvents,
+      lastYear: lastYearEvents,
+      weather: w1.rows,
+      weatherLastYear: w2.rows,
+      contextMessage: contextMsg,
+    });
+  } catch(e) { next(e); }
+});
+
+// Weather endpoint
+router.get('/context/weather', auth, async (req, res, next) => {
+  try {
+    const r = await database_js_1.db.query(
+      "SELECT w.location_id, w.recorded_date, w.avg_temp_c, w.description, w.icon, " +
+      "ly.avg_temp_c as last_year_temp " +
+      "FROM weather_history w " +
+      "LEFT JOIN weather_history ly ON ly.location_id = w.location_id " +
+      "AND ly.recorded_date = w.recorded_date - INTERVAL '1 year' " +
+      "WHERE w.recorded_date >= CURRENT_DATE - INTERVAL '7 days' " +
+      "ORDER BY w.location_id, w.recorded_date DESC"
+    );
+    ok(res, r.rows);
+  } catch(e) { next(e); }
+});
+
+// Manual weather sync trigger
+router.post('/sync/weather', auth, async (req, res, next) => {
+  try {
+    await syncWeather();
+    ok(res, { message: 'Weather synced' });
+  } catch(e) { next(e); }
+});
+
 // ── SYNC SCHEDULER ──────────────────────────────────────────────
 async function runScheduledSyncs() {
   const now = new Date();
@@ -1665,6 +1785,12 @@ async function runScheduledSyncs() {
         console.log('[Scheduler] ResDiary complete');
       }
     } catch(e) { console.error('[Scheduler] ResDiary error:', e.message); }
+  }
+
+  // WEATHER - every 6 hours: 06:00, 12:00, 18:00, 00:00 UTC
+  if ([0, 6, 12, 18].includes(hour)) {
+    console.log('[Scheduler] Weather sync');
+    try { await syncWeather(); } catch(e) { console.error('[Scheduler] Weather error:', e.message); }
   }
 
   // GOOGLE PLACES - hourly between 07:00-23:00 UTC
