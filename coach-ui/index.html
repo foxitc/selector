@@ -1231,6 +1231,9 @@ async function loadDashboard() {
       const rate = ts ? Number(ts.avg_completion_rate).toFixed(1) : '—';
       const locId = getLocationId(v.name);
       const vs = venueSales[v.name] || {tx:0, rev:0, covers:0};
+       const wx = weatherByLoc[locId] || null;
+       const wxIcons = {'01d':'☀️','01n':'🌙','02d':'🌤️','02n':'🌤️','03d':'🌥️','03n':'🌥️','04d':'☁️','04n':'☁️','09d':'🌧️','09n':'🌧️','10d':'🌦️','10n':'🌦️','11d':'⛈️','11n':'⛈️','13d':'❄️','13n':'❄️','50d':'🌫️','50n':'🌫️'};
+       const wxStr = wx ? (wxIcons[wx.icon]||'🌡️') + ' ' + wx.avg_temp + '°C' : '';
       const sph = vs.covers > 0 ? '£'+(vs.rev/vs.covers).toFixed(2) : '—';
       const dot = vs.tx > 0 ? 'var(--teal)' : 'var(--coral)';
       const dotBg = vs.tx > 0 ? 'var(--teal-bg)' : 'var(--coral-bg)';
