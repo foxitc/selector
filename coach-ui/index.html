@@ -1197,11 +1197,16 @@ async function loadDashboard() {
       });
     } catch(e) {}
 
-     // Fetch weather for venue cards
+     // Fetch weather and Google ratings for venue cards
      let weatherByLoc = {};
+     let googleRatings = {};
      try {
        const wr = await api('/context/weather');
        (wr.data||[]).forEach(w => { weatherByLoc[w.location_id] = w; });
+     } catch(e) {}
+     try {
+       const gr = await api('/metrics/google/ratings');
+       if (gr.data?.ratings) gr.data.ratings.forEach(r => { googleRatings[r.location_id] = r; });
      } catch(e) {}
 
 
@@ -1215,6 +1220,7 @@ async function loadDashboard() {
       const locId = getLocationId(v.name);
       const vs = venueSales[v.name] || {tx:0, rev:0, covers:0};
        const wx = weatherByLoc[locId] || null;
+       const grating = googleRatings[locId] || null;
        const wxIcons = {'01d':'☀️','01n':'🌙','02d':'🌤️','02n':'🌤️','03d':'🌥️','03n':'🌥️','04d':'☁️','04n':'☁️','09d':'🌧️','09n':'🌧️','10d':'🌦️','10n':'🌦️','11d':'⛈️','11n':'⛈️','13d':'❄️','13n':'❄️','50d':'🌫️','50n':'🌫️'};
        const wxStr = wx ? (wxIcons[wx.icon]||'🌡️') + ' ' + (wx.avg_temp_c||wx.avg_temp||'') + '°C' : '';
       const sph = vs.covers > 0 ? '£'+(vs.rev/vs.covers).toFixed(2) : '—';
@@ -1241,8 +1247,12 @@ async function loadDashboard() {
         + '</div>'
         + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">'
           + '<div class="vm"><div class="vm-label">Covers</div><div class="vm-val">'+vs.covers+'</div></div>'
-          + '<div class="vm"><div class="vm-label">Revenue</div><div class="vm-val">£'+vs.rev.toFixed(2)+'</div></div>'
+          + '<div class="vm"><div class="vm-label">Revenue</div><div class="vm-val">£'+vs.rev.toFixed(0)+'</div></div>'
           + '<div class="vm"><div class="vm-label">Spend/Head</div><div class="vm-val">'+sph+'</div></div>'
+        + '</div>'
+        + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">'
+          + (grating ? '<div class="vm"><div class="vm-label">Google ★</div><div class="vm-val" style="color:#f59e0b">'+grating.rating+'★ <span style="font-size:10px;color:var(--fg3)">'+Number(grating.total_reviews).toLocaleString()+'</span></div></div>' : '')
+          + '<div class="vm"><div class="vm-label">NPS</div><div class="vm-val" style="color:var(--fg3)">—</div></div>'
         + '</div>'
       + '</div>';
     }).join('');
