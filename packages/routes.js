@@ -1670,7 +1670,7 @@ router.get('/context/calendar', auth, async (req, res, next) => {
     const w1 = await database_js_1.db.query(
       "SELECT location_id, ROUND(AVG(avg_temp_c)::numeric,1) as avg_temp, MAX(description) as description, MAX(icon) as icon " +
       "FROM weather_history " +
-      "WHERE recorded_date >= DATE_TRUNC('week', CURRENT_DATE) " +
+      "WHERE recorded_date >= DATE_TRUNC('week', CURRENT_DATE) OR recorded_date = CURRENT_DATE " +
       "GROUP BY location_id"
     );
     const w2 = await database_js_1.db.query(

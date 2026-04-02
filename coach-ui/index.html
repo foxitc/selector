@@ -1100,17 +1100,23 @@ async function loadContextBanner() {
       banner.style.display = 'flex';
     }
 
-    // Weather
+    // Weather - show all venues
     if (d.weather && d.weather.length > 0) {
-      const w = d.weather[0];
-      const lyW = d.weatherLastYear.find(x => x.location_id === w.location_id);
-      let wText = 'This week: ' + w.avg_temp + '°C';
-      if (lyW) {
-        const diff = (w.avg_temp - lyW.avg_temp).toFixed(1);
-        const sign = diff > 0 ? '+' : '';
-        wText += ' ('+sign+diff+'°C vs last year)';
-      }
-      weather.textContent = '🌡️ ' + wText;
+      const venueNames = {'0001':'Griffin','0002':'Tap & Run','0003':'Long Hop'};
+      const iconMap = {'01d':'☀️','01n':'🌙','02d':'🌤️','02n':'🌤️','03d':'🌥️','03n':'🌥️','04d':'☁️','04n':'☁️','09d':'🌧️','09n':'🌧️','10d':'🌦️','10n':'🌦️','11d':'⛈️','11n':'⛈️','13d':'❄️','13n':'❄️','50d':'🌫️','50n':'🌫️'};
+      const parts = d.weather.map(w => {
+        const icon = iconMap[w.icon] || '🌡️';
+        const lyW = d.weatherLastYear.find(x => x.location_id === w.location_id);
+        let txt = icon + ' ' + (venueNames[w.location_id]||w.location_id) + ': ' + w.avg_temp + '°C';
+        if (lyW) {
+          const diff = (Number(w.avg_temp) - Number(lyW.avg_temp)).toFixed(1);
+          const sign = diff > 0 ? '+' : '';
+          txt += ' (' + sign + diff + '° vs LY)';
+        }
+        return txt;
+      });
+      weather.textContent = parts.join('  ·  ');
+      banner.style.display = 'flex';
     }
   } catch(e) {}
 }
