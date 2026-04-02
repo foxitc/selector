@@ -579,6 +579,17 @@ select.fi { cursor:pointer; appearance:none; }
           <div class="empty" style="grid-column:1/-1">Loading venues...</div>
         </div>
 
+        <!-- Bookings Today -->
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-h">
+            <div class="card-t">📅 Bookings Today</div>
+            <span style="font-size:11px;color:var(--fg3)" id="bookings-updated">Loading...</span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px" id="bookings-today-grid">
+            <div class="empty">Loading...</div>
+          </div>
+        </div>
+
         <!-- AI Insights -->
         <div class="card">
           <div class="card-h">
@@ -1061,6 +1072,47 @@ async function loadLocationMap() {
 }
 
 // Dashboard
+async function loadBookingsToday() {
+  try {
+    const r = await api('/bookings/resdiary/today');
+    const bookings = r.data || [];
+    const grid = document.getElementById('bookings-today-grid');
+    if (!grid) return;
+
+    if (bookings.length === 0) {
+      grid.innerHTML = '<div class="empty" style="grid-column:1/-1">No bookings today</div>';
+      return;
+    }
+
+    const venueFilter = currentVenue || 'all';
+    const locMap = {'griffin':'0001','taprun':'0002','longhop':'0003'};
+    const filtered = venueFilter === 'all' ? bookings : bookings.filter(b => b.location_id === locMap[venueFilter]);
+
+    grid.innerHTML = filtered.map(b => {
+      const pct = b.arrived > 0 ? Math.round(b.arrived/b.total_bookings*100) : 0;
+      return '<div style="background:var(--bg2);border-radius:8px;padding:12px;border:1px solid var(--border)">'
+        + '<div style="font-weight:600;font-size:12px;color:var(--fg2);margin-bottom:6px">' + b.restaurant_name + '</div>'
+        + '<div style="display:flex;justify-content:space-between;margin-bottom:4px">'
+        + '<span style="font-size:22px;font-weight:700;color:var(--ink)">' + b.total_bookings + '</span>'
+        + '<span style="font-size:11px;color:var(--fg3);text-align:right">bookings<br>' + b.total_covers + ' covers</span>'
+        + '</div>'
+        + '<div style="font-size:11px;color:var(--fg3)">'
+        + '<span style="color:var(--teal)">' + (b.arrived||0) + ' arrived</span>'
+        + ' · ' + (b.finished||0) + ' finished'
+        + '</div>'
+        + '<div style="margin-top:6px;height:3px;background:var(--border);border-radius:2px">'
+        + '<div style="height:3px;background:var(--teal);border-radius:2px;width:'+pct+'%"></div>'
+        + '</div>'
+        + '</div>';
+    }).join('');
+
+    const total = filtered.reduce((s,b) => s + Number(b.total_bookings), 0);
+    const covers = filtered.reduce((s,b) => s + Number(b.total_covers), 0);
+    const upd = document.getElementById('bookings-updated');
+    if (upd) upd.textContent = total + ' bookings · ' + covers + ' covers · ' + new Date().toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit'});
+  } catch(e) { console.error('Bookings error:', e); }
+}
+
 async function loadDashboard() {
   try {
     const locParam = currentVenue !== 'all' ? `&locationId=${currentVenue}` : '';
