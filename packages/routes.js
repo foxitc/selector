@@ -898,6 +898,27 @@ router.post('/webhooks/resdiary', async (req, res, next) => {
     const status = booking.BookingStatus || booking.ArrivalStatus || '';
     console.log('[ResDiary] Webhook:', eventType, restaurantName, reference, partySize, 'covers', visitDate);
 
+    // Upsert into resdiary_bookings
+    if (booking && booking.Id) {
+      const locMap = {'The Griffin Inn':'0001','The Tap & Run':'0002','The Long Hop':'0003'};
+      const locationId = locMap[restaurantName] || null;
+      const customerName = ((booking.Customer?.FirstName||'') + ' ' + (booking.Customer?.Surname||'')).trim();
+      database_js_1.db.query(
+        "INSERT INTO resdiary_bookings (booking_id, reference, restaurant_name, location_id, visit_date, visit_time, party_size, table_numbers, table_ids, area_ids, booking_status, arrival_status, meal_status, channel_code, customer_email, customer_name, special_requests, booking_duration, customer_spend, last_event_type, last_event_at) " +
+        "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21) " +
+        "ON CONFLICT (booking_id) DO UPDATE SET booking_status=EXCLUDED.booking_status, arrival_status=EXCLUDED.arrival_status, meal_status=EXCLUDED.meal_status, table_numbers=EXCLUDED.table_numbers, party_size=EXCLUDED.party_size, last_event_type=EXCLUDED.last_event_type, last_event_at=EXCLUDED.last_event_at, updated_at=NOW()",
+        [booking.Id, reference, restaurantName, locationId,
+         visitDate||null, visitTime||null, partySize||0,
+         booking.TableNumbers||null, JSON.stringify(booking.TableIds||[]),
+         JSON.stringify(booking.AreaIdList||[]),
+         booking.BookingStatus||null, booking.ArrivalStatus||null,
+         booking.MealStatus||null, booking.ChannelCode||null,
+         booking.Customer?.Email||null, customerName||null,
+         booking.SpecialRequests||null, booking.BookingDuration||null,
+         booking.CustomerSpend||0, eventType, new Date().toISOString()]
+      ).catch(e => console.error('[ResDiary] Booking upsert error:', e.message));
+    }
+
     // Store raw event
     await database_js_1.db.query(
       'INSERT INTO resdiary_webhook_events (id, event_type, restaurant_name, payload, received_at) VALUES (uuid_generate_v4(), $1, $2, $3, NOW()) ON CONFLICT DO NOTHING',
@@ -1143,10 +1164,10 @@ router.post('/sync/resdiary/test', auth, async (req, res, next) => {
     const p = process.env['RESDIARY_PASSWORD'];
     if (!u || !p) return err(res, 'ResDiary credentials not configured', 400);
     const axios = (await import('axios')).default;
-    const login = await axios.post('https://api.rdbranch.com/api/ConsumerApi/v1/login',
+    const login = await axios.post('https://login.resdiary.com/api/ConsumerApi/v1/login',
       { username: u, password: p }, { timeout: 15000 });
     const token = login.data?.Token || login.data?.token || login.data;
-    const user = await axios.get('https://api.rdbranch.com/api/ConsumerApi/v1/CurrentUser',
+    const user = await axios.get('https://login.resdiary.com/api/ConsumerApi/v1/CurrentUser',
       { headers: { 'Authorization': 'Bearer ' + token }, timeout: 15000 });
     const diaries = (user.data?.Diaries || user.data?.diaries || []).map(d => d.Name || d.name);
     ok(res, { success: true, message: 'Connected — ' + diaries.length + ' diary(s)', diaries });
@@ -1545,6 +1566,44 @@ router.get('/products/clerks', auth, async (req, res, next) => {
     const pc = getPeriodClause(period);
     const vc = getVenueClause(venue);
     const r = await database_js_1.db.query("SELECT t.closed_by_clerk_id as clerk_id, t.location_id, SUM(si.quantity) as units_sold, tm.display_name, v.name as venue_name FROM relay_sold_items si JOIN relay_transactions t ON t.id = si.transaction_id LEFT JOIN relay_clerk_mappings rcm ON rcm.clerk_id = t.closed_by_clerk_id AND rcm.location_id = t.location_id LEFT JOIN team_members tm ON tm.id = rcm.team_member_id LEFT JOIN venues v ON v.id = tm.venue_id WHERE LOWER(si.name) LIKE LOWER($1) AND si.sales_group NOT IN ('30000','20') " + pc + " " + vc + " GROUP BY t.closed_by_clerk_id, t.location_id, tm.display_name, v.name ORDER BY units_sold DESC LIMIT 20", ['%' + product + '%']);
+    ok(res, r.rows);
+  } catch(e) { next(e); }
+});
+
+
+// ResDiary bookings
+router.get('/bookings/resdiary', auth, async (req, res, next) => {
+  try {
+    const { venue, date, status } = req.query;
+    const locMap = {'griffin':'0001','taprun':'0002','longhop':'0003'};
+    const conditions = ["restaurant_name NOT LIKE '%Test%'"];
+    const params = [];
+    if (venue && locMap[venue]) { params.push(locMap[venue]); conditions.push('location_id=$'+params.length); }
+    if (date) { params.push(date); conditions.push('visit_date=$'+params.length); }
+    if (status) { params.push(status); conditions.push('booking_status=$'+params.length); }
+    const where = conditions.length ? 'WHERE '+conditions.join(' AND ') : '';
+    const r = await database_js_1.db.query(
+      'SELECT booking_id, reference, restaurant_name, location_id, visit_date, visit_time, party_size, table_numbers, booking_status, arrival_status, meal_status, customer_name, special_requests, channel_code, last_event_type, last_event_at ' +
+      'FROM resdiary_bookings ' + where + ' ORDER BY visit_date ASC, visit_time ASC',
+      params
+    );
+    ok(res, r.rows);
+  } catch(e) { next(e); }
+});
+
+// Today's bookings summary per venue
+router.get('/bookings/resdiary/today', auth, async (req, res, next) => {
+  try {
+    const r = await database_js_1.db.query(
+      "SELECT location_id, restaurant_name, " +
+      "COUNT(*) as total_bookings, " +
+      "SUM(party_size) as total_covers, " +
+      "COUNT(*) FILTER (WHERE arrival_status='Arrived') as arrived, " +
+      "COUNT(*) FILTER (WHERE meal_status='Finished') as finished " +
+      "FROM resdiary_bookings " +
+      "WHERE visit_date = CURRENT_DATE AND restaurant_name NOT LIKE '%Test%' " +
+      "GROUP BY location_id, restaurant_name ORDER BY location_id"
+    );
     ok(res, r.rows);
   } catch(e) { next(e); }
 });
