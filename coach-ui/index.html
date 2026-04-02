@@ -1230,7 +1230,10 @@ async function loadDashboard() {
         + '<div style="position:absolute;top:12px;right:12px;width:9px;height:9px;border-radius:50%;background:'+dot+';box-shadow:0 0 0 3px '+dotBg+'"></div>'
         + '<div style="margin-bottom:14px">'
           + '<div style="font-family:var(--display);font-size:17px;font-weight:700;color:var(--ink);padding-right:24px">'+v.name+'</div>'
-          + '<div style="font-size:11px;color:var(--ink4);margin-top:2px">'+locId+' · Cat & Wickets</div>'
+          + '<div style="font-size:11px;color:var(--ink4);margin-top:2px;display:flex;justify-content:space-between">'
+           + '<span>'+locId+' · Cat & Wickets</span>'
+           + (wxStr ? '<span style="color:var(--ink2);font-weight:600">'+wxStr+'</span>' : '')
+           + '</div>'
         + '</div>'
         + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">'
           + '<div style="background:'+scoreBg+';border-radius:9px;padding:6px 14px;text-align:center">'
