@@ -1474,13 +1474,78 @@ router.post('/sync/google/places', auth, async (req, res, next) => {
 router.get('/metrics/google/ratings', auth, async (req, res, next) => {
   try {
     const ratings = await database_js_1.db.query(
-      "SELECT * FROM google_place_ratings ORDER BY location_id"
+      "SELECT location_id, venue_name, rating, previous_rating, total_reviews, previous_total, synced_at FROM google_place_ratings ORDER BY location_id"
     ).catch(() => ({ rows: [] }));
     const reviews = await database_js_1.db.query(
       "SELECT location_name, reviewer_name, star_rating, comment, create_time, named_staff " +
       "FROM google_reviews ORDER BY create_time DESC LIMIT 50"
     ).catch(() => ({ rows: [] }));
     ok(res, { ratings: ratings.rows, reviews: reviews.rows });
+  } catch(e) { next(e); }
+});
+
+
+// ── PRODUCT INTELLIGENCE ROUTES ───────────────────────────────────────────────
+
+function getPeriodClause(period) {
+  if (period === 'today') return "AND DATE(t.datetime_opened AT TIME ZONE 'Europe/London') = CURRENT_DATE";
+  if (period === 'week') return "AND t.datetime_opened >= DATE_TRUNC('week', NOW())";
+  if (period === 'month') return "AND t.datetime_opened >= DATE_TRUNC('month', NOW())";
+  return "";
+}
+
+function getVenueClause(venue) {
+  const map = {'griffin':'0001','taprun':'0002','longhop':'0003'};
+  const loc = map[venue];
+  return loc ? "AND t.location_id = '" + loc + "'" : "";
+}
+
+router.get('/products/intel', auth, async (req, res, next) => {
+  try {
+    const { period, venue } = req.query;
+    const pc = getPeriodClause(period);
+    const vc = getVenueClause(venue);
+    const [mainsR, itemsR, topR, revR, drinkR] = await Promise.all([
+      database_js_1.db.query("SELECT SUM(si.quantity) as mains FROM relay_sold_items si JOIN relay_transactions t ON t.id = si.transaction_id WHERE si.sales_group = '31' " + pc + " " + vc),
+      database_js_1.db.query("SELECT SUM(si.quantity) as total FROM relay_sold_items si JOIN relay_transactions t ON t.id = si.transaction_id WHERE si.sales_group NOT IN ('30000','20') " + pc + " " + vc),
+      database_js_1.db.query("SELECT si.name, SUM(si.quantity) as units FROM relay_sold_items si JOIN relay_transactions t ON t.id = si.transaction_id WHERE si.sales_group NOT IN ('30000','20') " + pc + " " + vc + " GROUP BY si.name ORDER BY units DESC LIMIT 1"),
+      database_js_1.db.query("SELECT SUM(t.total_net_item_cost) as net_rev, COUNT(DISTINCT t.closed_by_clerk_id) as clerks FROM relay_transactions t WHERE 1=1 " + pc + " " + vc),
+      database_js_1.db.query("SELECT si.name, SUM(si.quantity) as units FROM relay_sold_items si JOIN relay_transactions t ON t.id = si.transaction_id WHERE si.sales_group IN ('1','2','3','4','5','6','8','15') " + pc + " " + vc + " GROUP BY si.name ORDER BY units DESC LIMIT 1"),
+    ]);
+    ok(res, { mainsSold: Number(mainsR.rows[0]?.mains||0), totalItems: Number(itemsR.rows[0]?.total||0), netRevenue: Number(revR.rows[0]?.net_rev||0).toFixed(2), totalClerks: Number(revR.rows[0]?.clerks||0), topProduct: topR.rows[0]?{name:topR.rows[0].name,units:topR.rows[0].units}:null, topDrink: drinkR.rows[0]?{name:drinkR.rows[0].name,units:drinkR.rows[0].units}:null });
+  } catch(e) { next(e); }
+});
+
+router.get('/products/leaderboard', auth, async (req, res, next) => {
+  try {
+    const { period, venue, salesGroup } = req.query;
+    const pc = getPeriodClause(period);
+    const vc = getVenueClause(venue);
+    const sg = salesGroup ? "AND si.sales_group = '" + salesGroup + "'" : "AND si.sales_group NOT IN ('30000','20')";
+    const r = await database_js_1.db.query("SELECT si.name, SUM(si.quantity) as units_sold, SUM(si.total_net_price) as net_revenue, COUNT(DISTINCT t.closed_by_clerk_id) as clerks_selling FROM relay_sold_items si JOIN relay_transactions t ON t.id = si.transaction_id WHERE 1=1 " + sg + " " + pc + " " + vc + " GROUP BY si.name ORDER BY units_sold DESC LIMIT 20");
+    ok(res, r.rows);
+  } catch(e) { next(e); }
+});
+
+router.get('/products/search', auth, async (req, res, next) => {
+  try {
+    const { q, period, venue } = req.query;
+    if (!q) return ok(res, { products: [] });
+    const pc = getPeriodClause(period);
+    const vc = getVenueClause(venue);
+    const r = await database_js_1.db.query("SELECT si.name, si.sales_group, SUM(si.quantity) as units_sold, SUM(si.total_net_price) as net_revenue, COUNT(DISTINCT t.closed_by_clerk_id) as clerks_selling FROM relay_sold_items si JOIN relay_transactions t ON t.id = si.transaction_id WHERE LOWER(si.name) LIKE LOWER($1) AND si.sales_group NOT IN ('30000','20') " + pc + " " + vc + " GROUP BY si.name, si.sales_group ORDER BY units_sold DESC LIMIT 10", ['%' + q + '%']);
+    ok(res, { products: r.rows });
+  } catch(e) { next(e); }
+});
+
+router.get('/products/clerks', auth, async (req, res, next) => {
+  try {
+    const { product, period, venue } = req.query;
+    if (!product) return ok(res, []);
+    const pc = getPeriodClause(period);
+    const vc = getVenueClause(venue);
+    const r = await database_js_1.db.query("SELECT t.closed_by_clerk_id as clerk_id, t.location_id, SUM(si.quantity) as units_sold, tm.display_name, v.name as venue_name FROM relay_sold_items si JOIN relay_transactions t ON t.id = si.transaction_id LEFT JOIN relay_clerk_mappings rcm ON rcm.clerk_id = t.closed_by_clerk_id AND rcm.location_id = t.location_id LEFT JOIN team_members tm ON tm.id = rcm.team_member_id LEFT JOIN venues v ON v.id = tm.venue_id WHERE LOWER(si.name) LIKE LOWER($1) AND si.sales_group NOT IN ('30000','20') " + pc + " " + vc + " GROUP BY t.closed_by_clerk_id, t.location_id, tm.display_name, v.name ORDER BY units_sold DESC LIMIT 20", ['%' + product + '%']);
+    ok(res, r.rows);
   } catch(e) { next(e); }
 });
 
@@ -1561,7 +1626,8 @@ async function runScheduledSyncs() {
           });
           const place = r.data.result || {};
           await database_js_1.db.query(
-            "INSERT INTO google_place_ratings (location_id, venue_name, rating, total_reviews, synced_at) VALUES ($1,$2,$3,$4,NOW()) ON CONFLICT (location_id) DO UPDATE SET rating=$3, total_reviews=$4, synced_at=NOW()",
+            "INSERT INTO google_place_ratings (location_id, venue_name, rating, total_reviews, synced_at) VALUES ($1,$2,$3,$4,NOW()) " +
+            "ON CONFLICT (location_id) DO UPDATE SET previous_rating=google_place_ratings.rating, previous_total=google_place_ratings.total_reviews, rating=$3, total_reviews=$4, synced_at=NOW()",
             [venue.locationId, venue.name, place.rating||0, place.user_ratings_total||0]
           ).catch(()=>{});
           console.log('[Scheduler] Google Places:', venue.name, place.rating, place.user_ratings_total);
