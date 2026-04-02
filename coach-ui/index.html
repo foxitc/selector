@@ -498,6 +498,10 @@ select.fi { cursor:pointer; appearance:none; }
         <svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
         Sales Data
       </div>
+      <div class="ni" onclick="nav('products')">
+        <svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+        Product Intel
+      </div>
 
       <div class="ns">Management</div>
       <div class="ni" onclick="nav('squad')">
@@ -694,6 +698,102 @@ select.fi { cursor:pointer; appearance:none; }
             <tbody id="sales-tbl"><tr><td colspan="7" class="empty">Loading...</td></tr></tbody>
           </table>
         </div>
+      </div>
+
+      <!-- PRODUCTS -->
+      <div id="v-products" class="view">
+        <div class="ph">
+          <div><div class="ph-t">Product Intelligence</div><div class="ph-s">Sales performance, leaderboards & promotion tracking</div></div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <button class="period-btn btn btn-ghost btn-sm" data-period="today" onclick="setProductPeriod('today')">Today</button>
+            <button class="period-btn btn btn-ghost btn-sm active" data-period="week" onclick="setProductPeriod('week')">This Week</button>
+            <button class="period-btn btn btn-ghost btn-sm" data-period="month" onclick="setProductPeriod('month')">This Month</button>
+          </div>
+        </div>
+
+        <!-- Auto insights banner -->
+        <div id="prod-insights" class="card" style="margin-bottom:14px;background:linear-gradient(135deg,#1e3a5f,#2d5a8e);color:white;border:none">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="font-size:24px">📊</div>
+            <div id="prod-insight-text" style="font-size:13px;line-height:1.5">Loading insights...</div>
+          </div>
+        </div>
+
+        <!-- Stats row -->
+        <div class="stats" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px">
+          <div class="stat">
+            <div class="stat-label">Mains Sold</div>
+            <div class="stat-val" id="prod-mains">—</div>
+            <div class="stat-note" id="prod-mains-note">This week</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Items Sold</div>
+            <div class="stat-val" id="prod-items">—</div>
+            <div class="stat-note" id="prod-items-note">All categories</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Top Product</div>
+            <div class="stat-val" id="prod-top" style="font-size:14px">—</div>
+            <div class="stat-note" id="prod-top-note">Most sold</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Net Revenue</div>
+            <div class="stat-val" id="prod-rev">—</div>
+            <div class="stat-note" id="prod-rev-note">From products</div>
+          </div>
+        </div>
+
+        <!-- Search + Leaderboard -->
+        <div class="g2" style="grid-template-columns:1fr 1fr">
+
+          <!-- Product Search -->
+          <div class="card">
+            <div class="card-h">
+              <div class="card-t">Product Search</div>
+            </div>
+            <div style="display:flex;gap:8px;margin-bottom:12px">
+              <input type="text" id="prod-search" class="fg-i" placeholder="Search any product e.g. Guinness, Beef Roast..." 
+                style="flex:1;padding:8px 12px;font-size:13px" oninput="searchProducts(this.value)">
+              <button class="btn btn-ghost btn-sm" onclick="searchProducts(document.getElementById('prod-search').value)">Search</button>
+            </div>
+            <div id="prod-search-results">
+              <div class="empty">Search for a product to see sales data</div>
+            </div>
+          </div>
+
+          <!-- Top Sellers Leaderboard -->
+          <div class="card">
+            <div class="card-h">
+              <div class="card-t">Top Sellers This Period</div>
+              <select id="prod-cat-filter" class="fg-i" style="padding:4px 8px;font-size:12px" onchange="loadProductLeaderboard()">
+                <option value="">All Categories</option>
+                <option value="31">Mains</option>
+                <option value="1">Draught Beer</option>
+                <option value="3">Wine</option>
+                <option value="15">Cocktails</option>
+                <option value="33">Desserts</option>
+                <option value="18">Hot Drinks</option>
+              </select>
+            </div>
+            <table class="tbl">
+              <thead><tr><th>#</th><th>Product</th><th>Units</th><th>Revenue</th><th>Clerks</th></tr></thead>
+              <tbody id="prod-leader-tbl"><tr><td colspan="5" class="empty">Loading...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Clerk leaderboard for selected product -->
+        <div class="card" style="margin-top:14px" id="prod-clerk-card" style="display:none">
+          <div class="card-h">
+            <div class="card-t" id="prod-clerk-title">Who's selling it</div>
+            <span class="b b-green" id="prod-clerk-period"></span>
+          </div>
+          <table class="tbl">
+            <thead><tr><th>#</th><th>Team Member</th><th>Venue</th><th>Units Sold</th><th>% of Total</th></tr></thead>
+            <tbody id="prod-clerk-tbl"><tr><td colspan="5" class="empty">Search a product above to see clerk breakdown</td></tr></tbody>
+          </table>
+        </div>
+
       </div>
 
       <!-- SQUAD -->
@@ -918,6 +1018,7 @@ function nav(id) {
   document.querySelectorAll('.ni').forEach(el => { el.classList.toggle('active', el.getAttribute('onclick')?.includes(`'${id}'`)); });
   if (id==='trail') loadTrail();
   if (id==='sales') loadSales();
+  if (id==='products') loadProductIntel();
   if (id==='squad') loadSquad();
   if (id==='venues') loadVenuesDetail();
   if (id==='clerks') loadClerks();
@@ -1024,7 +1125,7 @@ async function loadDashboard() {
       const sph = vs.covers > 0 ? '£'+(vs.rev/vs.covers).toFixed(2) : '—';
       const dot = vs.tx > 0 ? 'var(--teal)' : 'var(--coral)';
       const dotBg = vs.tx > 0 ? 'var(--teal-bg)' : 'var(--coral-bg)';
-      return '<div class="venue-card" onclick="nav('venues')" style="position:relative">'
+      return '<div class="venue-card" onclick="nav(\'venues\')" style="position:relative">'
         + '<div style="position:absolute;top:12px;right:12px;width:9px;height:9px;border-radius:50%;background:'+dot+';box-shadow:0 0 0 3px '+dotBg+'"></div>'
         + '<div style="margin-bottom:14px">'
           + '<div style="font-family:var(--display);font-size:17px;font-weight:700;color:var(--ink);padding-right:24px">'+v.name+'</div>'
@@ -1306,7 +1407,7 @@ document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{
 async function loadAIInsights() {
   const body = document.getElementById('ai-insights-body');
   if (!body) return;
-  body.innerHTML = '<div style="display:flex;align-items:center;gap:10px;padding:16px;color:var(--ink3);font-size:13px"><div style="width:16px;height:16px;border:2px solid var(--teal);border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;flex-shrink:0"></div>Analysing today's performance...</div>';
+  body.innerHTML = "<div style='display:flex;align-items:center;gap:10px;padding:16px;color:var(--ink3);font-size:13px'><div style='width:16px;height:16px;border:2px solid var(--teal);border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;flex-shrink:0'></div>Analysing performance...</div>";
   try {
     const [sumR, txR, trailR, clerkR] = await Promise.all([
       api('/transactions/summary'), api('/transactions/recent?limit=100'),
@@ -1352,6 +1453,119 @@ async function loadAIInsights() {
 // Utils
 function fmtD(s) { try{return new Date(s).toLocaleDateString('en-GB',{day:'numeric',month:'short',timeZone:'Europe/London'});}catch{return s||'—';} }
 function fmtDT(s) { try{return new Date(s).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',timeZone:'Europe/London'});}catch{return s||'—';} }
+
+// ── PRODUCT INTELLIGENCE ─────────────────────────────────────────────────────
+
+let currentProductPeriod = 'week';
+
+function setProductPeriod(period) {
+  currentProductPeriod = period;
+  document.querySelectorAll('#v-products .period-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.period === period);
+  });
+  loadProductIntel();
+}
+
+async function loadProductIntel() {
+  try {
+    const params = new URLSearchParams({ period: currentProductPeriod, venue: currentVenue || 'all' });
+    const r = await api('/products/intel?' + params);
+    if (!r.data) return;
+    const d = r.data;
+
+    // Stats
+    document.getElementById('prod-mains').textContent = (d.mainsSold || 0).toLocaleString();
+    document.getElementById('prod-items').textContent = (d.totalItems || 0).toLocaleString();
+    document.getElementById('prod-rev').textContent = '£' + Number(d.netRevenue || 0).toFixed(0);
+    if (d.topProduct) {
+      document.getElementById('prod-top').textContent = d.topProduct.name.substring(0,20);
+      document.getElementById('prod-top-note').textContent = d.topProduct.units + ' sold';
+    }
+
+    // Auto insights
+    const insights = [];
+    if (d.mainsSold) insights.push('🍽️ ' + d.mainsSold + ' mains sold ' + (currentProductPeriod === 'week' ? 'this week' : 'today'));
+    if (d.topProduct) insights.push('🏆 Top seller: ' + d.topProduct.name + ' (' + d.topProduct.units + ' units)');
+    if (d.topDrink) insights.push('🍺 Top drink: ' + d.topDrink.name + ' (' + d.topDrink.units + ' sold)');
+    if (d.totalClerks) insights.push('👥 ' + d.totalClerks + ' team members have made sales this period');
+    document.getElementById('prod-insight-text').textContent = insights.join('  ·  ') || 'No data for this period';
+
+    loadProductLeaderboard();
+  } catch(e) { console.error('Product intel error:', e); }
+}
+
+async function loadProductLeaderboard() {
+  const salesGroup = document.getElementById('prod-cat-filter')?.value || '';
+  const params = new URLSearchParams({ period: currentProductPeriod, venue: currentVenue || 'all' });
+  if (salesGroup) params.set('salesGroup', salesGroup);
+  
+  try {
+    const r = await api('/products/leaderboard?' + params);
+    const rows = r.data || [];
+    document.getElementById('prod-leader-tbl').innerHTML = rows.length === 0
+      ? '<tr><td colspan="5" class="empty">No data</td></tr>'
+      : rows.map((row, i) => '<tr>'
+          + '<td class="dim">' + (i+1) + '</td>'
+          + '<td class="p" style="cursor:pointer;color:var(--accent)" onclick="searchProducts(this.dataset.name)" data-name="' + row.name.replace(/"/g, '') + '">' + row.name + '</td>'
+          + '<td class="p">' + row.units_sold + '</td>'
+          + '<td>£' + Number(row.net_revenue).toFixed(2) + '</td>'
+          + '<td class="dim">' + row.clerks_selling + '</td>'
+          + '</tr>').join('');
+  } catch(e) {}
+}
+
+async function searchProducts(query) {
+  if (!query || query.length < 2) return;
+  document.getElementById('prod-search').value = query;
+  
+  const params = new URLSearchParams({ q: query, period: currentProductPeriod, venue: currentVenue || 'all' });
+  try {
+    const r = await api('/products/search?' + params);
+    const d = r.data || {};
+    const results = d.products || [];
+    
+    if (results.length === 0) {
+      document.getElementById('prod-search-results').innerHTML = '<div class="empty">No products found matching "' + query + '"</div>';
+      return;
+    }
+
+    document.getElementById('prod-search-results').innerHTML = results.map(p => 
+      '<div style="padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="loadClerkBreakdown(this.dataset.name)" data-name="' + p.name.replace(/"/g,'') + '">'
+      + '<div style="font-weight:600;font-size:13px">' + p.name + '</div>'
+      + '<div style="font-size:11px;color:var(--fg3);margin-top:2px">'
+      + p.units_sold + ' sold · £' + Number(p.net_revenue || 0).toFixed(2) + ' net · ' + p.clerks_selling + ' staff selling'
+      + '</div></div>'
+    ).join('');
+
+    // Auto load clerk breakdown for top result
+    if (results[0]) loadClerkBreakdown(results[0].name);
+  } catch(e) {}
+}
+
+async function loadClerkBreakdown(productName) {
+  const params = new URLSearchParams({ product: productName, period: currentProductPeriod, venue: currentVenue || 'all' });
+  try {
+    const r = await api('/products/clerks?' + params);
+    const rows = r.data || [];
+    const total = rows.reduce((s, r) => s + Number(r.units_sold), 0);
+    
+    document.getElementById('prod-clerk-card').style.display = '';
+    document.getElementById('prod-clerk-title').textContent = 'Who is selling: ' + productName;
+    document.getElementById('prod-clerk-period').textContent = currentProductPeriod === 'week' ? 'This Week' : currentProductPeriod === 'today' ? 'Today' : 'This Month';
+    
+    document.getElementById('prod-clerk-tbl').innerHTML = rows.length === 0
+      ? '<tr><td colspan="5" class="empty">No matched clerk data yet — complete clerk mapping first</td></tr>'
+      : rows.map((row, i) => '<tr>'
+          + '<td class="dim">' + (i+1) + '</td>'
+          + '<td class="p">' + (row.display_name || 'Clerk ' + row.clerk_id) + '</td>'
+          + '<td class="dim">' + (row.venue_name || '—') + '</td>'
+          + '<td class="p">' + row.units_sold + '</td>'
+          + '<td class="dim">' + Math.round(Number(row.units_sold)/total*100) + '%</td>'
+          + '</tr>').join('');
+  } catch(e) {}
+}
+
+
 </script>
 </body>
 </html>
