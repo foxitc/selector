@@ -1214,6 +1214,14 @@ async function loadDashboard() {
       });
     } catch(e) {}
 
+     // Fetch weather for venue cards
+     let weatherByLoc = {};
+     try {
+       const wr = await api('/context/weather');
+       (wr.data||[]).forEach(w => { weatherByLoc[w.location_id] = w; });
+     } catch(e) {}
+
+
     const cardsEl = document.getElementById('venue-cards');
     cardsEl.innerHTML = venues.map(v => {
       const ts = summary.find(s => s.venue_name === v.name);
