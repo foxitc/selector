@@ -1598,8 +1598,8 @@ router.get('/bookings/resdiary/today', auth, async (req, res, next) => {
       "SELECT location_id, restaurant_name, " +
       "COUNT(*) as total_bookings, " +
       "SUM(party_size) as total_covers, " +
-      "COUNT(*) FILTER (WHERE arrival_status='Arrived') as arrived, " +
-      "COUNT(*) FILTER (WHERE meal_status='Finished') as finished " +
+      "COUNT(*) FILTER (WHERE arrival_status IN ('FullySeated','WaitingInBar','PartiallySeated')) as arrived, " +
+      "COUNT(*) FILTER (WHERE meal_status IN ('Closed','Check')) as finished " +
       "FROM resdiary_bookings " +
       "WHERE visit_date = CURRENT_DATE AND restaurant_name NOT LIKE '%Test%' " +
       "GROUP BY location_id, restaurant_name ORDER BY location_id"

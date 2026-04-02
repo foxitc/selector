@@ -1121,7 +1121,7 @@ async function loadBookingsToday() {
     const filtered = venueFilter === 'all' ? bookings : bookings.filter(b => b.location_id === locMap[venueFilter]);
 
     grid.innerHTML = filtered.map(b => {
-      const pct = b.arrived > 0 ? Math.round(b.arrived/b.total_bookings*100) : 0;
+      const pct = b.arrived > 0 ? Math.round(Number(b.arrived)/Number(b.total_bookings)*100) : 0;
       return '<div style="background:var(--bg2);border-radius:8px;padding:12px;border:1px solid var(--border)">'
         + '<div style="font-weight:600;font-size:12px;color:var(--fg2);margin-bottom:6px">' + b.restaurant_name + '</div>'
         + '<div style="display:flex;justify-content:space-between;margin-bottom:4px">'
@@ -1129,7 +1129,7 @@ async function loadBookingsToday() {
         + '<span style="font-size:11px;color:var(--fg3);text-align:right">bookings<br>' + b.total_covers + ' covers</span>'
         + '</div>'
         + '<div style="font-size:11px;color:var(--fg3)">'
-        + '<span style="color:var(--teal)">' + (b.arrived||0) + ' arrived</span>'
+        + '<span style="color:var(--teal)">' + (b.arrived||0) + ' seated</span>'
         + ' · ' + (b.finished||0) + ' finished'
         + '</div>'
         + '<div style="margin-top:6px;height:3px;background:var(--border);border-radius:2px">'
