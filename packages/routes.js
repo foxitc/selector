@@ -1332,6 +1332,7 @@ async function syncRotaReadyStaff() {
     if (entityId) userEntity[s.id] = entityId;
   });
 
+  const venueMap = {'tap':'38749619-c192-45d1-806b-2fdc5922adea','gri':'e87b5986-0826-4464-ad62-e55175f9c3c4','tlh':'d9657ea0-19c4-4793-9c0c-21fd4179ac56'};
   const defaultVenue = 'e87b5986-0826-4464-ad62-e55175f9c3c4';
 
   let upserted = 0;
@@ -1346,7 +1347,7 @@ async function syncRotaReadyStaff() {
     await database_js_1.db.query(
       "INSERT INTO team_members (venue_id, first_name, last_name, display_name, avatar_initials, avatar_color, rota_id, is_active) " +
       "VALUES ($1,$2,$3,$4,$5,'#4a9b8e',$6,$7) " +
-      "ON CONFLICT (rota_id) DO UPDATE SET first_name=EXCLUDED.first_name, last_name=EXCLUDED.last_name, " +
+      "ON CONFLICT (rota_id) WHERE rota_id IS NOT NULL DO UPDATE SET first_name=EXCLUDED.first_name, last_name=EXCLUDED.last_name, " +
       "display_name=EXCLUDED.display_name, venue_id=EXCLUDED.venue_id, is_active=EXCLUDED.is_active, updated_at=NOW()",
       [venueId, s.firstName, s.lastName, s.firstName+' '+s.lastName, initials, String(s.id), s.flags.active]
     ).catch(e => console.error('[RotaReady] Upsert error:', e.message));
@@ -1837,3 +1838,58 @@ async function runScheduledSyncs() {
     } catch(e) { console.error('[Scheduler] RotaReady error:', e.message); }
   }
 }
+
+// Wire up scheduler - run every 10 minutes, function self-limits to first 5 mins of hour
+setInterval(runScheduledSyncs, 10 * 60 * 1000);
+// Startup syncs run immediately regardless of hour/minute
+console.log('[Scheduler] Scheduler wired - running every 10 minutes');
+
+
+// Wire up scheduler - run every 10 minutes, function self-limits to first 5 mins of hour
+setInterval(runScheduledSyncs, 10 * 60 * 1000);
+// Startup syncs run immediately regardless of hour/minute
+console.log('[Scheduler] Scheduler wired - running every 10 minutes');
+
+// Force run on startup regardless of minute
+async function runStartupSyncs() {
+  console.log('[Scheduler] Running startup syncs...');
+  try { await syncWeather(); } catch(e) { console.error('[Scheduler] Startup weather error:', e.message); }
+  try {
+    const axios = (await import('axios')).default;
+    const apiKey = process.env['GOOGLE_PLACES_API_KEY'];
+    if (apiKey) {
+      const venues = [
+        {placeId:'ChIJkY6ikuPfeUgRTwYKwMOxnRQ', name:'The Griffin Inn', locationId:'0001'},
+        {placeId:'ChIJL1fXX1rReUgRoasMv1zsgZI', name:'Tap & Run', locationId:'0002'},
+        {placeId:'ChIJF_oJeAADekgRpSlCi0O92BI', name:'The Long Hop', locationId:'0003'},
+      ];
+      for (const venue of venues) {
+        const r = await axios.get('https://maps.googleapis.com/maps/api/place/details/json', {
+          params: {place_id: venue.placeId, fields: 'name,rating,user_ratings_total,reviews', key: apiKey, language: 'en'}
+        });
+        const place = r.data.result || {};
+        await database_js_1.db.query(
+          "INSERT INTO google_place_ratings (location_id, venue_name, rating, total_reviews, synced_at) VALUES ($1,$2,$3,$4,NOW()) ON CONFLICT (location_id) DO UPDATE SET previous_rating=google_place_ratings.rating, previous_total=google_place_ratings.total_reviews, rating=$3, total_reviews=$4, synced_at=NOW()",
+          [venue.locationId, venue.name, place.rating||0, place.user_ratings_total||0]
+        ).catch(()=>{});
+        // Store reviews
+        const reviews = place.reviews || [];
+        for (const review of reviews) {
+          const text = review.text || '';
+          const reviewDate = new Date(review.time * 1000).toISOString();
+          const membersRes = await database_js_1.db.query("SELECT first_name, last_name, venue_id FROM team_members WHERE is_active=true").catch(()=>({rows:[]}));
+          const locVenueMap = {'0001':'e87b5986-0826-4464-ad62-e55175f9c3c4','0002':'38749619-c192-45d1-806b-2fdc5922adea','0003':'d9657ea0-19c4-4793-9c0c-21fd4179ac56'};
+          const namedStaff = membersRes.rows.filter(m => m.venue_id === locVenueMap[venue.locationId] && text.toLowerCase().includes(m.first_name.toLowerCase()) && m.first_name.length > 2).map(m => m.first_name + ' ' + m.last_name);
+          await database_js_1.db.query(
+            "INSERT INTO google_reviews (location_name, reviewer_name, star_rating, comment, create_time, named_staff) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING",
+            [venue.name, review.author_name, String(review.rating), text, reviewDate, namedStaff]
+          ).catch(()=>{});
+        }
+        console.log('[Startup] Google Places:', venue.name, place.rating, place.user_ratings_total);
+      }
+    }
+  } catch(e) { console.error('[Scheduler] Startup Google error:', e.message); }
+  try { await syncRotaReadyStaff(); console.log('[Startup] RotaReady synced'); } catch(e) { console.error('[Startup] RotaReady error:', e.message); }
+  console.log('[Scheduler] Startup syncs complete');
+}
+setTimeout(runStartupSyncs, 10 * 1000);
