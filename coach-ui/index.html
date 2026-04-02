@@ -579,6 +579,15 @@ select.fi { cursor:pointer; appearance:none; }
           <div class="empty" style="grid-column:1/-1">Loading venues...</div>
         </div>
 
+        <!-- Context Banner -->
+        <div id="context-banner" style="display:none;margin-bottom:14px;padding:10px 16px;background:linear-gradient(135deg,#1a3a5c,#2d5a8e);color:white;border-radius:8px;font-size:13px;display:flex;align-items:center;gap:10px">
+          <span style="font-size:18px" id="context-icon">📅</span>
+          <div>
+            <div id="context-message" style="font-weight:500"></div>
+            <div id="context-weather" style="font-size:11px;opacity:0.8;margin-top:2px"></div>
+          </div>
+        </div>
+
         <!-- Bookings Today -->
         <div class="card" style="margin-bottom:14px">
           <div class="card-h">
@@ -1039,6 +1048,8 @@ function switchVenue() {
   currentVenue = document.getElementById('venue-sel').value;
   document.getElementById('tb-venue-name').textContent = VENUE_NAMES[currentVenue] || 'All Venues';
   loadDashboard();
+  loadBookingsToday();
+  loadContextBanner();
   // Reload whichever view is currently active
   const activeView = document.querySelector('.view.active')?.id?.replace('v-','');
   if (activeView === 'sales') loadSales();
@@ -1058,7 +1069,9 @@ async function init() {
   await loadLocationMap(); // Load venue mappings from database first
   loadDashboard();
 }
-
+  loadDashboard();
+  loadBookingsToday();
+  loadContextBanner();
 async function loadLocationMap() {
   try {
     const r = await api('/venues/mappings');
@@ -1072,6 +1085,36 @@ async function loadLocationMap() {
 }
 
 // Dashboard
+async function loadContextBanner() {
+  try {
+    const r = await api('/context/calendar');
+    if (!r.data) return;
+    const d = r.data;
+    const banner = document.getElementById('context-banner');
+    const msg = document.getElementById('context-message');
+    const weather = document.getElementById('context-weather');
+    if (!banner || !msg) return;
+
+    if (d.contextMessage) {
+      msg.textContent = d.contextMessage;
+      banner.style.display = 'flex';
+    }
+
+    // Weather
+    if (d.weather && d.weather.length > 0) {
+      const w = d.weather[0];
+      const lyW = d.weatherLastYear.find(x => x.location_id === w.location_id);
+      let wText = 'This week: ' + w.avg_temp + '°C';
+      if (lyW) {
+        const diff = (w.avg_temp - lyW.avg_temp).toFixed(1);
+        const sign = diff > 0 ? '+' : '';
+        wText += ' ('+sign+diff+'°C vs last year)';
+      }
+      weather.textContent = '🌡️ ' + wText;
+    }
+  } catch(e) {}
+}
+
 async function loadBookingsToday() {
   try {
     const r = await api('/bookings/resdiary/today');
