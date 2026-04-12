@@ -2079,7 +2079,7 @@ async function calculateScores(period, locationId) {
 
     const m = mR.rows[0];
     const mains = Number(m.mains) || 0;
-    if (mains === 0) continue;
+    if (mains < 10) continue; // Minimum 10 mains for reliable scoring
 
     const reviewR = await database_js_1.db.query(
       "SELECT COUNT(*) as c FROM google_reviews WHERE named_staff::text ILIKE '%' || $1 || '%'",
