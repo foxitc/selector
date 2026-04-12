@@ -1039,6 +1039,7 @@ function nav(id) {
   if (id==='trail') loadTrail();
   if (id==='sales') loadSales();
   if (id==='products') loadProductIntel();
+  if (id==='scores') loadScores();
   if (id==='squad') loadSquad();
   if (id==='venues') loadVenuesDetail();
   if (id==='clerks') loadClerks();
@@ -1102,6 +1103,69 @@ async function loadContextBanner() {
 
     // Weather shown in venue cards only - not in banner
   } catch(e) {}
+}
+
+let currentScoresPeriod = 'week';
+
+function setScoresPeriod(period) {
+  currentScoresPeriod = period;
+  document.querySelectorAll('#v-scores .period-btn').forEach(b => b.classList.toggle('active', b.dataset.period === period));
+  loadScores();
+}
+
+async function recalcScores() {
+  const btn = document.querySelector('#v-scores .btn-primary');
+  if (btn) btn.textContent = 'Calculating...';
+  try {
+    const r = await api('/scores/calculate', {method:'POST', body: JSON.stringify({period: currentScoresPeriod, locationId: currentVenue !== 'all' ? {'griffin':'0001','taprun':'0002','longhop':'0003'}[currentVenue] : null})});
+    if (r.data) loadScores();
+  } catch(e) {}
+  if (btn) btn.textContent = 'Recalculate';
+}
+
+async function loadScores() {
+  try {
+    const locMap = {'griffin':'0001','taprun':'0002','longhop':'0003'};
+    const venueParam = currentVenue !== 'all' ? '&venue=' + currentVenue : '';
+    const r = await api('/scores/leaderboard?period=' + currentScoresPeriod + venueParam);
+    const scores = r.data || [];
+
+    // Tier counts
+    const tiers = {could:0, should:0, have:0, review:0};
+    scores.forEach(s => {
+      if (s.tier === 'could-say') tiers.could++;
+      else if (s.tier === 'should-say') tiers.should++;
+      else if (s.tier === 'have-to') tiers.have++;
+      else tiers.review++;
+    });
+    document.getElementById('tier-could').textContent = tiers.could;
+    document.getElementById('tier-should').textContent = tiers.should;
+    document.getElementById('tier-have').textContent = tiers.have;
+    document.getElementById('tier-review').textContent = tiers.review;
+
+    const tierColors = {'could-say':'var(--teal)','should-say':'var(--gold)','have-to':'var(--coral)','review':'var(--ink4)'};
+    const tierLabels = {'could-say':'Could Say','should-say':'Should Say','have-to':'Have To','review':'Review'};
+
+    document.getElementById('scores-updated').textContent = scores.length + ' staff scored · ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+
+    document.getElementById('scores-tbody').innerHTML = scores.length === 0
+      ? '<tr><td colspan="11" class="empty">No scores yet — click Recalculate</td></tr>'
+      : scores.map((s, i) => '<tr>'
+          + '<td class="dim">' + (i+1) + '</td>'
+          + '<td class="p" style="display:flex;align-items:center;gap:8px">'
+          + '<div style="width:28px;height:28px;border-radius:50%;background:' + (s.avatar_color||'#4a9b8e') + ';display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:white">' + (s.avatar_initials||'??') + '</div>'
+          + s.display_name + '</td>'
+          + '<td class="dim">' + (s.venue_name||'—') + '</td>'
+          + '<td><span style="font-family:var(--mono);font-size:18px;font-weight:700;color:' + (tierColors[s.tier]||'var(--ink)') + '">' + s.score + '</span></td>'
+          + '<td><span class="b" style="background:' + (tierColors[s.tier]||'var(--ink4)') + '22;color:' + (tierColors[s.tier]||'var(--ink4)') + ';border:1px solid ' + (tierColors[s.tier]||'var(--ink4)') + '44">' + (tierLabels[s.tier]||s.tier) + '</span></td>'
+          + '<td class="mono">' + s.mains + '</td>'
+          + '<td class="mono">£' + (s.actuals?.asph_wet||0).toFixed(2) + '</td>'
+          + '<td class="mono">£' + (s.actuals?.asph_dry||0).toFixed(2) + '</td>'
+          + '<td class="mono">' + ((s.actuals?.sides_pct||0)*100).toFixed(0) + '%</td>'
+          + '<td class="mono">' + ((s.actuals?.starters_dess||0)*100).toFixed(0) + '%</td>'
+          + '<td class="mono">' + (s.actuals?.named_review||0) + '</td>'
+          + '</tr>').join('');
+  } catch(e) { console.error('Scores error:', e); }
 }
 
 async function loadBookingsToday() {
