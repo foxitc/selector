@@ -1729,6 +1729,151 @@ router.post('/sync/weather', auth, async (req, res, next) => {
   } catch(e) { next(e); }
 });
 
+
+// ── CPL LEARNING ─────────────────────────────────────────────────────────────
+
+const CPL_KEY = process.env['CPL_API_KEY'];
+const CPL_BASE = 'https://clientapi.cplonline.co.uk';
+
+const CPL_SITES = {
+  '0001': 153247,  // The Griffin Inn
+  '0002': 162024,  // The Tap & Run  
+  '0003': 171559,  // The Long Hop
+};
+
+async function syncCPL() {
+  if (!CPL_KEY) { console.log('[CPL] No API key'); return; }
+  const axios = (await import('axios')).default;
+  const headers = { 'x-api-key': CPL_KEY };
+  let totalSynced = 0;
+
+  // Create CPL tables if not exist
+  await database_js_1.db.query(`
+    CREATE TABLE IF NOT EXISTS cpl_training (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      employee_id INTEGER,
+      team_member_id UUID,
+      location_id VARCHAR(10),
+      course_id INTEGER,
+      course_name VARCHAR(500),
+      course_type INTEGER,
+      status VARCHAR(50),
+      score INTEGER,
+      valid_from TIMESTAMPTZ,
+      valid_to TIMESTAMPTZ,
+      synced_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(employee_id, course_id)
+    )
+  `).catch(()=>{});
+
+  await database_js_1.db.query(`
+    CREATE TABLE IF NOT EXISTS cpl_users (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      employee_id INTEGER UNIQUE,
+      employee_reference VARCHAR(50),
+      first_name VARCHAR(100),
+      last_name VARCHAR(100),
+      site_id INTEGER,
+      location_id VARCHAR(10),
+      active BOOLEAN,
+      email VARCHAR(255),
+      team_member_id UUID,
+      synced_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `).catch(()=>{});
+
+  // Sync users across all sites
+  for (const [locationId, siteId] of Object.entries(CPL_SITES)) {
+    try {
+      const usersR = await axios.get(CPL_BASE + '/users?siteId=' + siteId, { headers });
+      const users = usersR.data || [];
+      
+      for (const u of users) {
+        // Try to match to team_member by name
+        const tmR = await database_js_1.db.query(
+          "SELECT id FROM team_members WHERE location_id=$1 AND LOWER(first_name)=LOWER($2) AND LOWER(last_name)=LOWER($3) LIMIT 1",
+          [locationId, u.firstname, u.lastname]
+        ).catch(()=>({rows:[]}));
+        const tmId = tmR.rows[0]?.id || null;
+
+        // Map user's actual siteId to locationId
+        const siteToLoc = {153247:'0001', 162024:'0002', 171559:'0003'};
+        const userLocationId = siteToLoc[u.siteId] || locationId;
+        await database_js_1.db.query(
+          "INSERT INTO cpl_users (employee_id, employee_reference, first_name, last_name, site_id, location_id, active, email, team_member_id) " +
+          "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) " +
+          "ON CONFLICT (employee_id) DO UPDATE SET active=$7, email=$8, team_member_id=$9, location_id=$6, synced_at=NOW()",
+          [u.employeeId, u.employeeReference||null, u.firstname, u.lastname, u.siteId, userLocationId, u.active, u.emailAddress||null, tmId]
+        ).catch(()=>{});
+      }
+      console.log('[CPL] Users synced for', locationId, ':', users.length);
+
+      // Sync training completions
+      const trainR = await axios.get(CPL_BASE + '/users/training?siteId=' + siteId, { headers });
+      const trainData = trainR.data || [];
+
+      for (const t of trainData) {
+        for (const course of t.training || []) {
+          const statusVal = course.status?.find(s => s.type === 0)?.value || 'Unknown';
+          const scoreVal = parseInt(course.status?.find(s => s.type === 1)?.value || '0');
+          
+          await database_js_1.db.query(
+            "INSERT INTO cpl_training (employee_id, course_id, course_name, course_type, status, score, valid_from, valid_to) " +
+            "VALUES ($1,$2,$3,$4,$5,$6,$7,$8) " +
+            "ON CONFLICT (employee_id, course_id) DO UPDATE SET status=$5, score=$6, valid_from=$7, valid_to=$8, synced_at=NOW()",
+            [t.employeeId, course.id, course.description?.replace(/\u001a/g,'').trim(), course.type,
+             statusVal, scoreVal, course.validFrom||null, course.validTo||null]
+          ).catch(()=>{});
+          totalSynced++;
+        }
+      }
+      console.log('[CPL] Training synced for', locationId, ':', trainData.length, 'staff');
+    } catch(e) { console.error('[CPL] Error for', locationId, ':', e.message); }
+  }
+  return totalSynced;
+}
+
+// CPL sync endpoint
+router.post('/sync/cpl', auth, async (req, res, next) => {
+  try {
+    const count = await syncCPL();
+    ok(res, { message: 'CPL sync complete', records: count });
+  } catch(e) { next(e); }
+});
+
+// CPL compliance overview
+router.get('/cpl/compliance', auth, async (req, res, next) => {
+  try {
+    const { locationId } = req.query;
+    const where = locationId ? "WHERE cu.location_id='" + locationId + "'" : '';
+    const r = await database_js_1.db.query(
+      "SELECT cu.first_name, cu.last_name, cu.location_id, cu.active, " +
+      "COUNT(ct.course_id) as total_courses, " +
+      "COUNT(ct.course_id) FILTER (WHERE ct.status='Complete') as completed, " +
+      "COUNT(ct.course_id) FILTER (WHERE ct.valid_to < NOW()) as expired, " +
+      "ROUND(AVG(ct.score)::numeric, 0) as avg_score " +
+      "FROM cpl_users cu " +
+      "LEFT JOIN cpl_training ct ON ct.employee_id = cu.employee_id " +
+      where + " GROUP BY cu.first_name, cu.last_name, cu.location_id, cu.active " +
+      "ORDER BY cu.location_id, completed DESC"
+    ).catch(()=>({rows:[]}));
+    ok(res, r.rows);
+  } catch(e) { next(e); }
+});
+
+// CPL individual training record
+router.get('/cpl/user/:employeeId', auth, async (req, res, next) => {
+  try {
+    const r = await database_js_1.db.query(
+      "SELECT ct.*, cu.first_name, cu.last_name FROM cpl_training ct " +
+      "JOIN cpl_users cu ON cu.employee_id = ct.employee_id " +
+      "WHERE ct.employee_id=$1 ORDER BY ct.status DESC, ct.course_name",
+      [req.params.employeeId]
+    ).catch(()=>({rows:[]}));
+    ok(res, r.rows);
+  } catch(e) { next(e); }
+});
+
 // ── SYNC SCHEDULER ──────────────────────────────────────────────
 async function runScheduledSyncs() {
   const now = new Date();
@@ -1825,7 +1970,7 @@ async function runScheduledSyncs() {
   // CPL - daily at 08:00 UTC
   if (hour === 8) {
     console.log('[Scheduler] CPL daily sync');
-    // CPL connector to be built once real account is set up
+    try { await syncCPL(); console.log('[Scheduler] CPL sync complete'); } catch(e) { console.error('[Scheduler] CPL error:', e.message); }
   }
 
   // ROTAREADY - hourly between 07:00-01:00 UTC (08:00-02:00 BST)
@@ -1890,6 +2035,7 @@ async function runStartupSyncs() {
     }
   } catch(e) { console.error('[Scheduler] Startup Google error:', e.message); }
   try { await syncRotaReadyStaff(); console.log('[Startup] RotaReady synced'); } catch(e) { console.error('[Startup] RotaReady error:', e.message); }
+  try { await syncCPL(); console.log('[Startup] CPL synced'); } catch(e) { console.error('[Startup] CPL error:', e.message); }
   console.log('[Scheduler] Startup syncs complete');
 }
 setTimeout(runStartupSyncs, 10 * 1000);
