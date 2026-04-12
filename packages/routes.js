@@ -1994,6 +1994,203 @@ router.get('/metrics/team/flex', auth, async (req, res, next) => {
   } catch(e) { next(e); }
 });
 
+
+// ── SELECTOR SCORING ENGINE v2 ───────────────────────────────────────────────
+
+const SCORING_METRICS = {
+  premium_wine:     { weight: 5, target: 1.2, direction: 'positive', label: 'Premium Wine per Cover' },
+  sides_pct:        { weight: 5, target: 1.2, direction: 'positive', label: 'Sides % of Mains' },
+  nibbles_pct:      { weight: 5, target: 1.2, direction: 'positive', label: 'Nibbles % of Mains' },
+  after_dinner:     { weight: 5, target: 1.2, direction: 'positive', label: 'After-Dinner Drinks per Cover' },
+  starters_dess:    { weight: 2, target: 1.2, direction: 'positive', label: 'Starters & Desserts % Mains' },
+  asph_wet:         { weight: 2, target: 14.9, direction: 'positive', label: 'ASPH Wet' },
+  asph_dry:         { weight: 2, target: 25.87, direction: 'positive', label: 'ASPH Dry' },
+  drinks_per_cover: { weight: 2, target: 1.7, direction: 'positive', label: 'Drinks per Cover' },
+  named_review:     { weight: 4, target: 1.0, direction: 'positive', label: 'Named Reviews' },
+  double_spirits:   { weight: 1, target: 1.2, direction: 'positive', label: 'Double Spirits per Cover' },
+  large_wine:       { weight: 1, target: 1.2, direction: 'positive', label: 'Large Wine %' },
+  bottled_water:    { weight: 1, target: 0.5, direction: 'positive', label: 'Bottled Water per 10 Covers' },
+};
+
+function calcMetricScore(actual, target, direction) {
+  if (direction === 'negative') return actual <= target ? 100 : 0;
+  if (!actual || !target) return 0;
+  const ratio = actual / target;
+  if (ratio <= 1) return 0;
+  return Math.min(100, (ratio - 1) * 200);
+}
+
+function calcFinalScore(metricScores) {
+  const totalWeight = Object.values(SCORING_METRICS).reduce((s, m) => s + m.weight, 0);
+  let weighted = 0;
+  for (const [key, m] of Object.entries(SCORING_METRICS)) {
+    weighted += (metricScores[key] || 0) * m.weight;
+  }
+  return Math.round(weighted / totalWeight);
+}
+
+function getSellerTier(score) {
+  if (score >= 75) return 'could-say';
+  if (score >= 50) return 'should-say';
+  if (score >= 25) return 'have-to';
+  return 'review';
+}
+
+async function calculateScores(period, locationId) {
+  const pc = period === 'week' ? "AND t.datetime_opened >= DATE_TRUNC('week', NOW())"
+    : period === 'month' ? "AND t.datetime_opened >= DATE_TRUNC('month', NOW())"
+    : "AND t.datetime_opened >= NOW() - INTERVAL '7 days'";
+  const lc = locationId ? "AND t.location_id='" + locationId + "'" : '';
+
+  const clerksR = await database_js_1.db.query(
+    "SELECT DISTINCT rcm.clerk_id, rcm.location_id, rcm.team_member_id, " +
+    "tm.display_name, tm.first_name, tm.last_name, v.name as venue_name, " +
+    "tm.avatar_initials, tm.avatar_color " +
+    "FROM relay_clerk_mappings rcm " +
+    "JOIN team_members tm ON tm.id=rcm.team_member_id " +
+    "JOIN connector_venue_mappings cvm ON cvm.location_id=rcm.location_id " +
+    "JOIN venues v ON v.id=cvm.venue_id " +
+    "WHERE rcm.team_member_id IS NOT NULL" +
+    (locationId ? " AND rcm.location_id='" + locationId + "'" : "")
+  );
+
+  const scores = [];
+  for (const clerk of clerksR.rows) {
+    const mR = await database_js_1.db.query(
+      "SELECT COUNT(DISTINCT t.id) as txns, " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group='31'),0) as mains, " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group='32'),0) as sides, " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group='29'),0) as nibbles, " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group='30'),0) as starters, " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('33','35')),0) as desserts, " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('1','2','3','4','5','6','8','15','18','19','21','22','23','26','27','28')),0) as drinks, " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('3','4','5','6') AND si.individual_net_price > 40),0) as prem_wine, " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('8','15')),0) as spirits, " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group='8' AND LOWER(si.name) LIKE '%double%'),0) as dbl_spirits, " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('3','4','5','6') AND LOWER(si.name) LIKE '%large%'),0) as lg_wine, " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('3','4','5','6')),0) as all_wine, " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE LOWER(si.name) LIKE '%water%' AND si.sales_group NOT IN ('30000','20')),0) as water, " +
+      "COALESCE(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('1','2','3','4','5','6','8','15','18','19','21','22','23','26','27','28')),0) as wet_rev, " +
+      "COALESCE(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('29','30','31','32','33','34','35')),0) as dry_rev " +
+      "FROM relay_transactions t JOIN relay_sold_items si ON si.transaction_id=t.id " +
+      "WHERE t.closed_by_clerk_id=$1 AND t.location_id=$2 " + pc + " " + lc,
+      [clerk.clerk_id, clerk.location_id]
+    );
+
+    const m = mR.rows[0];
+    const mains = Number(m.mains) || 0;
+    if (mains === 0) continue;
+
+    const reviewR = await database_js_1.db.query(
+      "SELECT COUNT(*) as c FROM google_reviews WHERE named_staff::text ILIKE '%' || $1 || '%'",
+      [clerk.first_name]
+    );
+
+    const actuals = {
+      premium_wine:     mains > 0 ? Number(m.prem_wine)/mains : 0,
+      sides_pct:        mains > 0 ? Number(m.sides)/mains : 0,
+      nibbles_pct:      mains > 0 ? Number(m.nibbles)/mains : 0,
+      after_dinner:     mains > 0 ? Number(m.spirits)/mains : 0,
+      starters_dess:    mains > 0 ? (Number(m.starters)+Number(m.desserts))/mains : 0,
+      asph_wet:         mains > 0 ? Number(m.wet_rev)/mains : 0,
+      asph_dry:         mains > 0 ? Number(m.dry_rev)/mains : 0,
+      drinks_per_cover: mains > 0 ? Number(m.drinks)/mains : 0,
+      named_review:     Number(reviewR.rows[0]?.c || 0),
+      double_spirits:   mains > 0 ? Number(m.dbl_spirits)/mains : 0,
+      large_wine:       Number(m.all_wine) > 0 ? Number(m.lg_wine)/Number(m.all_wine) : 0,
+      bottled_water:    mains > 0 ? (Number(m.water)/mains)*10 : 0,
+    };
+
+    const metricScores = {};
+    for (const [key, cfg] of Object.entries(SCORING_METRICS)) {
+      metricScores[key] = calcMetricScore(actuals[key], cfg.target, cfg.direction);
+    }
+
+    const finalScore = calcFinalScore(metricScores);
+    const tier = getSellerTier(finalScore);
+
+    await database_js_1.db.query(
+      "UPDATE team_members SET selector_score=$1, selector_tier=$2, selector_status='on-programme', selector_updated_at=NOW() WHERE id=$3",
+      [finalScore, tier, clerk.team_member_id]
+    ).catch(()=>{});
+
+    scores.push({
+      team_member_id: clerk.team_member_id,
+      clerk_id: clerk.clerk_id,
+      location_id: clerk.location_id,
+      display_name: clerk.display_name,
+      first_name: clerk.first_name,
+      venue_name: clerk.venue_name,
+      avatar_initials: clerk.avatar_initials,
+      avatar_color: clerk.avatar_color,
+      score: finalScore,
+      tier,
+      transactions: Number(m.txns),
+      mains,
+      actuals,
+      metric_scores: metricScores,
+    });
+  }
+
+  return scores.sort((a, b) => b.score - a.score);
+}
+
+router.post('/scores/calculate', auth, async (req, res, next) => {
+  try {
+    const { period, locationId } = req.body || {};
+    const scores = await calculateScores(period || 'week', locationId || null);
+    ok(res, { calculated: scores.length, top10: scores.slice(0, 10) });
+  } catch(e) { next(e); }
+});
+
+router.get('/scores/leaderboard', auth, async (req, res, next) => {
+  try {
+    const { period, venue } = req.query;
+    const locMap = {'griffin':'0001','taprun':'0002','longhop':'0003'};
+    const loc = locMap[venue] || null;
+    const scores = await calculateScores(period || 'week', loc);
+    ok(res, scores);
+  } catch(e) { next(e); }
+});
+
+router.get('/products/top', auth, async (req, res, next) => {
+  try {
+    const { venue, category } = req.query;
+    const locMap = {'griffin':'0001','taprun':'0002','longhop':'0003'};
+    const loc = locMap[venue];
+    const lc = loc ? "AND t.location_id='" + loc + "'" : '';
+    const cc = category === 'wine' ? "AND si.sales_group IN ('3','4','5','6')"
+      : category === 'mains' ? "AND si.sales_group='31'"
+      : category === 'drinks' ? "AND si.sales_group IN ('1','2','3','4','5','6','8','15')"
+      : category === 'desserts' ? "AND si.sales_group IN ('33','35')"
+      : "AND si.sales_group NOT IN ('30000','20')";
+
+    const twR = await database_js_1.db.query(
+      "SELECT si.name, si.sales_group, SUM(si.quantity) as units, SUM(si.total_net_price) as revenue " +
+      "FROM relay_sold_items si JOIN relay_transactions t ON t.id=si.transaction_id " +
+      "WHERE t.datetime_opened >= DATE_TRUNC('week', NOW()) " + lc + " " + cc + " " +
+      "GROUP BY si.name, si.sales_group ORDER BY units DESC LIMIT 20"
+    );
+    const lwR = await database_js_1.db.query(
+      "SELECT si.name, SUM(si.quantity) as units FROM relay_sold_items si JOIN relay_transactions t ON t.id=si.transaction_id " +
+      "WHERE t.datetime_opened >= DATE_TRUNC('week', NOW()) - INTERVAL '7 days' " +
+      "AND t.datetime_opened < DATE_TRUNC('week', NOW()) " + lc + " " + cc + " GROUP BY si.name"
+    );
+    const lwMap = {};
+    lwR.rows.forEach(r => { lwMap[r.name] = Number(r.units); });
+
+    ok(res, twR.rows.map(r => ({
+      name: r.name,
+      sales_group: r.sales_group,
+      units_this_week: Number(r.units),
+      revenue_this_week: parseFloat(r.revenue||0).toFixed(2),
+      units_last_week: lwMap[r.name] || 0,
+      trend: !lwMap[r.name] ? 'new' : Number(r.units) > lwMap[r.name] ? 'up' : Number(r.units) < lwMap[r.name] ? 'down' : 'same',
+      change: Number(r.units) - (lwMap[r.name] || 0),
+    })));
+  } catch(e) { next(e); }
+});
+
 // ── SYNC SCHEDULER ──────────────────────────────────────────────
 async function runScheduledSyncs() {
   const now = new Date();
