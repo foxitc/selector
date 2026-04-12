@@ -1354,6 +1354,22 @@ async function syncRotaReadyStaff() {
     upserted++;
   }
   console.log('[RotaReady] Staff sync complete:', upserted, 'staff processed');
+
+  // Archive team members not seen in RotaReady for 30+ days
+  // (they remain in DB but marked inactive - will reactivate on next appearance)
+  try {
+    const archiveRes = await database_js_1.db.query(
+      "UPDATE team_members SET is_active=false " +
+      "WHERE is_active=true " +
+      "AND rota_id IS NOT NULL " +
+      "AND updated_at < NOW() - INTERVAL '30 days' " +
+      "AND id NOT IN (SELECT DISTINCT id FROM team_members WHERE updated_at >= NOW() - INTERVAL '30 days')"
+    );
+    if (archiveRes.rowCount > 0) {
+      console.log('[RotaReady] Archived', archiveRes.rowCount, 'inactive staff (30+ days)');
+    }
+  } catch(e) { console.error('[RotaReady] Archive error:', e.message); }
+
   return upserted;
 }
 
@@ -1874,6 +1890,65 @@ router.get('/cpl/user/:employeeId', auth, async (req, res, next) => {
   } catch(e) { next(e); }
 });
 
+
+// Team flex cost - based on covers vs staffing
+// Full version requires RotaReady Pay permissions
+router.get('/metrics/team/flex', auth, async (req, res, next) => {
+  try {
+    const { locationId } = req.query;
+    const locWhere = locationId ? "AND t.location_id='" + locationId + "'" : '';
+
+    // This week's covers and revenue
+    const salesR = await database_js_1.db.query(
+      "SELECT t.location_id, " +
+      "COUNT(DISTINCT t.id) as transactions, " +
+      "SUM(t.total_net_item_cost) as net_revenue, " +
+      "SUM(CASE WHEN si.sales_group='31' THEN si.quantity ELSE 0 END) as covers " +
+      "FROM relay_transactions t " +
+      "LEFT JOIN relay_sold_items si ON si.transaction_id = t.id " +
+      "WHERE t.datetime_opened >= DATE_TRUNC('week', NOW()) " + locWhere + " " +
+      "GROUP BY t.location_id"
+    );
+
+    // Active staff count per venue from RotaReady
+    const staffR = await database_js_1.db.query(
+      "SELECT venue_id, COUNT(*) as active_staff FROM team_members WHERE is_active=true GROUP BY venue_id"
+    );
+
+    const venueMap = {
+      '0001': 'e87b5986-0826-4464-ad62-e55175f9c3c4',
+      '0002': '38749619-c192-45d1-806b-2fdc5922adea',
+      '0003': 'd9657ea0-19c4-4793-9c0c-21fd4179ac56'
+    };
+
+    const result = salesR.rows.map(s => {
+      const venueId = venueMap[s.location_id];
+      const staff = staffR.rows.find(r => r.venue_id === venueId);
+      const activeStaff = Number(staff?.active_staff || 0);
+      const netRev = Number(s.net_revenue || 0);
+      const covers = Number(s.covers || 0);
+      // Target labour cost ~28% of net revenue (industry benchmark for gastro pubs)
+      const targetLabourCost = netRev * 0.28;
+      // Estimated actual cost (requires pay rates - placeholder at £11.50/hr avg × 35hrs)
+      const estimatedWeeklyCost = activeStaff * 11.50 * 35;
+      const flex = targetLabourCost - estimatedWeeklyCost;
+      return {
+        location_id: s.location_id,
+        net_revenue: netRev.toFixed(2),
+        covers,
+        active_staff: activeStaff,
+        target_labour_cost: targetLabourCost.toFixed(2),
+        estimated_weekly_cost: estimatedWeeklyCost.toFixed(2),
+        flex: flex.toFixed(2),
+        flex_pct: netRev > 0 ? ((flex / netRev) * 100).toFixed(1) : '0',
+        note: 'Estimated — enable Pay permissions in RotaReady for exact figures'
+      };
+    });
+
+    ok(res, result);
+  } catch(e) { next(e); }
+});
+
 // ── SYNC SCHEDULER ──────────────────────────────────────────────
 async function runScheduledSyncs() {
   const now = new Date();
@@ -1967,8 +2042,8 @@ async function runScheduledSyncs() {
     } catch(e) { console.error('[Scheduler] Google Places error:', e.message); }
   }
 
-  // CPL - daily at 08:00 UTC
-  if (hour === 8) {
+  // CPL - twice daily: 08:00 and 20:00 UTC
+  if (hour === 8 || hour === 20) {
     console.log('[Scheduler] CPL daily sync');
     try { await syncCPL(); console.log('[Scheduler] CPL sync complete'); } catch(e) { console.error('[Scheduler] CPL error:', e.message); }
   }
