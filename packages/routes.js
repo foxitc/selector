@@ -1353,6 +1353,43 @@ async function syncRotaReadyStaff() {
     ).catch(e => console.error('[RotaReady] Upsert error:', e.message));
     upserted++;
   }
+  // Sync pay/labour data
+  try {
+    const now = new Date();
+    // Calculate Monday of current week
+    const weekStart = new Date(now);
+    const dayOfWeek = weekStart.getUTCDay();
+    const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    weekStart.setUTCDate(weekStart.getUTCDate() + daysToMonday);
+    const startDate = weekStart.toISOString().split('T')[0];
+    const endDate = now.toISOString().split('T')[0];
+    console.log('[RotaReady] Pay sync date range:', startDate, 'to', endDate);
+    const payR = await axios.get('https://api.rotaready.com/report/signedOffHours?startDate='+startDate+'&endDate='+endDate, {headers});
+    const payItems = payR.data?.items || [];
+    const entityLoc = {gri:'0001',tap:'0002',tlh:'0003'};
+    let paySynced = 0;
+    for (const item of payItems) {
+      const loc = entityLoc[item.entityId];
+      if (!loc) continue;
+      for (const w of (item.work||[])) {
+        if (!w.representsBasicPay) continue;
+        const cp = w.calculatedPay || {};
+        const isSalaried = w.payAmount > 100;
+        await database_js_1.db.query(
+          "INSERT INTO rotaready_pay (user_id, entity_id, location_id, pay_date, basic_pay, total_pay, hours_paid, hourly_rate, is_salaried) " +
+          "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) " +
+          "ON CONFLICT (user_id, pay_date, entity_id) DO UPDATE SET basic_pay=$5, total_pay=$6, hours_paid=$7, synced_at=NOW()",
+          [item.userId, item.entityId, loc, item.date?.split('T')[0],
+           parseFloat(cp.base||0), parseFloat(cp.totalPay||0),
+           isSalaried ? 0 : parseFloat(w.durationPaid||0),
+           isSalaried ? 0 : parseFloat(w.payAmount||0), isSalaried]
+        ).catch(()=>{});
+        paySynced++;
+      }
+    }
+    console.log('[RotaReady] Pay records synced:', paySynced);
+  } catch(e) { console.error('[RotaReady] Pay sync error:', e.message); }
+
   console.log('[RotaReady] Staff sync complete:', upserted, 'staff processed');
 
   // Archive team members not seen in RotaReady for 30+ days
@@ -1899,57 +1936,38 @@ router.get('/metrics/team/flex', auth, async (req, res, next) => {
     const axios = (await import('axios')).default;
 
     // This week's revenue
+    // Use subquery to avoid row multiplication from sold_items join
     const salesR = await database_js_1.db.query(
-      "SELECT t.location_id, SUM(t.total_net_item_cost) as net_revenue, " +
-      "SUM(CASE WHEN si.sales_group='31' THEN si.quantity ELSE 0 END) as covers " +
-      "FROM relay_transactions t LEFT JOIN relay_sold_items si ON si.transaction_id=t.id " +
+      "SELECT t.location_id, " +
+      "SUM(t.total_net_item_cost) as net_revenue, " +
+      "(SELECT SUM(si.quantity) FROM relay_sold_items si JOIN relay_transactions t2 ON t2.id=si.transaction_id " +
+      " WHERE t2.location_id=t.location_id AND si.sales_group='31' AND t2.datetime_opened >= DATE_TRUNC('week', NOW())) as covers " +
+      "FROM relay_transactions t " +
       "WHERE t.datetime_opened >= DATE_TRUNC('week', NOW()) " + locWhere + " GROUP BY t.location_id"
     );
 
-    // Get real pay data from RotaReady
+    // Get pay data from database (synced hourly by RotaReady sync)
     let payByEntity = {};
     try {
-      const realm = process.env['ROTAREADY_REALM_ID'];
-      const key = process.env['ROTAREADY_CONSUMER_KEY'];
-      const secret = process.env['ROTAREADY_CONSUMER_SECRET'];
-      const auth = Buffer.from(realm+':'+key+':'+secret).toString('base64');
-      const tokenR = await axios.post('https://api.rotaready.com/oauth/token',
-        'grant_type=client_credentials',
-        {headers:{'Authorization':'Basic '+auth,'Content-Type':'application/x-www-form-urlencoded'}}
+      const payR = await database_js_1.db.query(
+        "SELECT location_id, " +
+        "COUNT(DISTINCT user_id) as staff, " +
+        "SUM(basic_pay) as basic, " +
+        "SUM(total_pay) as total, " +
+        "SUM(hours_paid) as hours " +
+        "FROM rotaready_pay " +
+        "WHERE pay_date >= DATE_TRUNC('week', CURRENT_DATE) " +
+        "GROUP BY location_id"
       );
-      const rrToken = tokenR.data.access_token;
-      const rrHeaders = {'Authorization':'Bearer '+rrToken,'Content-Type':'application/json','Time-Zone':'Europe/London'};
-      const weekStart = new Date(); weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1);
-      const startDate = weekStart.toISOString().split('T')[0];
-      const endDate = new Date().toISOString().split('T')[0];
-      const payR = await axios.get('https://api.rotaready.com/report/signedOffHours?startDate='+startDate+'&endDate='+endDate, {headers:rrHeaders});
-      const items = payR.data.items || [];
-      const entityLoc = {gri:'0001',tap:'0002',tlh:'0003'};
-      items.forEach(item => {
-        const loc = entityLoc[item.entityId];
-        if (!loc) return;
-        if (!payByEntity[loc]) payByEntity[loc] = {basic:0, total:0, staff:new Set(), hours:0};
-        payByEntity[loc].staff.add(item.userId);
-        (item.work||[]).forEach(w => {
-          if (w.representsBasicPay) {
-            const cp = w.calculatedPay || {};
-            // Only count hourly staff (salaried show annual rate >1000)
-            if (w.payAmount < 100) {
-              payByEntity[loc].basic += parseFloat(cp.base||0);
-              payByEntity[loc].total += parseFloat(cp.totalPay||0);
-              payByEntity[loc].hours += parseFloat(w.durationPaid||0);
-            } else {
-              // Salaried: use base pay directly
-              payByEntity[loc].basic += parseFloat(cp.base||0);
-              payByEntity[loc].total += parseFloat(cp.totalPay||0);
-            }
-          }
-        });
+      payR.rows.forEach(r => {
+        payByEntity[r.location_id] = {
+          staff: Number(r.staff),
+          basic: parseFloat(r.basic||0),
+          total: parseFloat(r.total||0),
+          hours: parseFloat(r.hours||0)
+        };
       });
-      Object.keys(payByEntity).forEach(k => {
-        payByEntity[k].staff = payByEntity[k].staff.size;
-      });
-    } catch(e) { console.error('[Flex] RotaReady pay error:', e.message); }
+    } catch(e) { console.error('[Flex] Pay DB error:', e.message); }
 
     const result = salesR.rows.map(s => {
       const netRev = Number(s.net_revenue||0);
