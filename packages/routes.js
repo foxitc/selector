@@ -1891,60 +1891,87 @@ router.get('/cpl/user/:employeeId', auth, async (req, res, next) => {
 });
 
 
-// Team flex cost - based on covers vs staffing
-// Full version requires RotaReady Pay permissions
+// Team flex cost - using real RotaReady signed-off hours data
 router.get('/metrics/team/flex', auth, async (req, res, next) => {
   try {
     const { locationId } = req.query;
     const locWhere = locationId ? "AND t.location_id='" + locationId + "'" : '';
+    const axios = (await import('axios')).default;
 
-    // This week's covers and revenue
+    // This week's revenue
     const salesR = await database_js_1.db.query(
-      "SELECT t.location_id, " +
-      "COUNT(DISTINCT t.id) as transactions, " +
-      "SUM(t.total_net_item_cost) as net_revenue, " +
+      "SELECT t.location_id, SUM(t.total_net_item_cost) as net_revenue, " +
       "SUM(CASE WHEN si.sales_group='31' THEN si.quantity ELSE 0 END) as covers " +
-      "FROM relay_transactions t " +
-      "LEFT JOIN relay_sold_items si ON si.transaction_id = t.id " +
-      "WHERE t.datetime_opened >= DATE_TRUNC('week', NOW()) " + locWhere + " " +
-      "GROUP BY t.location_id"
+      "FROM relay_transactions t LEFT JOIN relay_sold_items si ON si.transaction_id=t.id " +
+      "WHERE t.datetime_opened >= DATE_TRUNC('week', NOW()) " + locWhere + " GROUP BY t.location_id"
     );
 
-    // Active staff count per venue from RotaReady
-    const staffR = await database_js_1.db.query(
-      "SELECT venue_id, COUNT(*) as active_staff FROM team_members WHERE is_active=true GROUP BY venue_id"
-    );
-
-    const venueMap = {
-      '0001': 'e87b5986-0826-4464-ad62-e55175f9c3c4',
-      '0002': '38749619-c192-45d1-806b-2fdc5922adea',
-      '0003': 'd9657ea0-19c4-4793-9c0c-21fd4179ac56'
-    };
+    // Get real pay data from RotaReady
+    let payByEntity = {};
+    try {
+      const realm = process.env['ROTAREADY_REALM_ID'];
+      const key = process.env['ROTAREADY_CONSUMER_KEY'];
+      const secret = process.env['ROTAREADY_CONSUMER_SECRET'];
+      const auth = Buffer.from(realm+':'+key+':'+secret).toString('base64');
+      const tokenR = await axios.post('https://api.rotaready.com/oauth/token',
+        'grant_type=client_credentials',
+        {headers:{'Authorization':'Basic '+auth,'Content-Type':'application/x-www-form-urlencoded'}}
+      );
+      const rrToken = tokenR.data.access_token;
+      const rrHeaders = {'Authorization':'Bearer '+rrToken,'Content-Type':'application/json','Time-Zone':'Europe/London'};
+      const weekStart = new Date(); weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1);
+      const startDate = weekStart.toISOString().split('T')[0];
+      const endDate = new Date().toISOString().split('T')[0];
+      const payR = await axios.get('https://api.rotaready.com/report/signedOffHours?startDate='+startDate+'&endDate='+endDate, {headers:rrHeaders});
+      const items = payR.data.items || [];
+      const entityLoc = {gri:'0001',tap:'0002',tlh:'0003'};
+      items.forEach(item => {
+        const loc = entityLoc[item.entityId];
+        if (!loc) return;
+        if (!payByEntity[loc]) payByEntity[loc] = {basic:0, total:0, staff:new Set(), hours:0};
+        payByEntity[loc].staff.add(item.userId);
+        (item.work||[]).forEach(w => {
+          if (w.representsBasicPay) {
+            const cp = w.calculatedPay || {};
+            // Only count hourly staff (salaried show annual rate >1000)
+            if (w.payAmount < 100) {
+              payByEntity[loc].basic += parseFloat(cp.base||0);
+              payByEntity[loc].total += parseFloat(cp.totalPay||0);
+              payByEntity[loc].hours += parseFloat(w.durationPaid||0);
+            } else {
+              // Salaried: use base pay directly
+              payByEntity[loc].basic += parseFloat(cp.base||0);
+              payByEntity[loc].total += parseFloat(cp.totalPay||0);
+            }
+          }
+        });
+      });
+      Object.keys(payByEntity).forEach(k => {
+        payByEntity[k].staff = payByEntity[k].staff.size;
+      });
+    } catch(e) { console.error('[Flex] RotaReady pay error:', e.message); }
 
     const result = salesR.rows.map(s => {
-      const venueId = venueMap[s.location_id];
-      const staff = staffR.rows.find(r => r.venue_id === venueId);
-      const activeStaff = Number(staff?.active_staff || 0);
-      const netRev = Number(s.net_revenue || 0);
-      const covers = Number(s.covers || 0);
-      // Target labour cost ~28% of net revenue (industry benchmark for gastro pubs)
-      const targetLabourCost = netRev * 0.28;
-      // Estimated actual cost (requires pay rates - placeholder at £11.50/hr avg × 35hrs)
-      const estimatedWeeklyCost = activeStaff * 11.50 * 35;
-      const flex = targetLabourCost - estimatedWeeklyCost;
+      const netRev = Number(s.net_revenue||0);
+      const covers = Number(s.covers||0);
+      const pay = payByEntity[s.location_id] || {basic:0, total:0, staff:0};
+      const targetLabour = netRev * 0.28; // 28% labour cost target
+      const actualLabour = pay.basic;
+      const flex = targetLabour - actualLabour;
       return {
         location_id: s.location_id,
         net_revenue: netRev.toFixed(2),
         covers,
-        active_staff: activeStaff,
-        target_labour_cost: targetLabourCost.toFixed(2),
-        estimated_weekly_cost: estimatedWeeklyCost.toFixed(2),
+        staff_worked: pay.staff,
+        hours_worked: pay.hours ? pay.hours.toFixed(1) : null,
+        basic_pay: actualLabour.toFixed(2),
+        total_cost: pay.total.toFixed(2),
+        target_labour: targetLabour.toFixed(2),
+        labour_pct: netRev > 0 ? ((actualLabour/netRev)*100).toFixed(1) : '0',
         flex: flex.toFixed(2),
-        flex_pct: netRev > 0 ? ((flex / netRev) * 100).toFixed(1) : '0',
-        note: 'Estimated — enable Pay permissions in RotaReady for exact figures'
+        flex_direction: flex > 0 ? 'under' : 'over',
       };
     });
-
     ok(res, result);
   } catch(e) { next(e); }
 });
