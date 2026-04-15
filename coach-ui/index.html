@@ -528,6 +528,8 @@ select.fi { cursor:pointer; appearance:none; }
 
       <!-- DASHBOARD -->
       <div id="v-dashboard" class="view active">
+        <span id="greeting-name" style="display:none"></span>
+        <span id="greeting-time" style="display:none"></span>
 
         <!-- Top metrics bar - dark style like reference -->
         <div style="background:var(--ink);border-radius:10px;padding:14px 20px;margin-bottom:16px;display:grid;grid-template-columns:repeat(4,1fr) auto;gap:0;align-items:center">
@@ -985,7 +987,7 @@ function bootApp() {
     document.getElementById('venue-sel').value = 'all';
   }
 
-  document.getElementById('greeting-name').textContent = SESSION.name;
+  const gn = document.getElementById('greeting-name'); if(gn) gn.textContent = SESSION.name;
   updateGreeting();
   init();
 }
