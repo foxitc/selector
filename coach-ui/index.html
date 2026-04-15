@@ -1196,6 +1196,20 @@ function nav(id) {
   if (id==='clerks') loadClerks();
 }
 
+function switchVenueBtn(venue, btn) {
+  document.querySelectorAll('.vs-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentVenue = venue;
+  const sel = document.getElementById('venue-sel');
+  if (sel) sel.value = venue;
+  const activeView = document.querySelector('.view.active');
+  const vid = activeView ? activeView.id.replace('v-','') : 'dashboard';
+  if (vid === 'dashboard') loadDashboard();
+  else if (vid === 'scores') loadScores();
+  else if (vid === 'squad') loadSquad();
+  else if (vid === 'products') loadProductIntel();
+  else loadDashboard();
+}
 function switchVenue() {
   currentVenue = document.getElementById('venue-sel').value;
   document.getElementById('tb-venue-name').textContent = VENUE_NAMES[currentVenue] || 'All Venues';
