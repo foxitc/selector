@@ -1269,7 +1269,7 @@ async function loadDashboard() {
         if (!vn) return;
         if (!venueSales[vn]) venueSales[vn] = {tx:0, rev:0, covers:0};
         venueSales[vn].tx++;
-        venueSales[vn].rev += Number(t.total_gross_item_cost||0);
+        venueSales[vn].rev += Number(t.total_net_item_cost||0);
         venueSales[vn].covers += Number(t.covers||0);
       });
     } catch(e) {}
@@ -1305,7 +1305,9 @@ async function loadDashboard() {
        const grating = googleRatings[locId] || null;
        const wxIcons = {'01d':'☀️','01n':'🌙','02d':'🌤️','02n':'🌤️','03d':'🌥️','03n':'🌥️','04d':'☁️','04n':'☁️','09d':'🌧️','09n':'🌧️','10d':'🌦️','10n':'🌦️','11d':'⛈️','11n':'⛈️','13d':'❄️','13n':'❄️','50d':'🌫️','50n':'🌫️'};
        const wxStr = wx ? (wxIcons[wx.icon]||'🌡️') + ' ' + (wx.avg_temp_c||wx.avg_temp||'') + '°C' : '';
-      const sph = vs.covers > 0 ? '£'+(vs.rev/vs.covers).toFixed(2) : '—';
+       const asphData = asphByLoc[locId] || null;
+       const mains = asphData ? Number(asphData.mains_sold||0) : 0;
+       const asphNet = asphData && mains > 0 ? '£'+(Number(asphData.dry_revenue||0)/mains).toFixed(2) : (vs.covers > 0 ? '£'+(vs.rev/vs.covers).toFixed(2) : '—');
       const dot = vs.tx > 0 ? 'var(--teal)' : 'var(--coral)';
       const dotBg = vs.tx > 0 ? 'var(--teal-bg)' : 'var(--coral-bg)';
       return '<div class="venue-card" onclick="nav(\'venues\')" style="position:relative">'
@@ -1328,9 +1330,9 @@ async function loadDashboard() {
           + '</div>'
         + '</div>'
         + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">'
-          + '<div class="vm"><div class="vm-label">Covers</div><div class="vm-val">'+vs.covers+'</div></div>'
-          + '<div class="vm"><div class="vm-label">Revenue</div><div class="vm-val">£'+vs.rev.toFixed(0)+'</div></div>'
-          + '<div class="vm"><div class="vm-label">Spend/Head</div><div class="vm-val">'+sph+'</div></div>'
+          + '<div class="vm"><div class="vm-label">Mains</div><div class="vm-val">'+(mains||'—')+'</div></div>'
+          + '<div class="vm"><div class="vm-label">Net Revenue</div><div class="vm-val">£'+vs.rev.toFixed(0)+'</div></div>'
+          + '<div class="vm"><div class="vm-label">Dry ASPH</div><div class="vm-val">'+asphNet+'</div></div>'
         + '</div>'
         + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">'
           + (grating ? '<div class="vm"><div class="vm-label">Google ★</div><div class="vm-val" style="color:#f59e0b">'+grating.rating+'★ <span style="font-size:10px;color:var(--fg3)">'+Number(grating.total_reviews).toLocaleString()+'</span></div></div>' : '')
