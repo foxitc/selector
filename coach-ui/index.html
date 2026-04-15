@@ -528,113 +528,87 @@ select.fi { cursor:pointer; appearance:none; }
 
       <!-- DASHBOARD -->
       <div id="v-dashboard" class="view active">
-        <div class="ph">
-          <div>
-            <div class="ph-t">Good <span id="greeting-time">morning</span>, <span id="greeting-name">—</span></div>
-            <div class="ph-s" id="dash-date">Loading...</div>
+
+        <!-- Top metrics bar - dark style like reference -->
+        <div style="background:var(--ink);border-radius:10px;padding:14px 20px;margin-bottom:16px;display:grid;grid-template-columns:repeat(4,1fr) auto;gap:0;align-items:center">
+          <div style="border-right:1px solid rgba(255,255,255,0.1);padding-right:20px">
+            <div style="font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:rgba(255,255,255,0.45);margin-bottom:4px">Transactions</div>
+            <div style="font-family:var(--display);font-size:22px;font-weight:700;color:#fff" id="s-tx">—</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.55);margin-top:2px" id="s-txn">Loading...</div>
           </div>
-          <button class="btn btn-ghost" onclick="loadDashboard()">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
-            Refresh
-          </button>
+          <div style="border-right:1px solid rgba(255,255,255,0.1);padding:0 20px">
+            <div style="font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:rgba(255,255,255,0.45);margin-bottom:4px">Active Staff</div>
+            <div style="font-family:var(--display);font-size:22px;font-weight:700;color:#fff" id="s-staff">—</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.55);margin-top:2px" id="s-staffn">Across all venues</div>
+          </div>
+          <div style="border-right:1px solid rgba(255,255,255,0.1);padding:0 20px">
+            <div style="font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:rgba(255,255,255,0.45);margin-bottom:4px">Trail Compliance</div>
+            <div style="font-family:var(--display);font-size:22px;font-weight:700;color:#fff" id="s-trail">—</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.55);margin-top:2px" id="s-trailn">This week</div>
+          </div>
+          <div style="padding:0 20px">
+            <div style="font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:rgba(255,255,255,0.45);margin-bottom:4px">Unmatched Clerks</div>
+            <div style="font-family:var(--display);font-size:22px;font-weight:700;color:var(--coral)" id="s-clerks">—</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.55);margin-top:2px" id="s-clerksn">Needs attention</div>
+          </div>
+          <div style="padding-left:20px;text-align:right">
+            <button class="btn btn-ghost btn-sm" onclick="loadDashboard()" style="color:rgba(255,255,255,0.6);border-color:rgba(255,255,255,0.15)">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
+              Refresh
+            </button>
+            <div style="font-size:10px;color:rgba(255,255,255,0.35);margin-top:6px" id="dash-date"></div>
+          </div>
         </div>
 
-        <div class="stats">
-          <div class="stat">
-            <div class="stat-icon" style="background:var(--teal-bg)">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
-            </div>
-            <div class="stat-label">Today's Transactions</div>
-            <div class="stat-val" id="s-tx">—</div>
-            <div class="stat-note" id="s-txn">Loading...</div>
+        <!-- Flex cost banner -->
+        <div id="context-banner" style="display:none;margin-bottom:16px;background:var(--coral);border-radius:10px;padding:14px 20px;display:flex;align-items:center;justify-content:space-between">
+          <div style="display:flex;align-items:center;gap:10px">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+            <span style="font-size:11px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:rgba(255,255,255,0.85)" id="context-message">Loading...</span>
           </div>
-          <div class="stat">
-            <div class="stat-icon" style="background:var(--gold-bg)">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-            </div>
-            <div class="stat-label">Active Staff</div>
-            <div class="stat-val" id="s-staff">—</div>
-            <div class="stat-note" id="s-staffn">Across all venues</div>
-          </div>
-          <div class="stat">
-            <div class="stat-icon" style="background:#e8f0fe">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
-            </div>
-            <div class="stat-label">Trail Compliance</div>
-            <div class="stat-val" id="s-trail">—</div>
-            <div class="stat-note" id="s-trailn">w/e 15 Mar 2026</div>
-          </div>
-          <div class="stat">
-            <div class="stat-icon" style="background:var(--coral-bg)">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--coral)" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            </div>
-            <div class="stat-label">Unmatched Clerks</div>
-            <div class="stat-val" id="s-clerks">—</div>
-            <div class="stat-note warn" id="s-clerksn">Loading...</div>
-          </div>
+          <div id="context-weather" style="display:none"></div>
         </div>
 
         <!-- Venue cards -->
-        <div class="g3" id="venue-cards">
+        <div class="g3" id="venue-cards" style="margin-bottom:16px">
           <div class="empty" style="grid-column:1/-1">Loading venues...</div>
         </div>
 
-        <!-- Context Banner -->
-        <div id="context-banner" style="display:none;margin-bottom:14px;padding:10px 16px;background:linear-gradient(135deg,#1a3a5c,#2d5a8e);color:white;border-radius:8px;font-size:13px;display:flex;align-items:center;gap:10px">
-          <span style="font-size:18px" id="context-icon">📅</span>
-          <div>
-            <div id="context-message" style="font-weight:500"></div>
-            <div id="context-weather" style="display:none"></div>
-          </div>
-        </div>
+        <!-- Two column layout: Insights + Bookings -->
+        <div style="display:grid;grid-template-columns:1fr 1.6fr;gap:14px;margin-bottom:14px">
 
-        <!-- Bookings Today -->
-        <div class="card" style="margin-bottom:14px">
-          <div class="card-h">
-            <div class="card-t">📅 Bookings Today</div>
-            <span style="font-size:11px;color:var(--fg3)" id="bookings-updated">Loading...</span>
-          </div>
-          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px" id="bookings-today-grid">
-            <div class="empty">Loading...</div>
-          </div>
-        </div>
-
-        <!-- AI Insights -->
-        <div class="card">
-          <div class="card-h">
-            <div class="card-t">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-              The Selector — AI Insights
+          <!-- Left: AI Insights -->
+          <div class="card" style="margin:0">
+            <div class="card-h">
+              <div class="card-t" style="display:flex;align-items:center;gap:6px">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                Selector Insights
+              </div>
+              <button class="btn btn-ghost btn-sm" onclick="loadAIInsights()">Generate</button>
             </div>
-            <button class="btn btn-ghost btn-sm" onclick="loadAIInsights()">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
-              Generate Insights
-            </button>
+            <div id="ai-insights-body" style="padding:16px;font-size:12px;color:var(--ink4);text-align:center;line-height:1.6">
+              Click Generate to analyse today's performance
+            </div>
           </div>
-          <div id="ai-insights-body" style="padding:20px;text-align:center;font-size:13px;color:var(--ink4)">
-            Click Generate Insights to analyse today's performance across all three venues
+
+          <!-- Right: Bookings Today -->
+          <div class="card" style="margin:0">
+            <div class="card-h">
+              <div class="card-t">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2" style="margin-right:4px"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                Bookings Today
+              </div>
+              <span style="font-size:11px;color:var(--ink4)" id="bookings-updated">Loading...</span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:4px 0" id="bookings-today-grid">
+              <div class="empty" style="grid-column:1/-1">Loading...</div>
+            </div>
           </div>
+
         </div>
+
       </div>
 
-      <!-- VENUES -->
-      <div id="v-venues" class="view">
-        <div class="ph">
-          <div><div class="ph-t">Venues</div><div class="ph-s">Performance overview across all three pubs</div></div>
-        </div>
-        <div class="g3" id="venues-detail">
-          <div class="empty" style="grid-column:1/-1">Loading...</div>
-        </div>
-        <div class="card">
-          <div class="card-h"><div class="card-t">Recent Transactions by Venue</div></div>
-          <table class="tbl">
-            <thead><tr><th>Venue</th><th>Transactions</th><th>Total Spend</th><th>Avg per Transaction</th><th>Status</th></tr></thead>
-            <tbody id="venue-tx-tbl"><tr><td colspan="5" class="empty">Loading...</td></tr></tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- TEAM SCORES -->
       <div id="v-scores" class="view">
         <div class="ph">
           <div><div class="ph-t">Team Scores</div><div class="ph-s">Powered by The Selector · Live data</div></div>
