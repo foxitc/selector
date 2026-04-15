@@ -1591,7 +1591,7 @@ router.get('/products/intel', auth, async (req, res, next) => {
   } catch(e) { next(e); }
 });
 
-// ASPH by venue endpoint
+// ASPH by venue endpoint - all food revenue / mains sold
 router.get('/metrics/asph', auth, async (req, res, next) => {
   try {
     const { period } = req.query;
@@ -1599,9 +1599,9 @@ router.get('/metrics/asph', auth, async (req, res, next) => {
     const r = await database_js_1.db.query(
       "SELECT t.location_id, " +
       "SUM(si.quantity) FILTER (WHERE si.sales_group='31' AND si.individual_net_price >= 5) as mains_sold, " +
-      "ROUND(SUM(si.total_net_price) FILTER (WHERE si.sales_group='31' AND si.individual_net_price >= 5)::numeric, 2) as dry_revenue, " +
+      "ROUND(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('29','30','31','32','33','34','35'))::numeric, 2) as dry_revenue, " +
       "ROUND(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('1','2','3','4','5','6','8','9','10','15','17','18','19','21','22','23','26','27','28','38'))::numeric, 2) as wet_revenue, " +
-      "ROUND(SUM(si.total_net_price) FILTER (WHERE si.sales_group='31' AND si.individual_net_price >= 5) / " +
+      "ROUND(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('29','30','31','32','33','34','35')) / " +
       "NULLIF(SUM(si.quantity) FILTER (WHERE si.sales_group='31' AND si.individual_net_price >= 5), 0)::numeric, 2) as asph " +
       "FROM relay_sold_items si " +
       "JOIN relay_transactions t ON t.id=si.transaction_id " +

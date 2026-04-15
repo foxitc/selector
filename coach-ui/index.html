@@ -1287,8 +1287,8 @@ async function loadDashboard() {
        if (gr.data?.ratings) gr.data.ratings.forEach(r => { googleRatings[r.location_id] = r; });
      } catch(e) {}
      try {
-       const ar = await api('/products/intel?period=week');
-       if (ar.data?.byVenue) ar.data.byVenue.forEach(v => { asphByLoc[v.location_id] = v; });
+       const ar = await api('/metrics/asph?period=week');
+       if (Array.isArray(ar.data)) ar.data.forEach(v => { asphByLoc[v.location_id] = v; });
      } catch(e) {}
 
 
