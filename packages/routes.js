@@ -2059,7 +2059,7 @@ async function calculateScores(period, locationId) {
   for (const clerk of clerksR.rows) {
     const mR = await database_js_1.db.query(
       "SELECT COUNT(DISTINCT t.id) as txns, " +
-      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group='31'),0) as mains, " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group='31' AND si.individual_net_price >= 5),0) as mains, " +
       "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group='32'),0) as sides, " +
       "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group='29'),0) as nibbles, " +
       "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group='30'),0) as starters, " +
@@ -2072,7 +2072,7 @@ async function calculateScores(period, locationId) {
       "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('3','4','5','6')),0) as all_wine, " +
       "COALESCE(SUM(si.quantity) FILTER (WHERE LOWER(si.name) LIKE '%water%' AND si.sales_group NOT IN ('30000','20')),0) as water, " +
       "COALESCE(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('1','2','3','4','5','6','8','9','10','15','17','18','19','21','22','23','26','27','28','38')),0) as wet_rev, " +
-      "COALESCE(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('29','30','31','32','33','35')),0) as dry_rev " +
+      "COALESCE(SUM(si.total_net_price) FILTER (WHERE si.sales_group='31' AND si.individual_net_price >= 5),0) as dry_rev " +
       "FROM relay_transactions t JOIN relay_sold_items si ON si.transaction_id=t.id " +
       "WHERE t.closed_by_clerk_id=$1 AND t.location_id=$2 " + pc + " " + lc,
       [clerk.clerk_id, clerk.location_id]
