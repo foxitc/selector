@@ -105,17 +105,35 @@ router.get('/venues', auth, async (req, res, next) => {
 router.get('/squad', auth, async (req, res, next) => {
     try {
         const user = req.user;
-        const venueId = req.query['venueId'] ?? user.venueId ?? undefined;
-        const result = await database_js_1.db.query(`SELECT tm.*, v.name AS venue_name, v.short_name AS venue_short_name,
-              ss.total_score, ss.tier, ss.programme_status, ss.score_change,
-              ss.assessment_score, ss.epos_score, ss.operational_score,
-              ss.coaching_narrative, ss.rank_in_venue
-       FROM team_members tm
-       JOIN venues v ON v.id = tm.venue_id
-       LEFT JOIN selector_scores ss ON ss.team_member_id = tm.id AND ss.week_ending = $2
-       WHERE tm.is_active = true
-         AND ($1::uuid IS NULL OR tm.venue_id = $1)
-       ORDER BY ss.rank_in_venue ASC NULLS LAST, tm.last_name, tm.first_name`, [venueId ?? null, weekStr()]);
+        // Support both venueId (UUID) and venue/locationId (location code)
+        const locMap = {'griffin':'0001','taprun':'0002','longhop':'0003'};
+        const locationId = req.query['locationId'] || locMap[req.query['venue']] || null;
+        const venueUuidMap = {'0001':'e87b5986-0826-4464-ad62-e55175f9c3c4','0002':'38749619-c192-45d1-806b-2fdc5922adea','0003':'d9657ea0-19c4-4793-9c0c-21fd4179ac56'};
+        const venueId = req.query['venueId'] ?? (locationId ? venueUuidMap[locationId] : null) ?? user.venueId ?? null;
+        
+        const result = await database_js_1.db.query(
+          "SELECT tm.*, v.name AS venue_name, v.short_name AS venue_short_name, " +
+          "cvm.location_id, " +
+          "ss.total_score, ss.tier, ss.programme_status, ss.score_change, " +
+          "ss.assessment_score, ss.epos_score, ss.operational_score, " +
+          "ss.coaching_narrative, ss.rank_in_venue, " +
+          "cu.employee_id as cpl_employee_id, " +
+          "(SELECT COUNT(*) FROM cpl_training ct WHERE ct.employee_id=cu.employee_id AND ct.status='Complete') as cpl_completed, " +
+          "(SELECT COUNT(*) FROM cpl_training ct WHERE ct.employee_id=cu.employee_id) as cpl_total, " +
+          "(SELECT ROUND(AVG(ct.score)::numeric,0) FROM cpl_training ct WHERE ct.employee_id=cu.employee_id AND ct.status='Complete') as cpl_avg_score, " +
+          "(SELECT ct.status FROM cpl_training ct WHERE ct.employee_id=cu.employee_id AND ct.course_name LIKE '%Food Safety%' LIMIT 1) as food_safety_status, " +
+          "(SELECT ct.status FROM cpl_training ct WHERE ct.employee_id=cu.employee_id AND ct.course_name LIKE '%Allergen%' LIMIT 1) as allergen_status, " +
+          "(SELECT ct.status FROM cpl_training ct WHERE ct.employee_id=cu.employee_id AND ct.course_name LIKE '%Batting Order%' LIMIT 1) as induction_status, " +
+          "(SELECT ct.status FROM cpl_training ct WHERE ct.employee_id=cu.employee_id AND ct.course_name LIKE '%Induction%' LIMIT 1) as cw_induction_status " +
+          "FROM team_members tm " +
+          "JOIN venues v ON v.id=tm.venue_id " +
+          "LEFT JOIN connector_venue_mappings cvm ON cvm.venue_id=tm.venue_id AND cvm.connector='relay' " +
+          "LEFT JOIN selector_scores ss ON ss.team_member_id=tm.id AND ss.week_ending=$2 " +
+          "LEFT JOIN cpl_users cu ON LOWER(cu.first_name)=LOWER(tm.first_name) AND LOWER(cu.last_name)=LOWER(tm.last_name) AND cu.active=true " +
+          "WHERE tm.is_active=true AND ($1::uuid IS NULL OR tm.venue_id=$1) " +
+          "ORDER BY tm.selector_score DESC NULLS LAST, tm.first_name",
+          [venueId, weekStr()]
+        );
         ok(res, result.rows);
     }
     catch (e) {

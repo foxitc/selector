@@ -808,25 +808,55 @@ select.fi { cursor:pointer; appearance:none; }
       <!-- SQUAD -->
       <div id="v-squad" class="view">
         <div class="ph">
-          <div><div class="ph-t">Squad</div><div class="ph-s">Team members across all venues</div></div>
-          <button class="btn btn-teal" onclick="openM('add-member')">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Add Member
-          </button>
+          <div><div class="ph-t">Squad</div><div class="ph-s">Team members · Selector scores · CPL compliance</div></div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select id="squad-venue-filter" onchange="loadSquad()" class="btn btn-ghost btn-sm" style="cursor:pointer">
+              <option value="">All Venues</option>
+              <option value="griffin">Griffin Inn</option>
+              <option value="taprun">Tap & Run</option>
+              <option value="longhop">Long Hop</option>
+            </select>
+            <select id="squad-filter" onchange="renderSquad()" class="btn btn-ghost btn-sm" style="cursor:pointer">
+              <option value="all">All Staff</option>
+              <option value="scored">Scored only</option>
+              <option value="cpl-gap">CPL Gaps</option>
+            </select>
+          </div>
         </div>
-        <div class="alert al-teal" style="margin-bottom:20px">
-          Connect RotaReady to automatically import your full staff list. Once connected, team members will appear here with their roles, venues and shift patterns.
+
+        <!-- Summary stats -->
+        <div class="stats" style="grid-template-columns:repeat(5,1fr);margin-bottom:16px" id="squad-stats">
+          <div class="stat"><div class="stat-label">Total Staff</div><div class="stat-val" id="sq-total">—</div></div>
+          <div class="stat"><div class="stat-label">Scored</div><div class="stat-val" id="sq-scored">—</div></div>
+          <div class="stat"><div class="stat-label">CPL Linked</div><div class="stat-val" id="sq-cpl">—</div></div>
+          <div class="stat"><div class="stat-label">Food Safety ✓</div><div class="stat-val" id="sq-fs" style="color:var(--teal)">—</div></div>
+          <div class="stat"><div class="stat-label">Food Safety ✗</div><div class="stat-val" id="sq-fs-fail" style="color:var(--coral)">—</div></div>
         </div>
+
         <div class="card">
-          <div class="card-h"><div class="card-t">Team Members</div><span style="font-size:12px;color:var(--ink4)" id="squad-count">—</span></div>
+          <div class="card-h">
+            <div class="card-t">Team Members</div>
+            <span style="font-size:11px;color:var(--ink4)" id="squad-count">Loading...</span>
+          </div>
           <table class="tbl">
-            <thead><tr><th>Name</th><th>Venue</th><th>Role</th><th>Clerk ID</th><th>Status</th></tr></thead>
-            <tbody id="squad-tbl"><tr><td colspan="5" class="empty">No team members yet — connect RotaReady to import</td></tr></tbody>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Venue</th>
+                <th>Score</th>
+                <th>Tier</th>
+                <th>CPL Courses</th>
+                <th>Avg Score</th>
+                <th>Food Safety</th>
+                <th>Allergen</th>
+                <th>Induction</th>
+              </tr>
+            </thead>
+            <tbody id="squad-tbody"><tr><td colspan="9" class="empty">Loading...</td></tr></tbody>
           </table>
         </div>
       </div>
 
-      <!-- ASSESSMENTS -->
       <div id="v-assessments" class="view">
         <div class="ph">
           <div><div class="ph-t">Assessments</div><div class="ph-s">Weekly manager assessments for The Selector</div></div>
@@ -1155,6 +1185,72 @@ async function loadScores() {
           + '<td class="mono">' + (s.actuals?.named_review||0) + '</td>'
           + '</tr>').join('');
   } catch(e) { console.error('Scores error:', e); }
+}
+
+
+let squadData = [];
+
+async function loadSquad() {
+  const venue = document.getElementById('squad-venue-filter')?.value || '';
+  const venueParam = venue ? '?venue=' + venue : '';
+  try {
+    const r = await api('/squad' + venueParam);
+    squadData = r.data || [];
+    renderSquad();
+  } catch(e) { console.error('Squad error:', e); }
+}
+
+function renderSquad() {
+  const filter = document.getElementById('squad-filter')?.value || 'all';
+  let data = squadData;
+  if (filter === 'scored') data = data.filter(m => m.selector_score);
+  if (filter === 'cpl-gap') data = data.filter(m => m.cpl_total > 0 && m.food_safety_status !== 'Complete');
+
+  // Stats
+  const total = squadData.length;
+  const scored = squadData.filter(m => m.selector_score).length;
+  const cplLinked = squadData.filter(m => m.cpl_total > 0).length;
+  const fsOk = squadData.filter(m => m.food_safety_status === 'Complete').length;
+  const fsFail = squadData.filter(m => m.cpl_total > 0 && m.food_safety_status !== 'Complete').length;
+  document.getElementById('sq-total').textContent = total;
+  document.getElementById('sq-scored').textContent = scored;
+  document.getElementById('sq-cpl').textContent = cplLinked;
+  document.getElementById('sq-fs').textContent = fsOk;
+  document.getElementById('sq-fs-fail').textContent = fsFail;
+  document.getElementById('squad-count').textContent = data.length + ' members';
+
+  const tierColors = {'could-say':'var(--teal)','should-say':'var(--gold)','have-to':'var(--coral)','review':'var(--ink4)'};
+  const tierLabels = {'could-say':'Could Say','should-say':'Should Say','have-to':'Have To','review':'Review'};
+
+  function statusBadge(status) {
+    if (!status) return '<span style="color:var(--ink4)">—</span>';
+    if (status === 'Complete') return '<span style="color:var(--teal);font-weight:600">✓</span>';
+    return '<span style="color:var(--coral);font-weight:600">✗</span>';
+  }
+
+  document.getElementById('squad-tbody').innerHTML = data.length === 0
+    ? '<tr><td colspan="9" class="empty">No team members found</td></tr>'
+    : data.map(m => {
+        const score = m.selector_score ? Number(m.selector_score).toFixed(0) : '—';
+        const tier = m.selector_tier || m.tier;
+        const tierColor = tierColors[tier] || 'var(--ink4)';
+        const tierLabel = tierLabels[tier] || '—';
+        const cpl = m.cpl_total > 0 ? m.cpl_completed + '/' + m.cpl_total : '—';
+        const avgScore = m.cpl_avg_score ? m.cpl_avg_score + '%' : '—';
+        return '<tr>'
+          + '<td class="p" style="display:flex;align-items:center;gap:8px">'
+          + '<div style="width:28px;height:28px;border-radius:50%;background:' + (m.avatar_color||'#4a9b8e') + ';display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:white;flex-shrink:0">' + (m.avatar_initials||'??') + '</div>'
+          + m.display_name + '</td>'
+          + '<td class="dim">' + (m.venue_name||'—') + '</td>'
+          + '<td><span style="font-family:var(--mono);font-size:16px;font-weight:700;color:' + tierColor + '">' + score + '</span></td>'
+          + '<td>' + (tier ? '<span class="b" style="background:' + tierColor + '22;color:' + tierColor + ';border:1px solid ' + tierColor + '44">' + tierLabel + '</span>' : '—') + '</td>'
+          + '<td class="mono">' + cpl + '</td>'
+          + '<td class="mono">' + avgScore + '</td>'
+          + '<td>' + statusBadge(m.food_safety_status) + '</td>'
+          + '<td>' + statusBadge(m.allergen_status) + '</td>'
+          + '<td>' + statusBadge(m.induction_status || m.cw_induction_status) + '</td>'
+          + '</tr>';
+      }).join('');
 }
 
 async function loadBookingsToday() {
