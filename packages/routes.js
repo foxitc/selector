@@ -1595,17 +1595,18 @@ router.get('/products/intel', auth, async (req, res, next) => {
 router.get('/metrics/asph', auth, async (req, res, next) => {
   try {
     const { period } = req.query;
-    const pc = getPeriodClause(period || 'week');
+    const interval = period === 'month' ? '30 days' : period === 'today' ? '1 day' : '7 days';
     const r = await database_js_1.db.query(
-      "SELECT si.location_id, " +
+      "SELECT t.location_id, " +
       "SUM(si.quantity) FILTER (WHERE si.sales_group='31' AND si.individual_net_price >= 5) as mains_sold, " +
       "ROUND(SUM(si.total_net_price) FILTER (WHERE si.sales_group='31' AND si.individual_net_price >= 5)::numeric, 2) as dry_revenue, " +
       "ROUND(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('1','2','3','4','5','6','8','9','10','15','17','18','19','21','22','23','26','27','28','38'))::numeric, 2) as wet_revenue, " +
-      "(SELECT ROUND(SUM(t2.total_net_item_cost)::numeric,2) FROM relay_transactions t2 WHERE t2.location_id=si.location_id AND " + pc.replace('t.','t2.') + ") as net_revenue, " +
       "ROUND(SUM(si.total_net_price) FILTER (WHERE si.sales_group='31' AND si.individual_net_price >= 5) / " +
       "NULLIF(SUM(si.quantity) FILTER (WHERE si.sales_group='31' AND si.individual_net_price >= 5), 0)::numeric, 2) as asph " +
-      "FROM relay_sold_items si JOIN relay_transactions t ON t.id=si.transaction_id " +
-      "WHERE " + pc.replace('t.','t.') + " GROUP BY si.location_id ORDER BY si.location_id"
+      "FROM relay_sold_items si " +
+      "JOIN relay_transactions t ON t.id=si.transaction_id " +
+      "WHERE t.datetime_opened >= NOW() - INTERVAL '" + interval + "' " +
+      "GROUP BY t.location_id ORDER BY t.location_id"
     );
     ok(res, r.rows);
   } catch(e) { next(e); }
