@@ -1352,12 +1352,12 @@ function renderSquad() {
   const filter = document.getElementById('squad-filter')?.value || 'all';
   let data = squadData;
   if (filter === 'scored') data = data.filter(m => m.selector_score);
-  if (filter === 'cpl-gap') data = data.filter(m => m.cpl_total > 0 && m.food_safety_status !== 'Complete');
+  if (filter === 'cpl-gap') data = data.filter(m => Number(m.cpl_total) > 0 && m.food_safety_status !== 'Complete');
 
   // Stats
   const total = squadData.length;
   const scored = squadData.filter(m => m.selector_score).length;
-  const cplLinked = squadData.filter(m => m.cpl_total > 0).length;
+  const cplLinked = squadData.filter(m => Number(m.cpl_total) > 0).length;
   const fsOk = squadData.filter(m => m.food_safety_status === 'Complete').length;
   const fsFail = squadData.filter(m => m.cpl_total > 0 && m.food_safety_status !== 'Complete').length;
   document.getElementById('sq-total').textContent = total;
@@ -1376,6 +1376,7 @@ function renderSquad() {
     return '<span style="color:var(--coral);font-weight:600">✗</span>';
   }
 
+  console.log('[Squad] Rendering', data.length, 'members, first CPL:', data[0]?.cpl_total);
   document.getElementById('squad-tbody').innerHTML = data.length === 0
     ? '<tr><td colspan="9" class="empty">No team members found</td></tr>'
     : data.map(m => {
@@ -1383,7 +1384,8 @@ function renderSquad() {
         const tier = m.selector_tier || m.tier;
         const tierColor = tierColors[tier] || 'var(--ink4)';
         const tierLabel = tierLabels[tier] || '—';
-        const cpl = m.cpl_total > 0 ? m.cpl_completed + '/' + m.cpl_total : '—';
+        const cpl = Number(m.cpl_total) > 0 ? m.cpl_completed + '/' + m.cpl_total : '—';
+        const avgScore = m.cpl_avg_score ? m.cpl_avg_score + '%' : '—';
         const avgScore = m.cpl_avg_score ? m.cpl_avg_score + '%' : '—';
         return '<tr>'
           + '<td class="p" style="display:flex;align-items:center;gap:8px">'
