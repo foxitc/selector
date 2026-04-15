@@ -1443,13 +1443,32 @@ router.get('/connectors/status', auth, async (req, res, next) => {
     const trailR = await database_js_1.db.query("SELECT MAX(synced_at) as last_sync, COUNT(*) as total FROM trail_venue_metrics").catch(()=>({rows:[{}]}));
     status.trail = {status: Number(trailR.rows[0]?.total)>0?'connected':'offline', lastSync: trailR.rows[0]?.last_sync};
     const rsdR = await database_js_1.db.query("SELECT COUNT(*) as total, MAX(received_at) as last_received FROM resdiary_webhook_events").catch(()=>({rows:[{}]}));
-    status.resdiary = {status:'pending', webhookEvents: rsdR.rows[0]?.total, lastSync: rsdR.rows[0]?.last_received};
+    const rsdBookingsR = await database_js_1.db.query("SELECT COUNT(*) as total FROM resdiary_bookings").catch(()=>({rows:[{total:0}]}));
+    status.resdiary = {
+      status: Number(rsdR.rows[0]?.total) > 0 ? 'live' : 'pending',
+      webhookEvents: rsdR.rows[0]?.total,
+      bookings: rsdBookingsR.rows[0]?.total,
+      lastSync: rsdR.rows[0]?.last_received
+    };
     const rrOk = !!(env.ROTAREADY_REALM_ID && env.ROTAREADY_CONSUMER_KEY && env.ROTAREADY_CONSUMER_SECRET);
     const rrR = await database_js_1.db.query("SELECT COUNT(*) as total, MAX(updated_at) as last_sync FROM team_members WHERE rota_id IS NOT NULL").catch(()=>({rows:[{}]}));
     status.rotaready = {status: rrOk && Number(rrR.rows[0]?.total)>0?'connected':rrOk?'configured':'offline', lastSync: rrR.rows[0]?.last_sync, staffCount: rrR.rows[0]?.total};
-    const gR = await database_js_1.db.query("SELECT COUNT(*) as total FROM google_tokens").catch(()=>({rows:[{total:0}]}));
-    status.google = {status: Number(gR.rows[0]?.total)>0?'connected':'offline'};
-    status.cpl = {status: env.CPL_API_KEY?'configured':'offline', note:'Demo account'};
+    const gRatingsR = await database_js_1.db.query("SELECT COUNT(*) as venues, MAX(synced_at) as last_sync FROM google_place_ratings").catch(()=>({rows:[{venues:0}]}));
+    const gReviewsR = await database_js_1.db.query("SELECT COUNT(*) as total FROM google_reviews").catch(()=>({rows:[{total:0}]}));
+    status.google = {
+      status: Number(gRatingsR.rows[0]?.venues) > 0 ? 'live' : 'offline',
+      venuesCovered: gRatingsR.rows[0]?.venues,
+      reviewsStored: gReviewsR.rows[0]?.total,
+      lastSync: gRatingsR.rows[0]?.last_sync
+    };
+    const cplR = await database_js_1.db.query("SELECT COUNT(DISTINCT employee_id) as users, MAX(synced_at) as last_sync FROM cpl_users WHERE active=true").catch(()=>({rows:[{users:0}]}));
+    const cplTrainR = await database_js_1.db.query("SELECT COUNT(*) as records FROM cpl_training").catch(()=>({rows:[{records:0}]}));
+    status.cpl = {
+      status: env.CPL_API_KEY && Number(cplR.rows[0]?.users) > 0 ? 'live' : env.CPL_API_KEY ? 'configured' : 'offline',
+      activeUsers: cplR.rows[0]?.users,
+      trainingRecords: cplTrainR.rows[0]?.records,
+      lastSync: cplR.rows[0]?.last_sync
+    };
     ok(res, status);
   } catch(e) { next(e); }
 });
