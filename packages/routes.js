@@ -2037,8 +2037,9 @@ function getSellerTier(score) {
 }
 
 async function calculateScores(period, locationId) {
-  const pc = period === 'week' ? "AND t.datetime_opened >= DATE_TRUNC('week', NOW())"
+  const pc = period === 'week' ? "AND t.datetime_opened >= NOW() - INTERVAL '7 days'"
     : period === 'month' ? "AND t.datetime_opened >= DATE_TRUNC('month', NOW())"
+    : period === 'calendar_week' ? "AND t.datetime_opened >= DATE_TRUNC('week', NOW())"
     : "AND t.datetime_opened >= NOW() - INTERVAL '7 days'";
   const lc = locationId ? "AND t.location_id='" + locationId + "'" : '';
 
@@ -2063,15 +2064,15 @@ async function calculateScores(period, locationId) {
       "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group='29'),0) as nibbles, " +
       "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group='30'),0) as starters, " +
       "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('33','35')),0) as desserts, " +
-      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('1','2','3','4','5','6','8','15','18','19','21','22','23','26','27','28')),0) as drinks, " +
-      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('3','4','5','6') AND si.individual_net_price > 40),0) as prem_wine, " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('1','2','3','4','5','6','8','9','10','15','17','18','19','21','22','23','26','27','28','38')),0) as drinks, " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('3','4','5','6') AND (si.individual_net_price > 40 OR (LOWER(si.name) LIKE 'btl%' AND si.individual_net_price > 25))),0) as prem_wine, " +
       "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('8','15')),0) as spirits, " +
-      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group='8' AND LOWER(si.name) LIKE '%double%'),0) as dbl_spirits, " +
-      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('3','4','5','6') AND LOWER(si.name) LIKE '%large%'),0) as lg_wine, " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('8','9','10') AND LOWER(si.name) LIKE '%dbl%'),0) as dbl_spirits, " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('3','4','5','6') AND LOWER(si.name) LIKE '%250ml%'),0) as lg_wine, " +
       "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('3','4','5','6')),0) as all_wine, " +
       "COALESCE(SUM(si.quantity) FILTER (WHERE LOWER(si.name) LIKE '%water%' AND si.sales_group NOT IN ('30000','20')),0) as water, " +
-      "COALESCE(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('1','2','3','4','5','6','8','15','18','19','21','22','23','26','27','28')),0) as wet_rev, " +
-      "COALESCE(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('29','30','31','32','33','34','35')),0) as dry_rev " +
+      "COALESCE(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('1','2','3','4','5','6','8','9','10','15','17','18','19','21','22','23','26','27','28','38')),0) as wet_rev, " +
+      "COALESCE(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('29','30','31','32','33','35')),0) as dry_rev " +
       "FROM relay_transactions t JOIN relay_sold_items si ON si.transaction_id=t.id " +
       "WHERE t.closed_by_clerk_id=$1 AND t.location_id=$2 " + pc + " " + lc,
       [clerk.clerk_id, clerk.location_id]
