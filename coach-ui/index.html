@@ -648,7 +648,7 @@ select.fi { cursor:pointer; appearance:none; }
           </button>
         </div>
         <div class="card" style="margin-bottom:16px">
-          <div class="card-h"><div class="card-t">Venue Summary — w/e 15 Mar 2026</div></div>
+          <div class="card-h"><div class="card-t">Venue Summary — Latest week</div></div>
           <table class="tbl">
             <thead><tr><th>Venue</th><th>Total Tasks</th><th>Completed</th><th>Avg Completion</th><th>Combined Score</th></tr></thead>
             <tbody id="trail-summary-tbl"><tr><td colspan="5" class="empty">Loading...</td></tr></tbody>
@@ -1225,7 +1225,7 @@ async function loadDashboard() {
     document.getElementById('s-staff').textContent = '—';
 
     // Venue cards
-    const trailR = await api('/metrics/trail/breakdown?weekEnding=2026-03-15');
+    const trailR = await api('/metrics/trail/breakdown');
     const summary = trailR.data?.summary || [];
 
     // Trail stat filtered by venue
@@ -1245,7 +1245,7 @@ async function loadDashboard() {
         if (!vn) return;
         if (!venueSales[vn]) venueSales[vn] = {tx:0, rev:0, covers:0};
         venueSales[vn].tx++;
-        venueSales[vn].rev += Number(t.total_net_item_cost||0);
+        venueSales[vn].rev += Number(t.total_net_item_cost||t.total_gross_item_cost||0);
         venueSales[vn].covers += Number(t.covers||0);
       });
     } catch(e) {}
@@ -1348,7 +1348,7 @@ function getLocationId(venueName) {
 // Trail
 async function loadTrail() {
   try {
-    const r = await api('/metrics/trail/breakdown?weekEnding=2026-03-15');
+    const r = await api('/metrics/trail/breakdown');
     const areas = r.data?.areas || [];
     const summary = r.data?.summary || [];
 
@@ -1443,7 +1443,7 @@ function setSalesPeriod(period) {
 // Venues detail
 async function loadVenuesDetail() {
   try {
-    const [vr, tr] = await Promise.all([api('/venues'), api('/metrics/trail/breakdown?weekEnding=2026-03-15')]);
+    const [vr, tr] = await Promise.all([api('/venues'), api('/metrics/trail/breakdown')]);
     const venues = vr.data || [];
     const summary = tr.data?.summary || [];
 
@@ -1579,7 +1579,7 @@ async function loadAIInsights() {
   try {
     const [sumR, txR, trailR, clerkR] = await Promise.all([
       api('/transactions/summary'), api('/transactions/recent?limit=100'),
-      api('/metrics/trail/breakdown?weekEnding=2026-03-15'), api('/clerks')
+      api('/metrics/trail/breakdown'), api('/clerks')
     ]);
     const d = sumR.data || {};
     const txList = txR.data || [];

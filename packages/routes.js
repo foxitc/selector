@@ -649,7 +649,7 @@ router.get('/transactions/recent', auth, async (req, res, next) => {
   try {
     const limit = parseInt(req.query['limit']) || 20;
     const txns = await database_js_1.db.query(
-      'SELECT t.id, t.location_id, t.business_date, t.datetime_opened, t.datetime_closed, t.covers, t.seating_area, t.total_gross_item_cost, t.closed_by_clerk_id, t.terminal_id, t.received_at FROM relay_transactions t ORDER BY t.received_at DESC LIMIT $1',
+      'SELECT t.id, t.location_id, t.business_date, t.datetime_opened, t.datetime_closed, t.covers, t.seating_area, t.total_gross_item_cost, t.total_net_item_cost, t.closed_by_clerk_id, t.terminal_id, t.received_at FROM relay_transactions t ORDER BY t.received_at DESC LIMIT $1',
       [limit]
     ).catch(() => ({ rows: [] }));
     const result = [];
