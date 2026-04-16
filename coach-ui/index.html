@@ -633,6 +633,10 @@ body {
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
         Squad
       </button>
+      <button class="nav-item" onclick="nav('selector')" id="nav-selector">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 010 14.14M4.93 4.93a10 10 0 000 14.14"/><path d="M15.54 8.46a5 5 0 010 7.07M8.46 8.46a5 5 0 000 7.07"/></svg>
+        The Selector
+      </button>
       <button class="nav-item" onclick="nav('clerks')" id="nav-clerks">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
         Clerk Mapping
@@ -988,7 +992,40 @@ body {
         </div>
       </div>
 
-      <div id="v-assessments" class="view">
+      
+      <!-- SELECTOR CONFIG -->
+      <div id="v-selector" class="view">
+        <div class="ph">
+          <div>
+            <div class="ph-t">The Selector</div>
+            <div class="ph-s">Configure metric weights and targets for scoring</div>
+          </div>
+          <button class="btn btn-primary" onclick="saveMetrics()">Save Changes</button>
+        </div>
+        <div class="card">
+          <div class="card-h">
+            <div class="card-t">Scoring Metrics</div>
+            <span style="font-size:11px;color:var(--ink4)">Changes apply to next score calculation</span>
+          </div>
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th>Metric</th>
+                <th>Category</th>
+                <th>Weight</th>
+                <th>Target</th>
+                <th>Active</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody id="metrics-tbody">
+              <tr><td colspan="6" class="empty">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+<div id="v-assessments" class="view">
         <div class="ph">
           <div><div class="ph-t">Assessments</div><div class="ph-s">Weekly manager assessments for The Selector</div></div>
           <button class="btn btn-teal" onclick="openM('new-assessment')">New Assessment</button>
@@ -1190,7 +1227,7 @@ async function api(path, opts={}) {
 }
 
 // Navigation
-const VIEWS = ['dashboard','venues','scores','trail','sales','products','squad','assessments','clerks'];
+const VIEWS = ['dashboard','venues','scores','trail','sales','products','squad','selector','assessments','clerks'];
 function nav(id) {
   document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
   const navEl = document.getElementById('nav-' + id);
@@ -1204,6 +1241,7 @@ function nav(id) {
   if (id==='squad') loadSquad();
   if (id==='venues') loadVenuesDetail();
   if (id==='clerks') loadClerks();
+  if (id==='selector') loadMetrics();
 }
 
 function switchVenueBtn(venue, btn) {
@@ -1346,6 +1384,7 @@ async function loadScores() {
 
 let squadData = [];
 let clerkNames = {};
+let metricsData = [];
 
 async function loadSquad() {
   const venue = document.getElementById('squad-venue-filter')?.value || '';
@@ -1764,6 +1803,64 @@ async function loadSquad() {
 }
 
 // Clerks
+
+let metricsData = [];
+
+async function loadMetrics() {
+  try {
+    const r = await api('/scores/metrics');
+    metricsData = r.data || [];
+    document.getElementById('metrics-tbody').innerHTML = metricsData.length === 0
+      ? '<tr><td colspan="6" class="empty">No metrics configured</td></tr>'
+      : metricsData.map(m => '<tr>'
+          + '<td class="p">' + (m.name || m.metric_key) + '</td>'
+          + '<td class="dim">' + (m.category || '—') + '</td>'
+          + '<td><input type="number" step="0.5" min="0" max="20" value="' + m.weight + '" data-key="' + m.metric_key + '" data-field="weight" class="form-input" style="width:70px;padding:4px 8px"></td>'
+          + '<td><input type="number" step="0.01" min="0" value="' + m.target + '" data-key="' + m.metric_key + '" data-field="target" class="form-input" style="width:90px;padding:4px 8px"></td>'
+          + '<td><input type="checkbox" ' + (m.is_active ? 'checked' : '') + ' data-key="' + m.metric_key + '" data-field="is_active" onchange="toggleMetric(this)"></td>'
+          + '<td class="dim" style="font-size:12px">' + (m.notes || '—') + '</td>'
+          + '</tr>').join('');
+  } catch(e) { console.error('Metrics error:', e); }
+}
+
+function toggleMetric(cb) {
+  const key = cb.dataset.key;
+  const m = metricsData.find(x => x.metric_key === key);
+  if (m) m.is_active = cb.checked;
+}
+
+async function saveMetrics() {
+  const rows = document.querySelectorAll('#metrics-tbody tr');
+  const updates = [];
+  rows.forEach(row => {
+    const weightEl = row.querySelector('[data-field="weight"]');
+    const targetEl = row.querySelector('[data-field="target"]');
+    const activeEl = row.querySelector('[data-field="is_active"]');
+    if (!weightEl) return;
+    const key = weightEl.dataset.key;
+    const m = metricsData.find(x => x.metric_key === key);
+    updates.push({
+      metric_key: key,
+      weight: parseFloat(weightEl.value),
+      target: parseFloat(targetEl.value),
+      is_active: activeEl ? activeEl.checked : true,
+      name: m?.name || key,
+      notes: m?.notes || ''
+    });
+  });
+  try {
+    await Promise.all(updates.map(u => 
+      fetch(API_BASE + '/scores/metrics/' + u.metric_key, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + TOKEN },
+        body: JSON.stringify(u)
+      })
+    ));
+    alert('Metrics saved successfully');
+    loadMetrics();
+  } catch(e) { alert('Error saving: ' + e.message); }
+}
+
 async function loadClerks() {
   try {
     const r = await api('/clerks');
