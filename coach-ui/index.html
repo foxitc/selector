@@ -1151,6 +1151,14 @@ function bootApp() {
   const gn = document.getElementById('greeting-name'); if(gn) gn.textContent = SESSION.name;
   updateGreeting();
   init();
+  // Pre-load clerk names for sales table
+  api('/clerks').then(r => {
+    (r.data?.clerks || r.data || []).forEach(c => {
+      if (c.clerk_id && (c.first_name || c.display_name)) {
+        clerkNames[c.clerk_id] = c.display_name || (c.first_name+' '+c.last_name).trim();
+      }
+    });
+  }).catch(()=>{});
 }
 
 // Auto-login
@@ -1337,6 +1345,7 @@ async function loadScores() {
 
 
 let squadData = [];
+let clerkNames = {};
 
 async function loadSquad() {
   const venue = document.getElementById('squad-venue-filter')?.value || '';
@@ -1672,7 +1681,7 @@ async function loadSales() {
         +'<td class="mono">'+(t.seating_area||'—')+'</td>'
         +'<td class="mono">'+(t.covers||0)+'</td>'
         +'<td class="mono">£'+Number(t.total_gross_item_cost||0).toFixed(2)+'</td>'
-        +'<td class="mono">'+(t.closed_by_clerk_id||'—')+'</td>'
+        +'<td class="mono">'+(clerkNames[t.closed_by_clerk_id] || (t.closed_by_clerk_id ? '#'+t.closed_by_clerk_id : '—'))+'</td>'
         +'<td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--ink3)">'+(items||'—')+'</td>'
         +'</tr>';
     }).join('') : '<tr><td colspan="7" class="empty">No transactions for this period</td></tr>';
@@ -1759,8 +1768,14 @@ async function loadClerks() {
   try {
     const r = await api('/clerks');
     const clerks = r.data || [];
-    const unmatched = clerks.filter(c => !c.team_member_id);
-    const matched   = clerks.filter(c => c.team_member_id);
+    // Build clerk name map for sales table
+    (r.data?.clerks || clerks).forEach(c => {
+      if (c.clerk_id && (c.first_name || c.display_name)) {
+        clerkNames[c.clerk_id] = c.display_name || (c.first_name + ' ' + c.last_name).trim();
+      }
+    });
+    const unmatched = (r.data?.clerks || clerks).filter(c => !c.team_member_id);
+    const matched   = (r.data?.clerks || clerks).filter(c => c.team_member_id);
 
     document.getElementById('uc-lbl').textContent = unmatched.length+' unmatched';
 
