@@ -1182,7 +1182,7 @@ async function api(path, opts={}) {
 }
 
 // Navigation
-const VIEWS = ['dashboard','venues','scores','trail','sales','squad','assessments','clerks'];
+const VIEWS = ['dashboard','venues','scores','trail','sales','products','squad','assessments','clerks'];
 function nav(id) {
   document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
   const navEl = document.getElementById('nav-' + id);
