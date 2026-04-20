@@ -1535,8 +1535,8 @@ async function loadUsers() {
           + '<td class="dim">' + (venueLabels[u.venue]||u.venue) + '</td>'
           + '<td class="dim">' + (u.last_login ? new Date(u.last_login).toLocaleDateString('en-GB') : 'Never') + '</td>'
           + '<td><span style="color:' + (u.is_active?'#16a34a':'var(--ink4)') + ';font-weight:500;font-size:12px">' + (u.is_active?'Active':'Inactive') + '</span></td>'
-          + '<td><button class="btn btn-ghost btn-sm" onclick="editUser('' + u.id + '')">Edit</button> '
-          + '<button class="btn btn-ghost btn-sm" style="color:var(--accent)" onclick="deactivateUser('' + u.id + '','' + u.name + '')">' + (u.is_active?'Disable':'Enable') + '</button></td>'
+          + '<td><button class="btn btn-ghost btn-sm" data-uid="' + u.id + '" onclick="editUser(this.dataset.uid)">Edit</button> '
+          + '<button class="btn btn-ghost btn-sm" style="color:var(--accent)" data-uid="' + u.id + '" data-uname="' + u.name.replace(/"/g,\'\') + '" onclick="deactivateUser(this.dataset.uid,this.dataset.uname)">' + (u.is_active?'Disable':'Enable') + '</button></td>'
           + '</tr>').join('');
   } catch(e) { console.error('loadUsers error:', e); }
 }
