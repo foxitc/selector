@@ -1383,6 +1383,7 @@ function doLogout() { sessionStorage.removeItem('coach_session'); location.reloa
 
 function bootApp() {
   document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
   document.getElementById('app').classList.add('ready');
   document.getElementById('uav').textContent = SESSION.initials;
   document.getElementById('unm').textContent = SESSION.name;
@@ -1423,6 +1424,7 @@ function bootApp() {
     return;
   }
   SESSION = JSON.parse(s);
+  document.getElementById('app').style.display = 'block';
   bootApp();
 })();
 
