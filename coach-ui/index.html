@@ -521,7 +521,8 @@ body {
   display: flex; align-items: center; justify-content: space-between;
   padding: 0 28px; height: 52px;
   background: var(--white); border-bottom: 1px solid var(--border);
-  position: relative; z-index: 50;
+  position: sticky; top: 0; z-index: 50;
+  margin-left: var(--sidebar);e; z-index: 50;
 }
 .tb-left { display: flex; align-items: center; gap: 14px; }
 .tb-logo { display: flex; align-items: center; gap: 8px; }
@@ -603,24 +604,7 @@ body {
 
 <!-- APP -->
 <div id="app">
-  <div class="topbar">
-    <div class="tb-left">
-      <div class="tb-logo">
-        <div class="tb-crest">C&W</div>
-        <span class="tb-name">The Analytics Coach</span>
-      </div>
-      <div class="tb-divider"></div>
-      <span class="tb-client" id="tb-venue-name">Cat & Wickets Group</span>
-    </div>
-    <div class="tb-right">
-      <span class="tb-role-badge role-admin" id="role-badge">Admin</span>
-      <span class="tb-time" id="clk"></span>
-      <div class="user-chip" onclick="doLogout()">
-        <div class="user-av" id="uav">—</div>
-        <span class="user-nm" id="unm">—</span>
-      </div>
-    </div>
-  </div>
+  
 
   <div class="body">
     <nav class="sidebar">
@@ -704,6 +688,26 @@ body {
         </div>
       </div>
     </nav>
+
+    <div class="topbar">
+    <div class="tb-left">
+      <div class="tb-logo">
+        <div class="tb-crest">C&W</div>
+        <span class="tb-name">The Analytics Coach</span>
+      </div>
+      <div class="tb-divider"></div>
+      <span class="tb-client" id="tb-venue-name">Cat & Wickets Group</span>
+    </div>
+    <div class="tb-right">
+      <span class="tb-role-badge role-admin" id="role-badge">Admin</span>
+      <span class="tb-time" id="clk"></span>
+      <div class="user-chip" onclick="doLogout()">
+        <div class="user-av" id="uav">—</div>
+        <span class="user-nm" id="unm">—</span>
+      </div>
+    </div>
+  </div>
+
 
     <div class="content">
 
