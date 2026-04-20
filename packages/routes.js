@@ -555,11 +555,10 @@ router.get('/metrics/trail/breakdown', auth, async (req, res, next) => {
     })();
     // Fall back to latest available week if requested week not found
     const latestWeek = await database_js_1.db.query(
-      'SELECT MAX(week_ending) as latest FROM trail_venue_metrics'
+      "SELECT TO_CHAR(MAX(week_ending), 'YYYY-MM-DD') as latest FROM trail_venue_metrics"
     ).catch(() => ({ rows: [{}] }));
-    const effectiveWeek = latestWeek.rows[0]?.latest ? 
-      (week <= latestWeek.rows[0].latest.toISOString().split('T')[0] ? week : latestWeek.rows[0].latest.toISOString().split('T')[0])
-      : week;
+    const latestStr = latestWeek.rows[0]?.latest || week;
+    const effectiveWeek = week <= latestStr ? week : latestStr;
     const areas = await database_js_1.db.query(
       'SELECT m.*, v.name AS venue_name FROM trail_venue_metrics m JOIN venues v ON v.id = m.venue_id WHERE m.week_ending = $1 ORDER BY v.name, m.area',
       [effectiveWeek]
@@ -1307,11 +1306,10 @@ router.get('/metrics/trail/breakdown', auth, async (req, res, next) => {
     })();
     // Fall back to latest available week if requested week not found
     const latestWeek = await database_js_1.db.query(
-      'SELECT MAX(week_ending) as latest FROM trail_venue_metrics'
+      "SELECT TO_CHAR(MAX(week_ending), 'YYYY-MM-DD') as latest FROM trail_venue_metrics"
     ).catch(() => ({ rows: [{}] }));
-    const effectiveWeek = latestWeek.rows[0]?.latest ? 
-      (week <= latestWeek.rows[0].latest.toISOString().split('T')[0] ? week : latestWeek.rows[0].latest.toISOString().split('T')[0])
-      : week;
+    const latestStr = latestWeek.rows[0]?.latest || week;
+    const effectiveWeek = week <= latestStr ? week : latestStr;
     const areas = await database_js_1.db.query(
       'SELECT m.*, v.name AS venue_name FROM trail_venue_metrics m JOIN venues v ON v.id = m.venue_id WHERE m.week_ending = $1 ORDER BY v.name, m.area',
       [effectiveWeek]
