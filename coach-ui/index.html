@@ -1861,19 +1861,21 @@ async function loadDashboard() {
       document.getElementById('s-trailn').textContent = avgRate+'% completion rate';
     } else { document.getElementById('s-trail').textContent = '—'; }
 
-    // Per-venue sales
+    // Per-venue sales - use ASPH endpoint which has correct net revenue
     let venueSales = {};
     try {
-      const txR2 = await api('/transactions/recent?limit=200');
-      (txR2.data||[]).forEach(t => {
-        const vn = LOCATION_MAP[t.location_id];
+      const asphPeriod = currentDashPeriod || 'week';
+      const vsR = await api('/metrics/asph?period=' + asphPeriod);
+      (vsR.data||[]).forEach(v => {
+        const vn = Object.values(LOCATION_MAP).find((_,i) => Object.keys(LOCATION_MAP)[i] === v.location_id) 
+          || LOCATION_MAP[v.location_id];
         if (!vn) return;
-        if (!venueSales[vn]) venueSales[vn] = {tx:0, rev:0, covers:0};
-        venueSales[vn].tx++;
-        venueSales[vn].rev += Number(t.total_net_item_cost||t.total_gross_item_cost||0);
-        venueSales[vn].covers += Number(t.covers||0);
+        if (!venueSales[vn]) venueSales[vn] = {tx:0, rev:0, covers:0, mains:0};
+        venueSales[vn].rev = Number(v.dry_revenue||0) + Number(v.wet_revenue||0);
+        venueSales[vn].mains = Number(v.mains_sold||0);
+        venueSales[vn].tx = 1;
       });
-    } catch(e) {}
+    } catch(e) { console.error('venueSales error:', e); }
 
      // Fetch weather, Google ratings and ASPH for venue cards
      let weatherByLoc = {};
@@ -1897,8 +1899,8 @@ async function loadDashboard() {
     cardsEl.innerHTML = venues.map(v => {
       const ts = summary.find(s => s.venue_name === v.name);
       const score = ts ? Math.round(Number(ts.combined_trail_score)) : null;
-      const scoreColor = score===null ? 'var(--ink4)' : score>=15 ? 'var(--teal)' : score>=5 ? 'var(--gold)' : 'var(--coral)';
-      const scoreBg   = score===null ? 'var(--cream2)' : score>=15 ? 'var(--teal-bg)' : score>=5 ? 'var(--gold-bg)' : 'var(--coral-bg)';
+      const scoreColor = score===null ? 'var(--ink4)' : score>=75 ? 'var(--teal)' : score>=50 ? 'var(--gold)' : 'var(--coral)';
+      const scoreBg   = score===null ? 'var(--bg)' : score>=75 ? 'var(--teal-bg)' : score>=50 ? 'var(--gold-bg)' : 'var(--coral-bg)';
       const rate = ts ? Number(ts.avg_completion_rate).toFixed(1) : '—';
       const locId = getLocationId(v.name);
       const vs = venueSales[v.name] || {tx:0, rev:0, covers:0};
@@ -1907,7 +1909,7 @@ async function loadDashboard() {
        const wxIcons = {'01d':'☀️','01n':'🌙','02d':'🌤️','02n':'🌤️','03d':'🌥️','03n':'🌥️','04d':'☁️','04n':'☁️','09d':'🌧️','09n':'🌧️','10d':'🌦️','10n':'🌦️','11d':'⛈️','11n':'⛈️','13d':'❄️','13n':'❄️','50d':'🌫️','50n':'🌫️'};
        const wxStr = wx ? (wxIcons[wx.icon]||'🌡️') + ' ' + (wx.avg_temp_c||wx.avg_temp||'') + '°C' : '';
        const asphData = asphByLoc[locId] || null;
-       const mains = asphData ? Number(asphData.mains_sold||0) : 0;
+       const mains = asphData ? Number(asphData.mains_sold||0) : (vs.mains||0);
        const asphNet = asphData && mains > 0 ? '£'+(Number(asphData.dry_revenue||0)/mains).toFixed(2) : (vs.covers > 0 ? '£'+(vs.rev/vs.covers).toFixed(2) : '—');
       const dot = vs.tx > 0 ? 'var(--teal)' : 'var(--coral)';
       const dotBg = vs.tx > 0 ? 'var(--teal-bg)' : 'var(--coral-bg)';
