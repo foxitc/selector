@@ -1600,9 +1600,9 @@ router.get('/metrics/google/ratings', auth, async (req, res, next) => {
 // ── PRODUCT INTELLIGENCE ROUTES ───────────────────────────────────────────────
 
 function getPeriodClause(period) {
-  if (period === 'today') return "AND DATE(t.datetime_opened AT TIME ZONE 'Europe/London') = CURRENT_DATE";
-  if (period === 'week') return "AND t.datetime_opened >= DATE_TRUNC('week', NOW())";
-  if (period === 'month') return "AND t.datetime_opened >= DATE_TRUNC('month', NOW())";
+  if (period === 'today') return "AND t.datetime_opened >= NOW() - INTERVAL '24 hours'";
+  if (period === 'week') return "AND t.datetime_opened >= NOW() - INTERVAL '7 days'";
+  if (period === 'month') return "AND t.datetime_opened >= NOW() - INTERVAL '30 days'";
   return "";
 }
 
