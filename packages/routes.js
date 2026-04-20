@@ -553,9 +553,16 @@ router.get('/metrics/trail/breakdown', auth, async (req, res, next) => {
       const sun = new Date(d); sun.setDate(d.getDate() - (day === 0 ? 0 : day));
       return sun.toISOString().split('T')[0];
     })();
+    // Fall back to latest available week if requested week not found
+    const latestWeek = await database_js_1.db.query(
+      'SELECT MAX(week_ending) as latest FROM trail_venue_metrics'
+    ).catch(() => ({ rows: [{}] }));
+    const effectiveWeek = latestWeek.rows[0]?.latest ? 
+      (week <= latestWeek.rows[0].latest.toISOString().split('T')[0] ? week : latestWeek.rows[0].latest.toISOString().split('T')[0])
+      : week;
     const areas = await database_js_1.db.query(
       'SELECT m.*, v.name AS venue_name FROM trail_venue_metrics m JOIN venues v ON v.id = m.venue_id WHERE m.week_ending = $1 ORDER BY v.name, m.area',
-      [week]
+      [effectiveWeek]
     ).catch(() => ({ rows: [] }));
     const summary = await database_js_1.db.query(
       'SELECT v.name AS venue_name, m.venue_id, SUM(m.total_tasks) AS total_tasks, SUM(m.completed_tasks) AS completed_tasks, ROUND(AVG(m.completion_rate)::numeric, 2) AS avg_completion_rate, ROUND(AVG(m.trail_score)::numeric, 2) AS combined_trail_score FROM trail_venue_metrics m JOIN venues v ON v.id = m.venue_id WHERE m.week_ending = $1 GROUP BY v.name, m.venue_id ORDER BY combined_trail_score DESC',
@@ -1298,9 +1305,16 @@ router.get('/metrics/trail/breakdown', auth, async (req, res, next) => {
       const sun = new Date(d); sun.setDate(d.getDate() - (day === 0 ? 0 : day));
       return sun.toISOString().split('T')[0];
     })();
+    // Fall back to latest available week if requested week not found
+    const latestWeek = await database_js_1.db.query(
+      'SELECT MAX(week_ending) as latest FROM trail_venue_metrics'
+    ).catch(() => ({ rows: [{}] }));
+    const effectiveWeek = latestWeek.rows[0]?.latest ? 
+      (week <= latestWeek.rows[0].latest.toISOString().split('T')[0] ? week : latestWeek.rows[0].latest.toISOString().split('T')[0])
+      : week;
     const areas = await database_js_1.db.query(
       'SELECT m.*, v.name AS venue_name FROM trail_venue_metrics m JOIN venues v ON v.id = m.venue_id WHERE m.week_ending = $1 ORDER BY v.name, m.area',
-      [week]
+      [effectiveWeek]
     ).catch(() => ({ rows: [] }));
     const summary = await database_js_1.db.query(
       'SELECT v.name AS venue_name, m.venue_id, SUM(m.total_tasks) AS total_tasks, SUM(m.completed_tasks) AS completed_tasks, ROUND(AVG(m.completion_rate)::numeric, 2) AS avg_completion_rate, ROUND(AVG(m.trail_score)::numeric, 2) AS combined_trail_score FROM trail_venue_metrics m JOIN venues v ON v.id = m.venue_id WHERE m.week_ending = $1 GROUP BY v.name, m.venue_id ORDER BY combined_trail_score DESC',

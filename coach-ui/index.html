@@ -637,7 +637,7 @@ body {
       <div class="field"><label>Email address</label><input type="email" id="fe" placeholder="you@thecatandwickets.com" autocomplete="email"></div>
       <div class="field"><label>Password</label><input type="password" id="fp" onkeydown="if(event.key==='Enter')doLogin()" placeholder="••••••••" autocomplete="current-password"></div>
       <button class="login-btn" onclick="doLogin()">Sign in</button>
-      <div class="login-notice">Managed by Fox ITC · Authorised staff only</div>
+      <div class="login-notice">Managed by Cat & Wickets · Authorised staff only</div>
     </div>
   </div>
 </div>
@@ -1226,7 +1226,7 @@ body {
                 <div class="form-group">
                   <label class="form-label">Role</label>
                   <select class="form-select" id="uf-role">
-                    <option value="admin">Admin (Fox ITC / Owner)</option>
+                    <option value="admin">Admin (Cat & Wickets / Owner)</option>
                     <option value="gm">General Manager</option>
                     <option value="coach">Coach (Read only)</option>
                   </select>
@@ -1290,8 +1290,8 @@ const API_BASE = 'https://theclub.thecatandwickets.com/api/v1';
 
 // Users — role-based access
 const USERS = [
-  { email:'ian@foxitc.com',              pass:'FoxITC2026!',    name:'Ian',   initials:'I',  role:'admin',  venue:'all' },
-  { email:'jack@foxitc.com',             pass:'FoxITC2026!',    name:'Jack',  initials:'J',  role:'admin',  venue:'all' },
+  { email:'ian@catandwickets.com',              pass:'FoxITC2026!',    name:'Ian',   initials:'I',  role:'admin',  venue:'all' },
+  { email:'jack@catandwickets.com',             pass:'FoxITC2026!',    name:'Jack',  initials:'J',  role:'admin',  venue:'all' },
   { email:'coach.griffin@catandwickets.com', pass:'Coach2026!', name:'Coach', initials:'G',  role:'coach',  venue:'griffin' },
   { email:'coach.longhop@catandwickets.com', pass:'Coach2026!', name:'Coach', initials:'LH', role:'coach',  venue:'longhop' },
   { email:'coach.taprun@catandwickets.com',  pass:'Coach2026!', name:'Coach', initials:'TR', role:'coach',  venue:'taprun' },
@@ -1377,7 +1377,7 @@ function bootApp() {
 
   // Role badge
   const badge = document.getElementById('role-badge');
-  badge.textContent = SESSION.role === 'admin' ? 'Fox ITC' : SESSION.role === 'hq' ? 'Head Office' : 'Coach';
+  badge.textContent = SESSION.role === 'admin' ? 'Cat & Wickets' : SESSION.role === 'hq' ? 'Head Office' : 'Coach';
   badge.className = `tb-role-badge role-${SESSION.role}`;
 
   // Venue selector — coaches only see their venue
