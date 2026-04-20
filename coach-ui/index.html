@@ -1850,7 +1850,7 @@ async function loadSquad() {
 
 async function loadMetrics() {
   try {
-    const r = await api('/scores/metrics');
+    const r = await api('/selector/metrics');
     metricsData = r.data || [];
     document.getElementById('metrics-tbody').innerHTML = metricsData.length === 0
       ? '<tr><td colspan="6" class="empty">No metrics configured</td></tr>'
@@ -1892,7 +1892,7 @@ async function saveMetrics() {
   });
   try {
     await Promise.all(updates.map(u => 
-      fetch(API_BASE + '/scores/metrics/' + u.metric_key, {
+      fetch(API_BASE + '/selector/metrics/' + u.metric_key, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + TOKEN },
         body: JSON.stringify(u)
