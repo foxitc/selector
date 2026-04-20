@@ -635,7 +635,7 @@ body {
       <div class="login-sub">Sign in to your Analytics Coach account</div>
       <div class="login-err" id="lerr">Incorrect email or password</div>
       <div class="field"><label>Email address</label><input type="email" id="fe" placeholder="you@thecatandwickets.com" autocomplete="email"></div>
-      <div class="field"><label>Password</label><input type="password" id="fp" placeholder="••••••••" autocomplete="current-password"></div>
+      <div class="field"><label>Password</label><input type="password" id="fp" onkeydown="if(event.key==='Enter')doLogin()" placeholder="••••••••" autocomplete="current-password"></div>
       <button class="login-btn" onclick="doLogin()">Sign in</button>
       <div class="login-notice">Managed by Fox ITC · Authorised staff only</div>
     </div>
@@ -646,8 +646,7 @@ body {
 <div id="app" style="display:none">
   
 
-  <div class="body">
-    <nav class="sidebar">
+  <nav class="sidebar">
       <!-- Logo -->
       <div class="sidebar-logo">
         <div class="sidebar-brand">The Analytics<br>Coach</div>
@@ -1334,14 +1333,50 @@ async function loadLoginStats() {
 // Auth
 document.getElementById('fp').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
 
-function doLogin() {
+async function doLogin() {
   const email = document.getElementById('fe').value.trim().toLowerCase();
   const pass  = document.getElementById('fp').value;
-  const user  = USERS.find(u => u.email===email && u.pass===pass);
-  if (!user) { document.getElementById('lerr').style.display='block'; document.getElementById('fp').value=''; return; }
-  SESSION = user;
-  sessionStorage.setItem('coach_session', JSON.stringify(user));
-  bootApp();
+  const lerr  = document.getElementById('lerr');
+  const btn   = document.getElementById('login-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Signing in...'; }
+  lerr.style.display = 'none';
+  try {
+    const r = await fetch(API_BASE + '/auth/login', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({email, password: pass})
+    });
+    const d = await r.json();
+    if (!r.ok || d.error) {
+      // Try DB login
+      const r2 = await fetch(API_BASE + '/auth/login/db', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({email, password: pass})
+      });
+      const d2 = await r2.json();
+      if (!r2.ok || d2.error) {
+        lerr.style.display = 'block';
+        lerr.textContent = 'Invalid email or password';
+        if (btn) { btn.disabled = false; btn.textContent = 'Sign In'; }
+        return;
+      }
+      TOKEN = d2.data.token;
+      SESSION = d2.data.user;
+    } else {
+      TOKEN = d.data.token;
+      const u = d.data.user || {};
+      SESSION = { email: u.email || email, name: u.name || email, role: u.role || 'admin', venue: u.venue || 'all', initials: u.initials || email[0].toUpperCase() };
+    }
+    sessionStorage.setItem('coach_session', JSON.stringify(SESSION));
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    bootApp();
+  } catch(e) {
+    lerr.style.display = 'block';
+    lerr.textContent = 'Connection error. Please try again.';
+    if (btn) { btn.disabled = false; btn.textContent = 'Sign In'; }
+  }
 }
 
 function doLogout() { sessionStorage.removeItem('coach_session'); location.reload(); }
