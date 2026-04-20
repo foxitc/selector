@@ -1326,7 +1326,7 @@ async function loadLoginStats() {
     const r = await fetch(`${API_BASE}/webhooks/relay/status`, { headers:{'Authorization':`Bearer ${tok}`} });
     const d = await r.json();
     const el = document.getElementById('login-tx-count');
-    if (el) el.textContent = Number(d.data?.total_transactions||0).toLocaleString();
+    if (el) el.textContent = Number(d.data?.total_transactions||0).toLocaleString('en-GB');
   } catch(e) {}
 }
 
@@ -1837,7 +1837,7 @@ async function loadDashboard() {
     }
     if (summary.data) {
       const d = summary.data;
-      document.getElementById('s-tx').textContent = Number(d.today_transactions||0).toLocaleString();
+      document.getElementById('s-tx').textContent = Number(d.today_transactions||0).toLocaleString('en-GB');
       document.getElementById('s-txn').textContent = `Today · £${Number(d.today_revenue||0).toFixed(2)} · Week: £${Number(d.week_revenue||0).toFixed(2)}`;
     }
   } catch(e) {}
@@ -1855,8 +1855,10 @@ async function loadDashboard() {
     const locF = getLocationFilter();
     const filtSummary = locF ? summary.filter(s => getLocationId(s.venue_name) === locF) : summary;
     if (filtSummary.length) {
-      const avg = Math.round(filtSummary.reduce((s,v)=>s+Number(v.avg_completion_rate),0)/filtSummary.length);
-      document.getElementById('s-trail').textContent = avg+'%';
+      const avgRate = Math.round(filtSummary.reduce((s,v)=>s+Number(v.avg_completion_rate),0)/filtSummary.length);
+      const avgScore = Math.round(filtSummary.reduce((s,v)=>s+Number(v.combined_trail_score),0)/filtSummary.length);
+      document.getElementById('s-trail').textContent = avgScore;
+      document.getElementById('s-trailn').textContent = avgRate+'% completion rate';
     } else { document.getElementById('s-trail').textContent = '—'; }
 
     // Per-venue sales
@@ -1934,7 +1936,7 @@ async function loadDashboard() {
           + '<div class="vm"><div class="vm-label">Dry ASPH</div><div class="vm-val">'+asphNet+'</div></div>'
         + '</div>'
         + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">'
-          + (grating ? '<div class="vm"><div class="vm-label">Google ★</div><div class="vm-val" style="color:#f59e0b">'+grating.rating+'★ <span style="font-size:10px;color:var(--fg3)">'+Number(grating.total_reviews).toLocaleString()+'</span></div></div>' : '')
+          + (grating ? '<div class="vm"><div class="vm-label">Google ★</div><div class="vm-val" style="color:#f59e0b">'+grating.rating+'★ <span style="font-size:10px;color:var(--fg3)">'+Number(grating.total_reviews).toLocaleString('en-GB')+'</span></div></div>' : '')
           + '<div class="vm"><div class="vm-label">NPS</div><div class="vm-val" style="color:var(--fg3)">—</div></div>'
         + '</div>'
       + '</div>';
@@ -2024,7 +2026,7 @@ async function loadSales() {
       else if (salesPeriod==='week')  { txC=d.week_transactions;   rev=d.week_revenue; }
       else if (salesPeriod==='month') { txC=d.month_transactions;  rev=d.month_revenue; }
       else                            { txC=d.total_transactions;  rev=d.total_revenue; }
-      document.getElementById('sales-tx').textContent  = Number(txC||0).toLocaleString();
+      document.getElementById('sales-tx').textContent  = Number(txC||0).toLocaleString('en-GB');
       document.getElementById('sales-rev').textContent = '£'+Number(rev||0).toFixed(2);
       document.getElementById('sales-loc').textContent = d.active_locations||'3';
       const avg = Number(d.avg_transaction||0);
@@ -2329,8 +2331,8 @@ async function loadProductIntel() {
     const d = r.data;
 
     // Stats
-    document.getElementById('prod-mains').textContent = (d.mainsSold || 0).toLocaleString();
-    document.getElementById('prod-items').textContent = (d.totalItems || 0).toLocaleString();
+    document.getElementById('prod-mains').textContent = (d.mainsSold || 0).toLocaleString('en-GB');
+    document.getElementById('prod-items').textContent = (d.totalItems || 0).toLocaleString('en-GB');
     document.getElementById('prod-rev').textContent = '£' + Number(d.netRevenue || 0).toFixed(0);
     if (d.topProduct) {
       document.getElementById('prod-top').textContent = d.topProduct.name.substring(0,20);
