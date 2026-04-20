@@ -521,7 +521,7 @@ body {
   display: flex; align-items: center; justify-content: space-between;
   padding: 0 28px; height: 52px;
   background: var(--white); border-bottom: 1px solid var(--border);
-  position: sticky; top: 0; z-index: 50;
+  position: relative; z-index: 50;
 }
 .tb-left { display: flex; align-items: center; gap: 14px; }
 .tb-logo { display: flex; align-items: center; gap: 8px; }
@@ -712,6 +712,17 @@ body {
         <span id="greeting-name" style="display:none"></span>
         <span id="greeting-time" style="display:none"></span>
 
+        <!-- Dashboard period selector -->
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+          <span style="font-size:12px;color:var(--ink3);font-weight:500">Period:</span>
+          <div style="display:flex;gap:4px">
+            <button class="btn btn-ghost btn-sm dash-period active" data-period="week" onclick="setDashPeriod(this)">Last 7 days</button>
+            <button class="btn btn-ghost btn-sm dash-period" data-period="month" onclick="setDashPeriod(this)">Last 28 days</button>
+            <button class="btn btn-ghost btn-sm dash-period" data-period="today" onclick="setDashPeriod(this)">Last 24 hrs</button>
+          </div>
+          <span style="font-size:11px;color:var(--ink4);margin-left:auto" id="dash-date-range"></span>
+        </div>
+
         <!-- Top metrics bar - dark style like reference -->
         <div style="background:var(--ink);border-radius:10px;padding:14px 20px;margin-bottom:16px;display:grid;grid-template-columns:repeat(4,1fr) auto;gap:0;align-items:center">
           <div style="border-right:1px solid rgba(255,255,255,0.1);padding-right:20px">
@@ -743,12 +754,10 @@ body {
           </div>
         </div>
 
-        <!-- Flex cost banner -->
-        <div id="context-banner" style="display:none;margin-bottom:16px;background:var(--coral);border-radius:10px;padding:14px 20px;display:flex;align-items:center;justify-content:space-between">
-          <div style="display:flex;align-items:center;gap:10px">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
-            <span style="font-size:11px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:rgba(255,255,255,0.85)" id="context-message">Loading...</span>
-          </div>
+        <!-- Calendar context banner -->
+        <div id="context-banner" style="display:none;margin-bottom:14px;background:var(--bg);border:1px solid var(--border);border-left:3px solid var(--gold);border-radius:var(--radius);padding:12px 16px;display:flex;align-items:center;gap:10px">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          <span style="font-size:12px;color:var(--ink2)" id="context-message"></span>
           <div id="context-weather" style="display:none"></div>
         </div>
 
@@ -794,7 +803,7 @@ body {
 
       <div id="v-scores" class="view">
         <div class="ph">
-          <div><div class="ph-t">Team Scores</div><div class="ph-s">Powered by The Selector · Live data</div></div>
+          <div><div class="ph-t">The Selector — Scores</div><div class="ph-s"><span style="color:var(--accent);font-weight:600">Pub Score</span> = venue average · <span style="color:var(--teal);font-weight:600">Player Score</span> = individual</div></div>
           <div style="display:flex;gap:6px;align-items:center">
             <button class="period-btn btn btn-ghost btn-sm" data-period="today" onclick="setScoresPeriod('today')">Today</button>
             <button class="period-btn btn btn-ghost btn-sm active" data-period="week" onclick="setScoresPeriod('week')">This Week</button>
@@ -803,10 +812,10 @@ body {
           </div>
         </div>
         <div class="stats" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px">
-          <div class="stat"><div class="stat-label">Could Say</div><div class="stat-val" id="tier-could" style="color:var(--teal)">—</div><div class="stat-note">Score 75+</div></div>
-          <div class="stat"><div class="stat-label">Should Say</div><div class="stat-val" id="tier-should" style="color:var(--gold)">—</div><div class="stat-note">Score 50–74</div></div>
-          <div class="stat"><div class="stat-label">Have To</div><div class="stat-val" id="tier-have" style="color:var(--coral)">—</div><div class="stat-note">Score 25–49</div></div>
-          <div class="stat"><div class="stat-label">Under Review</div><div class="stat-val" id="tier-review" style="color:var(--ink4)">—</div><div class="stat-note">Score 0–24</div></div>
+          <div class="stat"><div class="stat-label">Test Player</div><div class="stat-val" id="tier-could" style="color:var(--teal)">—</div><div class="stat-note">Test Player · 75+</div></div>
+          <div class="stat"><div class="stat-label">County Player</div><div class="stat-val" id="tier-should" style="color:var(--gold)">—</div><div class="stat-note">County Player · 50–74</div></div>
+          <div class="stat"><div class="stat-label">Club</div><div class="stat-val" id="tier-have" style="color:var(--coral)">—</div><div class="stat-note">Club · 25–49</div></div>
+          <div class="stat"><div class="stat-label">Academy</div><div class="stat-val" id="tier-review" style="color:var(--ink4)">—</div><div class="stat-note">Academy · 0–24</div></div>
         </div>
         <div class="card">
           <div class="card-h">
@@ -1486,7 +1495,7 @@ async function loadScores() {
     document.getElementById('tier-review').textContent = tiers.review;
 
     const tierColors = {'could-say':'var(--teal)','should-say':'var(--gold)','have-to':'var(--coral)','review':'var(--ink4)'};
-    const tierLabels = {'could-say':'Could Say','should-say':'Should Say','have-to':'Have To','review':'Review'};
+    const tierLabels = {'could-say':'Test Player','should-say':'County Player','have-to':'Club','review':'Academy'};
 
     document.getElementById('scores-updated').textContent = scores.length + ' staff scored · ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
 
@@ -1645,7 +1654,7 @@ function renderSquad() {
   document.getElementById('squad-count').textContent = data.length + ' members';
 
   const tierColors = {'could-say':'var(--teal)','should-say':'var(--gold)','have-to':'var(--coral)','review':'var(--ink4)'};
-  const tierLabels = {'could-say':'Could Say','should-say':'Should Say','have-to':'Have To','review':'Review'};
+  const tierLabels = {'could-say':'Test Player','should-say':'County Player','have-to':'Club','review':'Academy'};
 
   function statusBadge(status) {
     if (!status) return '<span style="color:var(--ink4)">—</span>';
@@ -1718,6 +1727,26 @@ async function loadBookingsToday() {
     const upd = document.getElementById('bookings-updated');
     if (upd) upd.textContent = total + ' bookings · ' + covers + ' covers · ' + new Date().toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit'});
   } catch(e) { console.error('Bookings error:', e); }
+}
+
+let currentDashPeriod = 'week';
+
+function setDashPeriod(btn) {
+  document.querySelectorAll('.dash-period').forEach(b => {
+    b.style.background = '';
+    b.style.color = '';
+    b.style.borderColor = '';
+  });
+  btn.style.background = 'var(--accent)';
+  btn.style.color = 'white';
+  btn.style.borderColor = 'var(--accent)';
+  currentDashPeriod = btn.dataset.period;
+  const now = new Date();
+  const from = new Date(now - (currentDashPeriod==='today'?86400000:currentDashPeriod==='week'?7*86400000:28*86400000));
+  document.getElementById('dash-date-range').textContent = 
+    from.toLocaleDateString('en-GB',{day:'numeric',month:'short'}) + ' – ' + 
+    now.toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+  loadDashboard();
 }
 
 async function loadDashboard() {
