@@ -1536,7 +1536,7 @@ async function loadUsers() {
           + '<td class="dim">' + (u.last_login ? new Date(u.last_login).toLocaleDateString('en-GB') : 'Never') + '</td>'
           + '<td><span style="color:' + (u.is_active?'#16a34a':'var(--ink4)') + ';font-weight:500;font-size:12px">' + (u.is_active?'Active':'Inactive') + '</span></td>'
           + '<td><button class="btn btn-ghost btn-sm" data-uid="' + u.id + '" onclick="editUser(this.dataset.uid)">Edit</button> '
-          + '<button class="btn btn-ghost btn-sm" style="color:var(--accent)" data-uid="' + u.id + '" data-uname="' + u.name.replace(/"/g,\'\') + '" onclick="deactivateUser(this.dataset.uid,this.dataset.uname)">' + (u.is_active?'Disable':'Enable') + '</button></td>'
+          + '<button class="btn btn-ghost btn-sm" style="color:var(--accent)" data-idx="' + usersData.indexOf(u) + '" onclick="deactivateUser(this.dataset.idx)">' + (u.is_active?'Disable':'Enable') + '</button></td>'
           + '</tr>').join('');
   } catch(e) { console.error('loadUsers error:', e); }
 }
@@ -1600,8 +1600,9 @@ async function saveUser() {
   } catch(e) { alert('Error: ' + e.message); }
 }
 
-async function deactivateUser(id, name) {
-  const u = usersData.find(x => x.id === id);
+async function deactivateUser(idx) {
+  const u = usersData[parseInt(idx)];
+  const id = u?.id; const name = u?.name;
   const action = u?.is_active ? 'disable' : 're-enable';
   if (!confirm('Are you sure you want to ' + action + ' ' + name + '?')) return;
   await fetch(API_BASE + '/users/' + id, {
