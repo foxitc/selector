@@ -679,6 +679,10 @@ body {
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 010 14.14M4.93 4.93a10 10 0 000 14.14"/><path d="M15.54 8.46a5 5 0 010 7.07M8.46 8.46a5 5 0 000 7.07"/></svg>
         The Selector
       </button>
+      <button class="nav-item" onclick="nav('users')" id="nav-users">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="23" y1="11" x2="17" y2="11"/><line x1="20" y1="8" x2="20" y2="14"/></svg>
+        User Admin
+      </button>
       <button class="nav-item" onclick="nav('clerks')" id="nav-clerks">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
         Clerk Mapping
@@ -1112,6 +1116,88 @@ body {
   </div>
 </div>
 
+
+      <!-- USER ADMIN -->
+      <div id="v-users" class="view">
+        <div class="ph">
+          <div>
+            <div class="ph-t">User Management</div>
+            <div class="ph-s">Create and manage Coach logins</div>
+          </div>
+          <button class="btn btn-primary" onclick="openAddUser()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add User
+          </button>
+        </div>
+        <div class="card">
+          <div class="card-h">
+            <div class="card-t">Coach Users</div>
+            <span style="font-size:11px;color:var(--ink3)" id="users-count">Loading...</span>
+          </div>
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Venue</th>
+                <th>Last Login</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="users-tbody"><tr><td colspan="7" class="empty">Loading...</td></tr></tbody>
+          </table>
+        </div>
+
+        <!-- Add/Edit User Modal -->
+        <div class="overlay" id="m-user-form" style="display:none">
+          <div class="modal" style="width:420px">
+            <div class="mh">
+              <div class="mt" id="user-form-title">Add User</div>
+              <span class="mx" onclick="closeM('user-form')">×</span>
+            </div>
+            <div class="mb">
+              <div class="form-group">
+                <label class="form-label">Full Name</label>
+                <input class="form-input" id="uf-name" placeholder="e.g. Sarah Johnson">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Email Address</label>
+                <input class="form-input" id="uf-email" type="email" placeholder="sarah@catandwickets.com">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Password <span id="uf-pass-hint" style="color:var(--ink4);font-weight:400">(leave blank to keep existing)</span></label>
+                <input class="form-input" id="uf-password" type="password" placeholder="Minimum 8 characters">
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                <div class="form-group">
+                  <label class="form-label">Role</label>
+                  <select class="form-select" id="uf-role">
+                    <option value="admin">Admin (Fox ITC / Owner)</option>
+                    <option value="gm">General Manager</option>
+                    <option value="coach">Coach (Read only)</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Venue Access</label>
+                  <select class="form-select" id="uf-venue">
+                    <option value="all">All Venues</option>
+                    <option value="griffin">Griffin Inn</option>
+                    <option value="taprun">Tap & Run</option>
+                    <option value="longhop">Long Hop</option>
+                  </select>
+                </div>
+              </div>
+              <div style="display:flex;gap:10px;margin-top:8px">
+                <button class="btn btn-primary" style="flex:1" onclick="saveUser()">Save User</button>
+                <button class="btn btn-ghost" onclick="closeM('user-form')">Cancel</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
 <!-- MODALS -->
 <div class="overlay" id="m-add-member" style="display:none">
   <div class="modal">
@@ -1269,7 +1355,7 @@ async function api(path, opts={}) {
 }
 
 // Navigation
-const VIEWS = ['dashboard','venues','scores','trail','sales','products','squad','selector','assessments','clerks'];
+const VIEWS = ['dashboard','venues','scores','trail','sales','products','squad','selector','users','assessments','clerks'];
 function nav(id) {
   document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
   const navEl = document.getElementById('nav-' + id);
@@ -1283,6 +1369,7 @@ function nav(id) {
   if (id==='squad') loadSquad();
   if (id==='venues') loadVenuesDetail();
   if (id==='clerks') loadClerks();
+  if (id==='users') loadUsers();
   if (id==='selector') loadMetrics();
 }
 
@@ -1426,6 +1513,105 @@ async function loadScores() {
 
 let squadData = [];
 let clerkNames = {};
+
+let usersData = [];
+let editingUserId = null;
+
+async function loadUsers() {
+  try {
+    const r = await api('/users');
+    usersData = r.data || [];
+    document.getElementById('users-count').textContent = usersData.length + ' users';
+    const roleLabels = { admin:'Admin', gm:'General Manager', coach:'Coach' };
+    const venueLabels = { all:'All Venues', griffin:'Griffin Inn', taprun:'Tap & Run', longhop:'Long Hop' };
+    document.getElementById('users-tbody').innerHTML = usersData.length === 0
+      ? '<tr><td colspan="7" class="empty">No users found</td></tr>'
+      : usersData.map(u => '<tr>'
+          + '<td class="p" style="display:flex;align-items:center;gap:8px">'
+          + '<div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#fd6f53,#e5ba96);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:white">' + (u.initials||u.name[0]) + '</div>'
+          + u.name + '</td>'
+          + '<td class="dim">' + u.email + '</td>'
+          + '<td><span class="b ' + (u.role==='admin'?'b-coral':u.role==='gm'?'b-teal':'b-gold') + '">' + (roleLabels[u.role]||u.role) + '</span></td>'
+          + '<td class="dim">' + (venueLabels[u.venue]||u.venue) + '</td>'
+          + '<td class="dim">' + (u.last_login ? new Date(u.last_login).toLocaleDateString('en-GB') : 'Never') + '</td>'
+          + '<td><span style="color:' + (u.is_active?'#16a34a':'var(--ink4)') + ';font-weight:500;font-size:12px">' + (u.is_active?'Active':'Inactive') + '</span></td>'
+          + '<td><button class="btn btn-ghost btn-sm" onclick="editUser('' + u.id + '')">Edit</button> '
+          + '<button class="btn btn-ghost btn-sm" style="color:var(--accent)" onclick="deactivateUser('' + u.id + '','' + u.name + '')">' + (u.is_active?'Disable':'Enable') + '</button></td>'
+          + '</tr>').join('');
+  } catch(e) { console.error('loadUsers error:', e); }
+}
+
+function openAddUser() {
+  editingUserId = null;
+  document.getElementById('user-form-title').textContent = 'Add User';
+  document.getElementById('uf-name').value = '';
+  document.getElementById('uf-email').value = '';
+  document.getElementById('uf-email').disabled = false;
+  document.getElementById('uf-password').value = '';
+  document.getElementById('uf-pass-hint').style.display = 'none';
+  document.getElementById('uf-role').value = 'coach';
+  document.getElementById('uf-venue').value = 'all';
+  openM('user-form');
+}
+
+function editUser(id) {
+  const u = usersData.find(x => x.id === id);
+  if (!u) return;
+  editingUserId = id;
+  document.getElementById('user-form-title').textContent = 'Edit User';
+  document.getElementById('uf-name').value = u.name;
+  document.getElementById('uf-email').value = u.email;
+  document.getElementById('uf-email').disabled = true;
+  document.getElementById('uf-password').value = '';
+  document.getElementById('uf-pass-hint').style.display = '';
+  document.getElementById('uf-role').value = u.role;
+  document.getElementById('uf-venue').value = u.venue;
+  openM('user-form');
+}
+
+async function saveUser() {
+  const name = document.getElementById('uf-name').value.trim();
+  const email = document.getElementById('uf-email').value.trim();
+  const password = document.getElementById('uf-password').value;
+  const role = document.getElementById('uf-role').value;
+  const venue = document.getElementById('uf-venue').value;
+  if (!name) return alert('Name is required');
+  if (!editingUserId && !email) return alert('Email is required');
+  if (!editingUserId && !password) return alert('Password is required for new users');
+  if (password && password.length < 8) return alert('Password must be at least 8 characters');
+  try {
+    if (editingUserId) {
+      const body = { name, role, venue, is_active: true };
+      if (password) body.password = password;
+      await fetch(API_BASE + '/users/' + editingUserId, {
+        method: 'PUT', headers: { 'Content-Type':'application/json','Authorization':'Bearer '+TOKEN },
+        body: JSON.stringify(body)
+      });
+    } else {
+      const r = await fetch(API_BASE + '/users', {
+        method: 'POST', headers: { 'Content-Type':'application/json','Authorization':'Bearer '+TOKEN },
+        body: JSON.stringify({ name, email, password, role, venue })
+      });
+      const d = await r.json();
+      if (d.error) return alert('Error: ' + d.error.message);
+    }
+    closeM('user-form');
+    loadUsers();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function deactivateUser(id, name) {
+  const u = usersData.find(x => x.id === id);
+  const action = u?.is_active ? 'disable' : 're-enable';
+  if (!confirm('Are you sure you want to ' + action + ' ' + name + '?')) return;
+  await fetch(API_BASE + '/users/' + id, {
+    method: 'PUT', headers: { 'Content-Type':'application/json','Authorization':'Bearer '+TOKEN },
+    body: JSON.stringify({ name: u.name, role: u.role, venue: u.venue, is_active: !u.is_active })
+  });
+  loadUsers();
+}
+
+
 let metricsData = [];
 
 async function loadSquad() {

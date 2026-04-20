@@ -2250,6 +2250,119 @@ router.get('/products/top', auth, async (req, res, next) => {
   } catch(e) { next(e); }
 });
 
+
+// ── USER MANAGEMENT ──
+
+// Seed default users if none exist
+async function seedUsers() {
+  const count = await database_js_1.db.query('SELECT COUNT(*) FROM coach_users');
+  if (parseInt(count.rows[0].count) > 0) return;
+  const users = [
+    { email:'ian@foxitc.com', pass:'FoxITC2026!', name:'Ian Mackness', initials:'IM', role:'admin', venue:'all' },
+    { email:'jack@foxitc.com', pass:'FoxITC2026!', name:'Jack Whitehead', initials:'JW', role:'admin', venue:'all' },
+    { email:'lee@catandwickets.com', pass:'CW2026!', name:'Lee Cash', initials:'LC', role:'admin', venue:'all' },
+    { email:'coach.griffin@catandwickets.com', pass:'Coach2026!', name:'Griffin Coach', initials:'GC', role:'gm', venue:'griffin' },
+    { email:'coach.taprun@catandwickets.com', pass:'Coach2026!', name:'Tap & Run Coach', initials:'TC', role:'gm', venue:'taprun' },
+    { email:'coach.longhop@catandwickets.com', pass:'Coach2026!', name:'Long Hop Coach', initials:'LH', role:'gm', venue:'longhop' },
+  ];
+  for (const u of users) {
+    const bcrypt = require('bcrypt');
+    const hash = await bcrypt.hash(u.pass, 10);
+    await database_js_1.db.query(
+      'INSERT INTO coach_users (email,password_hash,name,initials,role,venue) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (email) DO NOTHING',
+      [u.email, hash, u.name, u.initials, u.role, u.venue]
+    );
+  }
+  console.log('[Users] Default users seeded');
+}
+seedUsers().catch(e => console.error('[Users] Seed error:', e.message));
+
+// Auth login via DB
+router.post('/auth/login/db', async (req, res, next) => {
+  try {
+    const { email, password } = req.body;
+    const r = await database_js_1.db.query(
+      'SELECT * FROM coach_users WHERE email=$1 AND is_active=true', [email]
+    );
+    if (!r.rows.length) return err(res, 'Invalid credentials', 401);
+    const user = r.rows[0];
+    const bcrypt = require('bcrypt');
+    const valid = await bcrypt.compare(password, user.password_hash);
+    if (!valid) return err(res, 'Invalid credentials', 401);
+    await database_js_1.db.query('UPDATE coach_users SET last_login=NOW() WHERE id=$1', [user.id]);
+    const jwt = require('jsonwebtoken');
+    const token = jwt.sign(
+      { userId: user.id, email: user.email, role: user.role, venueId: null },
+      process.env.JWT_SECRET || 'selector-secret-2026',
+      { expiresIn: '7d' }
+    );
+    ok(res, { token, user: { id: user.id, email: user.email, name: user.name, initials: user.initials, role: user.role, venue: user.venue } });
+  } catch(e) { next(e); }
+});
+
+// Get all users (admin only)
+router.get('/users', auth, async (req, res, next) => {
+  try {
+    if (!['admin'].includes(req.user?.role)) return err(res, 'Forbidden', 403);
+    const r = await database_js_1.db.query(
+      'SELECT id, email, name, initials, role, venue, is_active, created_at, last_login FROM coach_users ORDER BY created_at'
+    );
+    ok(res, r.rows);
+  } catch(e) { next(e); }
+});
+
+// Create user (admin only)
+router.post('/users', auth, async (req, res, next) => {
+  try {
+    if (!['admin'].includes(req.user?.role)) return err(res, 'Forbidden', 403);
+    const { email, password, name, initials, role, venue } = req.body;
+    if (!email || !password || !name) return err(res, 'email, password and name required', 400);
+    const bcrypt = require('bcrypt');
+    const hash = await bcrypt.hash(password, 10);
+    const ini = initials || (name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2));
+    const r = await database_js_1.db.query(
+      'INSERT INTO coach_users (email,password_hash,name,initials,role,venue) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id,email,name,initials,role,venue,is_active,created_at',
+      [email.toLowerCase(), hash, name, ini, role||'coach', venue||'all']
+    );
+    ok(res, r.rows[0], 201);
+  } catch(e) {
+    if (e.code === '23505') return err(res, 'Email already exists', 409);
+    next(e);
+  }
+});
+
+// Update user (admin only)
+router.put('/users/:id', auth, async (req, res, next) => {
+  try {
+    if (!['admin'].includes(req.user?.role)) return err(res, 'Forbidden', 403);
+    const { id } = req.params;
+    const { name, role, venue, is_active, password } = req.body;
+    if (password) {
+      const bcrypt = require('bcrypt');
+    const hash = await bcrypt.hash(password, 10);
+      await database_js_1.db.query(
+        'UPDATE coach_users SET name=$1,role=$2,venue=$3,is_active=$4,password_hash=$5,updated_at=NOW() WHERE id=$6',
+        [name, role, venue, is_active, hash, id]
+      );
+    } else {
+      await database_js_1.db.query(
+        'UPDATE coach_users SET name=$1,role=$2,venue=$3,is_active=$4,updated_at=NOW() WHERE id=$5',
+        [name, role, venue, is_active, id]
+      );
+    }
+    ok(res, { message: 'User updated' });
+  } catch(e) { next(e); }
+});
+
+// Delete user (admin only)
+router.delete('/users/:id', auth, async (req, res, next) => {
+  try {
+    if (!['admin'].includes(req.user?.role)) return err(res, 'Forbidden', 403);
+    await database_js_1.db.query('UPDATE coach_users SET is_active=false WHERE id=$1', [req.params.id]);
+    ok(res, { message: 'User deactivated' });
+  } catch(e) { next(e); }
+});
+
 // ── SYNC SCHEDULER ──────────────────────────────────────────────
 async function runScheduledSyncs() {
   const now = new Date();
