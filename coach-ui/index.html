@@ -643,7 +643,7 @@ body {
 </div>
 
 <!-- APP -->
-<div id="app">
+<div id="app" style="display:none">
   
 
   <div class="body">
@@ -1382,7 +1382,11 @@ function bootApp() {
 // Auto-login
 (function() {
   const s = sessionStorage.getItem('coach_session');
-  if (!s) { loadLoginStats(); return; }
+  if (!s) {
+    document.getElementById('login-screen').style.display = 'flex';
+    loadLoginStats();
+    return;
+  }
   SESSION = JSON.parse(s);
   bootApp();
 })();
