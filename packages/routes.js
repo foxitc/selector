@@ -2265,6 +2265,43 @@ async function calculateScores(period, locationId) {
   return scores.sort((a,b) => b.score - a.score);
 }
 
+
+// Scores - calculate
+router.post('/scores/calculate', auth, async (req, res, next) => {
+  try {
+    const { period, locationId, venue } = req.body || {};
+    const locMap = {'griffin':'0001','taprun':'0002','longhop':'0003'};
+    const loc = locationId || locMap[venue] || null;
+    const scores = await calculateScores(period || 'week', loc);
+    const top10 = scores.slice(0, 10);
+    ok(res, { calculated: scores.length, top10, all: scores });
+  } catch(e) { next(e); }
+});
+
+// Scores - leaderboard (read cached scores from team_members)
+router.get('/scores/leaderboard', auth, async (req, res, next) => {
+  try {
+    const { period, venue, locationId } = req.query;
+    const locMap = {'griffin':'0001','taprun':'0002','longhop':'0003'};
+    const loc = locationId || locMap[venue] || null;
+    
+    // Recalculate fresh scores
+    const scores = await calculateScores(period || 'week', loc);
+    ok(res, scores);
+  } catch(e) { next(e); }
+});
+
+// Individual score
+router.get('/scores/:teamMemberId', auth, async (req, res, next) => {
+  try {
+    const r = await database_js_1.db.query(
+      'SELECT tm.*, v.name as venue_name FROM team_members tm JOIN venues v ON v.id=tm.venue_id WHERE tm.id=$1',
+      [req.params.teamMemberId]
+    );
+    ok(res, r.rows[0] || null);
+  } catch(e) { next(e); }
+});
+
 // ── USER MANAGEMENT ──
 
 // Seed default users if none exist
