@@ -2112,7 +2112,12 @@ const METRIC_CALCULATORS = {
   },
   drinks_per_cover: {
     label: 'Drinks per Main',
-    actual: (m) => m.mains > 0 ? parseFloat((m.drinks / m.mains).toFixed(2)) : 0
+    actual: (m) => {
+      if (m.mains < 1) return 0;
+      const ratio = m.drinks / m.mains;
+      // Cap at 10 - anything higher indicates a bar clerk not food server
+      return ratio > 10 ? 0 : parseFloat(ratio.toFixed(2));
+    }
   },
   premium_wine: {
     label: 'Premium Wine per Cover',
@@ -2215,7 +2220,7 @@ async function calculateScores(period, locationId) {
 
     const m = mR.rows[0];
     const mains = Number(m.mains);
-    if (mains < 5) continue;
+    if (mains < 20) continue; // Need 20+ mains for meaningful score
 
     // Count named reviews for this clerk
     const revR = await database_js_1.db.query(
