@@ -1640,22 +1640,49 @@ router.get('/products/intel', auth, async (req, res, next) => {
   } catch(e) { next(e); }
 });
 
-// ASPH by venue endpoint - all food revenue / mains sold
+// ASPH by venue endpoint - all food revenue / mains sold + labour efficiency
 router.get('/metrics/asph', auth, async (req, res, next) => {
   try {
     const { period } = req.query;
     const interval = period === 'month' ? '30 days' : period === 'today' ? '1 day' : '7 days';
+    
     const r = await database_js_1.db.query(
-      "SELECT t.location_id, " +
-      "SUM(si.quantity) FILTER (WHERE si.sales_group='31' AND si.individual_net_price >= 5) as mains_sold, " +
-      "ROUND(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('29','30','31','32','33','34','35'))::numeric, 2) as dry_revenue, " +
-      "ROUND(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('1','2','3','4','5','6','8','9','10','15','17','18','19','21','22','23','26','27','28','38'))::numeric, 2) as wet_revenue, " +
-      "ROUND(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('29','30','31','32','33','34','35')) / " +
-      "NULLIF(SUM(si.quantity) FILTER (WHERE si.sales_group='31' AND si.individual_net_price >= 5), 0)::numeric, 2) as asph " +
-      "FROM relay_sold_items si " +
-      "JOIN relay_transactions t ON t.id=si.transaction_id " +
-      "WHERE t.datetime_opened >= NOW() - INTERVAL '" + interval + "' " +
-      "GROUP BY t.location_id ORDER BY t.location_id"
+      "WITH food_metrics AS (" +
+      "  SELECT t.location_id, " +
+      "  SUM(si.quantity) FILTER (WHERE si.sales_group='31' AND si.individual_net_price >= 5) as mains_sold, " +
+      "  ROUND(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('29','30','31','32','33','34','35'))::numeric, 2) as dry_revenue, " +
+      "  ROUND(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('1','2','3','4','5','6','8','9','10','15','17','18','19','21','22','23','26','27','28','38'))::numeric, 2) as wet_revenue, " +
+      "  ROUND(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('29','30','31','32','33','34','35')) / " +
+      "  NULLIF(SUM(si.quantity) FILTER (WHERE si.sales_group='31' AND si.individual_net_price >= 5), 0)::numeric, 2) as asph " +
+      "  FROM relay_sold_items si " +
+      "  JOIN relay_transactions t ON t.id=si.transaction_id " +
+      "  WHERE t.datetime_opened >= NOW() - INTERVAL '" + interval + "' " +
+      "  GROUP BY t.location_id" +
+      "), " +
+      "net_rev AS (" +
+      "  SELECT location_id, ROUND(SUM(total_net_item_cost)::numeric, 2) as net_revenue, COUNT(*) as transactions " +
+      "  FROM relay_transactions " +
+      "  WHERE datetime_opened >= NOW() - INTERVAL '" + interval + "' " +
+      "  GROUP BY location_id" +
+      "), " +
+      "labour AS (" +
+      "  SELECT location_id, " +
+      "  ROUND(SUM(basic_pay)::numeric, 2) as labour_cost, " +
+      "  ROUND(SUM(CASE WHEN hourly_rate > 5 AND NOT is_salaried THEN basic_pay/hourly_rate " +
+      "    WHEN is_salaried AND total_pay > 0 THEN total_pay/12.21 ELSE 0 END)::numeric, 1) as est_hours " +
+      "  FROM rotaready_pay " +
+      "  WHERE pay_date >= NOW() - INTERVAL '" + interval + "' " +
+      "  GROUP BY location_id" +
+      ") " +
+      "SELECT f.location_id, f.mains_sold, f.dry_revenue, f.wet_revenue, f.asph, " +
+      "r.net_revenue, r.transactions, " +
+      "l.labour_cost, l.est_hours, " +
+      "ROUND(r.net_revenue / NULLIF(l.est_hours, 0)::numeric, 2) as rev_per_labour_hour, " +
+      "ROUND(l.labour_cost / NULLIF(r.net_revenue, 0) * 100::numeric, 1) as labour_pct " +
+      "FROM food_metrics f " +
+      "JOIN net_rev r ON r.location_id=f.location_id " +
+      "LEFT JOIN labour l ON l.location_id=f.location_id " +
+      "ORDER BY f.location_id"
     );
     ok(res, r.rows);
   } catch(e) { next(e); }
