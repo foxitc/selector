@@ -1386,12 +1386,10 @@ async function syncRotaReadyStaff() {
   // Sync pay/labour data
   try {
     const now = new Date();
-    // Calculate Monday of current week
-    const weekStart = new Date(now);
-    const dayOfWeek = weekStart.getUTCDay();
-    const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-    weekStart.setUTCDate(weekStart.getUTCDate() + daysToMonday);
-    const startDate = weekStart.toISOString().split('T')[0];
+    // Pull rolling 28 days to build history
+    const startD = new Date(now);
+    startD.setUTCDate(startD.getUTCDate() - 28);
+    const startDate = startD.toISOString().split('T')[0];
     const endDate = now.toISOString().split('T')[0];
     console.log('[RotaReady] Pay sync date range:', startDate, 'to', endDate);
     const payR = await axios.get('https://api.rotaready.com/report/signedOffHours?startDate='+startDate+'&endDate='+endDate, {headers});
