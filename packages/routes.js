@@ -105,17 +105,35 @@ router.get('/venues', auth, async (req, res, next) => {
 router.get('/squad', auth, async (req, res, next) => {
     try {
         const user = req.user;
-        const venueId = req.query['venueId'] ?? user.venueId ?? undefined;
-        const result = await database_js_1.db.query(`SELECT tm.*, v.name AS venue_name, v.short_name AS venue_short_name,
-              ss.total_score, ss.tier, ss.programme_status, ss.score_change,
-              ss.assessment_score, ss.epos_score, ss.operational_score,
-              ss.coaching_narrative, ss.rank_in_venue
-       FROM team_members tm
-       JOIN venues v ON v.id = tm.venue_id
-       LEFT JOIN selector_scores ss ON ss.team_member_id = tm.id AND ss.week_ending = $2
-       WHERE tm.is_active = true
-         AND ($1::uuid IS NULL OR tm.venue_id = $1)
-       ORDER BY ss.rank_in_venue ASC NULLS LAST, tm.last_name, tm.first_name`, [venueId ?? null, weekStr()]);
+        // Support both venueId (UUID) and venue/locationId (location code)
+        const locMap = {'griffin':'0001','taprun':'0002','longhop':'0003'};
+        const locationId = req.query['locationId'] || locMap[req.query['venue']] || null;
+        const venueUuidMap = {'0001':'e87b5986-0826-4464-ad62-e55175f9c3c4','0002':'38749619-c192-45d1-806b-2fdc5922adea','0003':'d9657ea0-19c4-4793-9c0c-21fd4179ac56'};
+        const venueId = req.query['venueId'] ?? (locationId ? venueUuidMap[locationId] : null) ?? user.venueId ?? null;
+        
+        const result = await database_js_1.db.query(
+          "SELECT tm.*, v.name AS venue_name, v.short_name AS venue_short_name, " +
+          "cvm.location_id, " +
+          "ss.total_score, ss.tier, ss.programme_status, ss.score_change, " +
+          "ss.assessment_score, ss.epos_score, ss.operational_score, " +
+          "ss.coaching_narrative, ss.rank_in_venue, " +
+          "cu.employee_id as cpl_employee_id, " +
+          "(SELECT COUNT(*) FROM cpl_training ct WHERE ct.employee_id=cu.employee_id AND ct.status='Complete') as cpl_completed, " +
+          "(SELECT COUNT(*) FROM cpl_training ct WHERE ct.employee_id=cu.employee_id) as cpl_total, " +
+          "(SELECT ROUND(AVG(ct.score)::numeric,0) FROM cpl_training ct WHERE ct.employee_id=cu.employee_id AND ct.status='Complete') as cpl_avg_score, " +
+          "(SELECT ct.status FROM cpl_training ct WHERE ct.employee_id=cu.employee_id AND ct.course_name LIKE '%Food Safety%' LIMIT 1) as food_safety_status, " +
+          "(SELECT ct.status FROM cpl_training ct WHERE ct.employee_id=cu.employee_id AND ct.course_name LIKE '%Allergen%' LIMIT 1) as allergen_status, " +
+          "(SELECT ct.status FROM cpl_training ct WHERE ct.employee_id=cu.employee_id AND ct.course_name LIKE '%Batting Order%' LIMIT 1) as induction_status, " +
+          "(SELECT ct.status FROM cpl_training ct WHERE ct.employee_id=cu.employee_id AND ct.course_name LIKE '%Induction%' LIMIT 1) as cw_induction_status " +
+          "FROM team_members tm " +
+          "JOIN venues v ON v.id=tm.venue_id " +
+          "LEFT JOIN connector_venue_mappings cvm ON cvm.venue_id=tm.venue_id AND cvm.connector='relay' " +
+          "LEFT JOIN selector_scores ss ON ss.team_member_id=tm.id AND ss.week_ending=$2 " +
+          "LEFT JOIN cpl_users cu ON LOWER(cu.first_name)=LOWER(tm.first_name) AND LOWER(cu.last_name)=LOWER(tm.last_name) AND cu.active=true " +
+          "WHERE tm.is_active=true AND ($1::uuid IS NULL OR tm.venue_id=$1) " +
+          "ORDER BY tm.selector_score DESC NULLS LAST, tm.first_name",
+          [venueId, weekStr()]
+        );
         ok(res, result.rows);
     }
     catch (e) {
@@ -535,9 +553,15 @@ router.get('/metrics/trail/breakdown', auth, async (req, res, next) => {
       const sun = new Date(d); sun.setDate(d.getDate() - (day === 0 ? 0 : day));
       return sun.toISOString().split('T')[0];
     })();
+    // Fall back to latest available week if requested week not found
+    const latestWeek = await database_js_1.db.query(
+      "SELECT TO_CHAR(MAX(week_ending), 'YYYY-MM-DD') as latest FROM trail_venue_metrics"
+    ).catch(() => ({ rows: [{}] }));
+    const latestStr = latestWeek.rows[0]?.latest || week;
+    const effectiveWeek = week <= latestStr ? week : latestStr;
     const areas = await database_js_1.db.query(
       'SELECT m.*, v.name AS venue_name FROM trail_venue_metrics m JOIN venues v ON v.id = m.venue_id WHERE m.week_ending = $1 ORDER BY v.name, m.area',
-      [week]
+      [effectiveWeek]
     ).catch(() => ({ rows: [] }));
     const summary = await database_js_1.db.query(
       'SELECT v.name AS venue_name, m.venue_id, SUM(m.total_tasks) AS total_tasks, SUM(m.completed_tasks) AS completed_tasks, ROUND(AVG(m.completion_rate)::numeric, 2) AS avg_completion_rate, ROUND(AVG(m.trail_score)::numeric, 2) AS combined_trail_score FROM trail_venue_metrics m JOIN venues v ON v.id = m.venue_id WHERE m.week_ending = $1 GROUP BY v.name, m.venue_id ORDER BY combined_trail_score DESC',
@@ -649,7 +673,7 @@ router.get('/transactions/recent', auth, async (req, res, next) => {
   try {
     const limit = parseInt(req.query['limit']) || 20;
     const txns = await database_js_1.db.query(
-      'SELECT t.id, t.location_id, t.business_date, t.datetime_opened, t.datetime_closed, t.covers, t.seating_area, t.total_gross_item_cost, t.closed_by_clerk_id, t.terminal_id, t.received_at FROM relay_transactions t ORDER BY t.received_at DESC LIMIT $1',
+      'SELECT t.id, t.location_id, t.business_date, t.datetime_opened, t.datetime_closed, t.covers, t.seating_area, t.total_gross_item_cost, t.total_net_item_cost, t.closed_by_clerk_id, t.terminal_id, t.received_at FROM relay_transactions t ORDER BY t.received_at DESC LIMIT $1',
       [limit]
     ).catch(() => ({ rows: [] }));
     const result = [];
@@ -898,6 +922,27 @@ router.post('/webhooks/resdiary', async (req, res, next) => {
     const status = booking.BookingStatus || booking.ArrivalStatus || '';
     console.log('[ResDiary] Webhook:', eventType, restaurantName, reference, partySize, 'covers', visitDate);
 
+    // Upsert into resdiary_bookings
+    if (booking && booking.Id) {
+      const locMap = {'The Griffin Inn':'0001','The Tap & Run':'0002','The Long Hop':'0003'};
+      const locationId = locMap[restaurantName] || null;
+      const customerName = ((booking.Customer?.FirstName||'') + ' ' + (booking.Customer?.Surname||'')).trim();
+      database_js_1.db.query(
+        "INSERT INTO resdiary_bookings (booking_id, reference, restaurant_name, location_id, visit_date, visit_time, party_size, table_numbers, table_ids, area_ids, booking_status, arrival_status, meal_status, channel_code, customer_email, customer_name, special_requests, booking_duration, customer_spend, last_event_type, last_event_at) " +
+        "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21) " +
+        "ON CONFLICT (booking_id) DO UPDATE SET booking_status=EXCLUDED.booking_status, arrival_status=EXCLUDED.arrival_status, meal_status=EXCLUDED.meal_status, table_numbers=EXCLUDED.table_numbers, party_size=EXCLUDED.party_size, last_event_type=EXCLUDED.last_event_type, last_event_at=EXCLUDED.last_event_at, updated_at=NOW()",
+        [booking.Id, reference, restaurantName, locationId,
+         visitDate||null, visitTime||null, partySize||0,
+         booking.TableNumbers||null, JSON.stringify(booking.TableIds||[]),
+         JSON.stringify(booking.AreaIdList||[]),
+         booking.BookingStatus||null, booking.ArrivalStatus||null,
+         booking.MealStatus||null, booking.ChannelCode||null,
+         booking.Customer?.Email||null, customerName||null,
+         booking.SpecialRequests||null, booking.BookingDuration||null,
+         booking.CustomerSpend||0, eventType, new Date().toISOString()]
+      ).catch(e => console.error('[ResDiary] Booking upsert error:', e.message));
+    }
+
     // Store raw event
     await database_js_1.db.query(
       'INSERT INTO resdiary_webhook_events (id, event_type, restaurant_name, payload, received_at) VALUES (uuid_generate_v4(), $1, $2, $3, NOW()) ON CONFLICT DO NOTHING',
@@ -1143,10 +1188,10 @@ router.post('/sync/resdiary/test', auth, async (req, res, next) => {
     const p = process.env['RESDIARY_PASSWORD'];
     if (!u || !p) return err(res, 'ResDiary credentials not configured', 400);
     const axios = (await import('axios')).default;
-    const login = await axios.post('https://api.rdbranch.com/api/ConsumerApi/v1/login',
+    const login = await axios.post('https://login.resdiary.com/api/ConsumerApi/v1/login',
       { username: u, password: p }, { timeout: 15000 });
     const token = login.data?.Token || login.data?.token || login.data;
-    const user = await axios.get('https://api.rdbranch.com/api/ConsumerApi/v1/CurrentUser',
+    const user = await axios.get('https://login.resdiary.com/api/ConsumerApi/v1/CurrentUser',
       { headers: { 'Authorization': 'Bearer ' + token }, timeout: 15000 });
     const diaries = (user.data?.Diaries || user.data?.diaries || []).map(d => d.Name || d.name);
     ok(res, { success: true, message: 'Connected — ' + diaries.length + ' diary(s)', diaries });
@@ -1259,9 +1304,15 @@ router.get('/metrics/trail/breakdown', auth, async (req, res, next) => {
       const sun = new Date(d); sun.setDate(d.getDate() - (day === 0 ? 0 : day));
       return sun.toISOString().split('T')[0];
     })();
+    // Fall back to latest available week if requested week not found
+    const latestWeek = await database_js_1.db.query(
+      "SELECT TO_CHAR(MAX(week_ending), 'YYYY-MM-DD') as latest FROM trail_venue_metrics"
+    ).catch(() => ({ rows: [{}] }));
+    const latestStr = latestWeek.rows[0]?.latest || week;
+    const effectiveWeek = week <= latestStr ? week : latestStr;
     const areas = await database_js_1.db.query(
       'SELECT m.*, v.name AS venue_name FROM trail_venue_metrics m JOIN venues v ON v.id = m.venue_id WHERE m.week_ending = $1 ORDER BY v.name, m.area',
-      [week]
+      [effectiveWeek]
     ).catch(() => ({ rows: [] }));
     const summary = await database_js_1.db.query(
       'SELECT v.name AS venue_name, m.venue_id, SUM(m.total_tasks) AS total_tasks, SUM(m.completed_tasks) AS completed_tasks, ROUND(AVG(m.completion_rate)::numeric, 2) AS avg_completion_rate, ROUND(AVG(m.trail_score)::numeric, 2) AS combined_trail_score FROM trail_venue_metrics m JOIN venues v ON v.id = m.venue_id WHERE m.week_ending = $1 GROUP BY v.name, m.venue_id ORDER BY combined_trail_score DESC',
@@ -1311,6 +1362,7 @@ async function syncRotaReadyStaff() {
     if (entityId) userEntity[s.id] = entityId;
   });
 
+  const venueMap = {'tap':'38749619-c192-45d1-806b-2fdc5922adea','gri':'e87b5986-0826-4464-ad62-e55175f9c3c4','tlh':'d9657ea0-19c4-4793-9c0c-21fd4179ac56'};
   const defaultVenue = 'e87b5986-0826-4464-ad62-e55175f9c3c4';
 
   let upserted = 0;
@@ -1325,13 +1377,64 @@ async function syncRotaReadyStaff() {
     await database_js_1.db.query(
       "INSERT INTO team_members (venue_id, first_name, last_name, display_name, avatar_initials, avatar_color, rota_id, is_active) " +
       "VALUES ($1,$2,$3,$4,$5,'#4a9b8e',$6,$7) " +
-      "ON CONFLICT (rota_id) DO UPDATE SET first_name=EXCLUDED.first_name, last_name=EXCLUDED.last_name, " +
+      "ON CONFLICT (rota_id) WHERE rota_id IS NOT NULL DO UPDATE SET first_name=EXCLUDED.first_name, last_name=EXCLUDED.last_name, " +
       "display_name=EXCLUDED.display_name, venue_id=EXCLUDED.venue_id, is_active=EXCLUDED.is_active, updated_at=NOW()",
       [venueId, s.firstName, s.lastName, s.firstName+' '+s.lastName, initials, String(s.id), s.flags.active]
     ).catch(e => console.error('[RotaReady] Upsert error:', e.message));
     upserted++;
   }
+  // Sync pay/labour data
+  try {
+    const now = new Date();
+    // Pull rolling 28 days to build history
+    const startD = new Date(now);
+    startD.setUTCDate(startD.getUTCDate() - 28);
+    const startDate = startD.toISOString().split('T')[0];
+    const endDate = now.toISOString().split('T')[0];
+    console.log('[RotaReady] Pay sync date range:', startDate, 'to', endDate);
+    const payR = await axios.get('https://api.rotaready.com/report/signedOffHours?startDate='+startDate+'&endDate='+endDate, {headers});
+    const payItems = payR.data?.items || [];
+    const entityLoc = {gri:'0001',tap:'0002',tlh:'0003'};
+    let paySynced = 0;
+    for (const item of payItems) {
+      const loc = entityLoc[item.entityId];
+      if (!loc) continue;
+      for (const w of (item.work||[])) {
+        if (!w.representsBasicPay) continue;
+        const cp = w.calculatedPay || {};
+        const isSalaried = w.payAmount > 100;
+        await database_js_1.db.query(
+          "INSERT INTO rotaready_pay (user_id, entity_id, location_id, pay_date, basic_pay, total_pay, hours_paid, hourly_rate, is_salaried) " +
+          "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) " +
+          "ON CONFLICT (user_id, pay_date, entity_id) DO UPDATE SET basic_pay=$5, total_pay=$6, hours_paid=$7, synced_at=NOW()",
+          [item.userId, item.entityId, loc, item.date?.split('T')[0],
+           parseFloat(cp.base||0), parseFloat(cp.totalPay||0),
+           isSalaried ? 0 : parseFloat(w.durationPaid||0),
+           isSalaried ? 0 : parseFloat(w.payAmount||0), isSalaried]
+        ).catch(()=>{});
+        paySynced++;
+      }
+    }
+    console.log('[RotaReady] Pay records synced:', paySynced);
+  } catch(e) { console.error('[RotaReady] Pay sync error:', e.message); }
+
   console.log('[RotaReady] Staff sync complete:', upserted, 'staff processed');
+
+  // Archive team members not seen in RotaReady for 30+ days
+  // (they remain in DB but marked inactive - will reactivate on next appearance)
+  try {
+    const archiveRes = await database_js_1.db.query(
+      "UPDATE team_members SET is_active=false " +
+      "WHERE is_active=true " +
+      "AND rota_id IS NOT NULL " +
+      "AND updated_at < NOW() - INTERVAL '30 days' " +
+      "AND id NOT IN (SELECT DISTINCT id FROM team_members WHERE updated_at >= NOW() - INTERVAL '30 days')"
+    );
+    if (archiveRes.rowCount > 0) {
+      console.log('[RotaReady] Archived', archiveRes.rowCount, 'inactive staff (30+ days)');
+    }
+  } catch(e) { console.error('[RotaReady] Archive error:', e.message); }
+
   return upserted;
 }
 
@@ -1368,13 +1471,32 @@ router.get('/connectors/status', auth, async (req, res, next) => {
     const trailR = await database_js_1.db.query("SELECT MAX(synced_at) as last_sync, COUNT(*) as total FROM trail_venue_metrics").catch(()=>({rows:[{}]}));
     status.trail = {status: Number(trailR.rows[0]?.total)>0?'connected':'offline', lastSync: trailR.rows[0]?.last_sync};
     const rsdR = await database_js_1.db.query("SELECT COUNT(*) as total, MAX(received_at) as last_received FROM resdiary_webhook_events").catch(()=>({rows:[{}]}));
-    status.resdiary = {status:'pending', webhookEvents: rsdR.rows[0]?.total, lastSync: rsdR.rows[0]?.last_received};
+    const rsdBookingsR = await database_js_1.db.query("SELECT COUNT(*) as total FROM resdiary_bookings").catch(()=>({rows:[{total:0}]}));
+    status.resdiary = {
+      status: Number(rsdR.rows[0]?.total) > 0 ? 'live' : 'pending',
+      webhookEvents: rsdR.rows[0]?.total,
+      bookings: rsdBookingsR.rows[0]?.total,
+      lastSync: rsdR.rows[0]?.last_received
+    };
     const rrOk = !!(env.ROTAREADY_REALM_ID && env.ROTAREADY_CONSUMER_KEY && env.ROTAREADY_CONSUMER_SECRET);
     const rrR = await database_js_1.db.query("SELECT COUNT(*) as total, MAX(updated_at) as last_sync FROM team_members WHERE rota_id IS NOT NULL").catch(()=>({rows:[{}]}));
     status.rotaready = {status: rrOk && Number(rrR.rows[0]?.total)>0?'connected':rrOk?'configured':'offline', lastSync: rrR.rows[0]?.last_sync, staffCount: rrR.rows[0]?.total};
-    const gR = await database_js_1.db.query("SELECT COUNT(*) as total FROM google_tokens").catch(()=>({rows:[{total:0}]}));
-    status.google = {status: Number(gR.rows[0]?.total)>0?'connected':'offline'};
-    status.cpl = {status: env.CPL_API_KEY?'configured':'offline', note:'Demo account'};
+    const gRatingsR = await database_js_1.db.query("SELECT COUNT(*) as venues, MAX(synced_at) as last_sync FROM google_place_ratings").catch(()=>({rows:[{venues:0}]}));
+    const gReviewsR = await database_js_1.db.query("SELECT COUNT(*) as total FROM google_reviews").catch(()=>({rows:[{total:0}]}));
+    status.google = {
+      status: Number(gRatingsR.rows[0]?.venues) > 0 ? 'live' : 'offline',
+      venuesCovered: gRatingsR.rows[0]?.venues,
+      reviewsStored: gReviewsR.rows[0]?.total,
+      lastSync: gRatingsR.rows[0]?.last_sync
+    };
+    const cplR = await database_js_1.db.query("SELECT COUNT(DISTINCT employee_id) as users, MAX(synced_at) as last_sync FROM cpl_users WHERE active=true").catch(()=>({rows:[{users:0}]}));
+    const cplTrainR = await database_js_1.db.query("SELECT COUNT(*) as records FROM cpl_training").catch(()=>({rows:[{records:0}]}));
+    status.cpl = {
+      status: env.CPL_API_KEY && Number(cplR.rows[0]?.users) > 0 ? 'live' : env.CPL_API_KEY ? 'configured' : 'offline',
+      activeUsers: cplR.rows[0]?.users,
+      trainingRecords: cplTrainR.rows[0]?.records,
+      lastSync: cplR.rows[0]?.last_sync
+    };
     ok(res, status);
   } catch(e) { next(e); }
 });
@@ -1474,13 +1596,826 @@ router.post('/sync/google/places', auth, async (req, res, next) => {
 router.get('/metrics/google/ratings', auth, async (req, res, next) => {
   try {
     const ratings = await database_js_1.db.query(
-      "SELECT * FROM google_place_ratings ORDER BY location_id"
+      "SELECT location_id, venue_name, rating, previous_rating, total_reviews, previous_total, synced_at FROM google_place_ratings ORDER BY location_id"
     ).catch(() => ({ rows: [] }));
     const reviews = await database_js_1.db.query(
       "SELECT location_name, reviewer_name, star_rating, comment, create_time, named_staff " +
       "FROM google_reviews ORDER BY create_time DESC LIMIT 50"
     ).catch(() => ({ rows: [] }));
     ok(res, { ratings: ratings.rows, reviews: reviews.rows });
+  } catch(e) { next(e); }
+});
+
+
+// ── PRODUCT INTELLIGENCE ROUTES ───────────────────────────────────────────────
+
+function getPeriodClause(period) {
+  if (period === 'today') return "AND t.datetime_opened >= NOW() - INTERVAL '24 hours'";
+  if (period === 'week') return "AND t.datetime_opened >= NOW() - INTERVAL '7 days'";
+  if (period === 'month') return "AND t.datetime_opened >= NOW() - INTERVAL '30 days'";
+  return "";
+}
+
+function getVenueClause(venue) {
+  const map = {'griffin':'0001','taprun':'0002','longhop':'0003'};
+  const loc = map[venue];
+  return loc ? "AND t.location_id = '" + loc + "'" : "";
+}
+
+router.get('/products/intel', auth, async (req, res, next) => {
+  try {
+    const { period, venue } = req.query;
+    const pc = getPeriodClause(period);
+    const vc = getVenueClause(venue);
+    const [mainsR, itemsR, topR, revR, drinkR] = await Promise.all([
+      database_js_1.db.query("SELECT SUM(si.quantity) as mains FROM relay_sold_items si JOIN relay_transactions t ON t.id = si.transaction_id WHERE si.sales_group = '31' " + pc + " " + vc),
+      database_js_1.db.query("SELECT SUM(si.quantity) as total FROM relay_sold_items si JOIN relay_transactions t ON t.id = si.transaction_id WHERE si.sales_group NOT IN ('30000','20') " + pc + " " + vc),
+      database_js_1.db.query("SELECT si.name, SUM(si.quantity) as units FROM relay_sold_items si JOIN relay_transactions t ON t.id = si.transaction_id WHERE si.sales_group NOT IN ('30000','20') " + pc + " " + vc + " GROUP BY si.name ORDER BY units DESC LIMIT 1"),
+      database_js_1.db.query("SELECT SUM(t.total_net_item_cost) as net_rev, COUNT(DISTINCT t.closed_by_clerk_id) as clerks FROM relay_transactions t WHERE 1=1 " + pc + " " + vc),
+      database_js_1.db.query("SELECT si.name, SUM(si.quantity) as units FROM relay_sold_items si JOIN relay_transactions t ON t.id = si.transaction_id WHERE si.sales_group IN ('1','2','3','4','5','6','8','15') " + pc + " " + vc + " GROUP BY si.name ORDER BY units DESC LIMIT 1"),
+    ]);
+    ok(res, { mainsSold: Number(mainsR.rows[0]?.mains||0), totalItems: Number(itemsR.rows[0]?.total||0), netRevenue: Number(revR.rows[0]?.net_rev||0).toFixed(2), totalClerks: Number(revR.rows[0]?.clerks||0), topProduct: topR.rows[0]?{name:topR.rows[0].name,units:topR.rows[0].units}:null, topDrink: drinkR.rows[0]?{name:drinkR.rows[0].name,units:drinkR.rows[0].units}:null });
+  } catch(e) { next(e); }
+});
+
+// ASPH by venue endpoint - all food revenue / mains sold + labour efficiency
+router.get('/metrics/asph', auth, async (req, res, next) => {
+  try {
+    const { period } = req.query;
+    const interval = period === 'month' ? '30 days' : period === 'today' ? '1 day' : '7 days';
+    
+    const r = await database_js_1.db.query(
+      "WITH food_metrics AS (" +
+      "  SELECT t.location_id, " +
+      "  SUM(si.quantity) FILTER (WHERE si.sales_group='31' AND si.individual_net_price >= 5) as mains_sold, " +
+      "  ROUND(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('29','30','31','32','33','34','35'))::numeric, 2) as dry_revenue, " +
+      "  ROUND(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('1','2','3','4','5','6','8','9','10','15','17','18','19','21','22','23','26','27','28','38'))::numeric, 2) as wet_revenue, " +
+      "  ROUND(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('29','30','31','32','33','34','35')) / " +
+      "  NULLIF(SUM(si.quantity) FILTER (WHERE si.sales_group='31' AND si.individual_net_price >= 5), 0)::numeric, 2) as asph " +
+      "  FROM relay_sold_items si " +
+      "  JOIN relay_transactions t ON t.id=si.transaction_id " +
+      "  WHERE t.datetime_opened >= NOW() - INTERVAL '" + interval + "' " +
+      "  GROUP BY t.location_id" +
+      "), " +
+      "net_rev AS (" +
+      "  SELECT location_id, ROUND(SUM(total_net_item_cost)::numeric, 2) as net_revenue, COUNT(*) as transactions " +
+      "  FROM relay_transactions " +
+      "  WHERE datetime_opened >= NOW() - INTERVAL '" + interval + "' " +
+      "  GROUP BY location_id" +
+      "), " +
+      "labour AS (" +
+      "  SELECT location_id, " +
+      "  ROUND(SUM(basic_pay)::numeric, 2) as labour_cost, " +
+      "  ROUND(SUM(CASE WHEN hourly_rate > 5 AND NOT is_salaried THEN basic_pay/hourly_rate " +
+      "    WHEN is_salaried AND total_pay > 0 THEN total_pay/12.21 ELSE 0 END)::numeric, 1) as est_hours " +
+      "  FROM rotaready_pay " +
+      "  WHERE pay_date >= NOW() - INTERVAL '" + interval + "' " +
+      "  GROUP BY location_id" +
+      ") " +
+      "SELECT f.location_id, f.mains_sold, f.dry_revenue, f.wet_revenue, f.asph, " +
+      "r.net_revenue, r.transactions, " +
+      "l.labour_cost, l.est_hours, " +
+      "ROUND(r.net_revenue / NULLIF(l.est_hours, 0)::numeric, 2) as rev_per_labour_hour, " +
+      "ROUND(l.labour_cost / NULLIF(r.net_revenue, 0) * 100::numeric, 1) as labour_pct " +
+      "FROM food_metrics f " +
+      "JOIN net_rev r ON r.location_id=f.location_id " +
+      "LEFT JOIN labour l ON l.location_id=f.location_id " +
+      "ORDER BY f.location_id"
+    );
+    ok(res, r.rows);
+  } catch(e) { next(e); }
+});
+
+router.get('/products/leaderboard', auth, async (req, res, next) => {
+  try {
+    const { period, venue, salesGroup } = req.query;
+    const pc = getPeriodClause(period);
+    const vc = getVenueClause(venue);
+    const sg = salesGroup ? "AND si.sales_group = '" + salesGroup + "'" : "AND si.sales_group NOT IN ('30000','20')";
+    const r = await database_js_1.db.query("SELECT si.name, SUM(si.quantity) as units_sold, SUM(si.total_net_price) as net_revenue, COUNT(DISTINCT t.closed_by_clerk_id) as clerks_selling FROM relay_sold_items si JOIN relay_transactions t ON t.id = si.transaction_id WHERE 1=1 " + sg + " " + pc + " " + vc + " GROUP BY si.name ORDER BY units_sold DESC LIMIT 20");
+    ok(res, r.rows);
+  } catch(e) { next(e); }
+});
+
+router.get('/products/search', auth, async (req, res, next) => {
+  try {
+    const { q, period, venue } = req.query;
+    if (!q) return ok(res, { products: [] });
+    const pc = getPeriodClause(period);
+    const vc = getVenueClause(venue);
+    const r = await database_js_1.db.query("SELECT si.name, si.sales_group, SUM(si.quantity) as units_sold, SUM(si.total_net_price) as net_revenue, COUNT(DISTINCT t.closed_by_clerk_id) as clerks_selling FROM relay_sold_items si JOIN relay_transactions t ON t.id = si.transaction_id WHERE LOWER(si.name) LIKE LOWER($1) AND si.sales_group NOT IN ('30000','20') " + pc + " " + vc + " GROUP BY si.name, si.sales_group ORDER BY units_sold DESC LIMIT 10", ['%' + q + '%']);
+    ok(res, { products: r.rows });
+  } catch(e) { next(e); }
+});
+
+router.get('/products/clerks', auth, async (req, res, next) => {
+  try {
+    const { product, period, venue } = req.query;
+    if (!product) return ok(res, []);
+    const pc = getPeriodClause(period);
+    const vc = getVenueClause(venue);
+    const r = await database_js_1.db.query("SELECT t.closed_by_clerk_id as clerk_id, t.location_id, SUM(si.quantity) as units_sold, tm.display_name, v.name as venue_name FROM relay_sold_items si JOIN relay_transactions t ON t.id = si.transaction_id LEFT JOIN relay_clerk_mappings rcm ON rcm.clerk_id = t.closed_by_clerk_id AND rcm.location_id = t.location_id LEFT JOIN team_members tm ON tm.id = rcm.team_member_id LEFT JOIN venues v ON v.id = tm.venue_id WHERE LOWER(si.name) LIKE LOWER($1) AND si.sales_group NOT IN ('30000','20') " + pc + " " + vc + " GROUP BY t.closed_by_clerk_id, t.location_id, tm.display_name, v.name ORDER BY units_sold DESC LIMIT 20", ['%' + product + '%']);
+    ok(res, r.rows);
+  } catch(e) { next(e); }
+});
+
+
+// ResDiary bookings
+router.get('/bookings/resdiary', auth, async (req, res, next) => {
+  try {
+    const { venue, date, status } = req.query;
+    const locMap = {'griffin':'0001','taprun':'0002','longhop':'0003'};
+    const conditions = ["restaurant_name NOT LIKE '%Test%'"];
+    const params = [];
+    if (venue && locMap[venue]) { params.push(locMap[venue]); conditions.push('location_id=$'+params.length); }
+    if (date) { params.push(date); conditions.push('visit_date=$'+params.length); }
+    if (status) { params.push(status); conditions.push('booking_status=$'+params.length); }
+    const where = conditions.length ? 'WHERE '+conditions.join(' AND ') : '';
+    const r = await database_js_1.db.query(
+      'SELECT booking_id, reference, restaurant_name, location_id, visit_date, visit_time, party_size, table_numbers, booking_status, arrival_status, meal_status, customer_name, special_requests, channel_code, last_event_type, last_event_at ' +
+      'FROM resdiary_bookings ' + where + ' ORDER BY visit_date ASC, visit_time ASC',
+      params
+    );
+    ok(res, r.rows);
+  } catch(e) { next(e); }
+});
+
+// Today's bookings summary per venue
+router.get('/bookings/resdiary/today', auth, async (req, res, next) => {
+  try {
+    const r = await database_js_1.db.query(
+      "SELECT location_id, restaurant_name, " +
+      "COUNT(*) as total_bookings, " +
+      "SUM(party_size) as total_covers, " +
+      "COUNT(*) FILTER (WHERE arrival_status IN ('FullySeated','WaitingInBar','PartiallySeated')) as arrived, " +
+      "COUNT(*) FILTER (WHERE meal_status IN ('Closed','Check')) as finished " +
+      "FROM resdiary_bookings " +
+      "WHERE visit_date = CURRENT_DATE AND restaurant_name NOT LIKE '%Test%' " +
+      "GROUP BY location_id, restaurant_name ORDER BY location_id"
+    );
+    ok(res, r.rows);
+  } catch(e) { next(e); }
+});
+
+
+// ── WEATHER + CALENDAR CONTEXT ───────────────────────────────────────────────
+
+// Venue locations for weather API
+const VENUE_LOCATIONS = {
+  '0001': { name: 'The Griffin Inn', lat: 52.7018, lon: -1.1745 },  // Swithland, Leicestershire
+  '0002': { name: 'Tap & Run', lat: 52.8584, lon: -1.0244 },        // Upper Broughton, Nottinghamshire
+  '0003': { name: 'The Long Hop', lat: 52.8065, lon: -1.6444 },     // Burton-on-Trent, Staffordshire
+};
+
+async function syncWeather() {
+  const apiKey = process.env['OPENWEATHER_API_KEY'];
+  if (!apiKey) { console.log('[Weather] No API key configured'); return; }
+  const axios = (await import('axios')).default;
+
+  for (const [locationId, venue] of Object.entries(VENUE_LOCATIONS)) {
+    try {
+      const r = await axios.get('https://api.openweathermap.org/data/2.5/weather', {
+        params: { lat: venue.lat, lon: venue.lon, appid: apiKey, units: 'metric' }
+      });
+      const d = r.data;
+      await database_js_1.db.query(
+        "INSERT INTO weather_history (location_id, recorded_date, avg_temp_c, min_temp_c, max_temp_c, description, icon) " +
+        "VALUES ($1, CURRENT_DATE, $2, $3, $4, $5, $6) " +
+        "ON CONFLICT (location_id, recorded_date) DO UPDATE SET avg_temp_c=$2, min_temp_c=$3, max_temp_c=$4, description=$5, icon=$6",
+        [locationId, d.main.temp, d.main.temp_min, d.main.temp_max, d.weather[0].description, d.weather[0].icon]
+      );
+      console.log('[Weather]', venue.name, d.main.temp + 'C', d.weather[0].description);
+    } catch(e) { console.error('[Weather]', venue.name, e.message); }
+  }
+}
+
+// Calendar context for a given week
+router.get('/context/calendar', auth, async (req, res, next) => {
+  try {
+    const { date } = req.query;
+    const baseDate = date ? new Date(date) : new Date();
+    
+    // Current week events
+    const r = await database_js_1.db.query(
+      "SELECT event_date, event_name, event_type, trade_impact FROM calendar_events " +
+      "WHERE event_date >= DATE_TRUNC('week', $1::date) " +
+      "AND event_date < DATE_TRUNC('week', $1::date) + INTERVAL '7 days' " +
+      "ORDER BY event_date",
+      [baseDate.toISOString().split('T')[0]]
+    );
+
+    // Same week last year events
+    const lastYear = new Date(baseDate);
+    lastYear.setFullYear(lastYear.getFullYear() - 1);
+    const r2 = await database_js_1.db.query(
+      "SELECT event_date, event_name, event_type, trade_impact FROM calendar_events " +
+      "WHERE event_date >= DATE_TRUNC('week', $1::date) " +
+      "AND event_date < DATE_TRUNC('week', $1::date) + INTERVAL '7 days' " +
+      "ORDER BY event_date",
+      [lastYear.toISOString().split('T')[0]]
+    );
+
+    // Weather this week vs last year
+    const w1 = await database_js_1.db.query(
+      "SELECT location_id, ROUND(AVG(avg_temp_c)::numeric,1) as avg_temp, MAX(description) as description, MAX(icon) as icon " +
+      "FROM weather_history " +
+      "WHERE recorded_date >= DATE_TRUNC('week', CURRENT_DATE) OR recorded_date = CURRENT_DATE " +
+      "GROUP BY location_id"
+    );
+    const w2 = await database_js_1.db.query(
+      "SELECT location_id, ROUND(AVG(avg_temp_c)::numeric,1) as avg_temp " +
+      "FROM weather_history " +
+      "WHERE recorded_date >= DATE_TRUNC('week', CURRENT_DATE - INTERVAL '1 year') " +
+      "AND recorded_date < DATE_TRUNC('week', CURRENT_DATE - INTERVAL '1 year') + INTERVAL '7 days' " +
+      "GROUP BY location_id"
+    );
+
+    // Build context message
+    const thisWeekEvents = r.rows;
+    const lastYearEvents = r2.rows;
+    let contextMsg = '';
+    
+    if (thisWeekEvents.length > 0 && lastYearEvents.length === 0) {
+      contextMsg = '📅 ' + thisWeekEvents.map(e => e.event_name).join(', ') + ' this week vs normal trading last year — expect higher footfall';
+    } else if (thisWeekEvents.length === 0 && lastYearEvents.length > 0) {
+      contextMsg = '📅 ' + lastYearEvents.map(e => e.event_name).join(', ') + ' last year vs normal trading this week — figures may be lower';
+    } else if (thisWeekEvents.length > 0 && lastYearEvents.length > 0) {
+      contextMsg = '📅 ' + thisWeekEvents.map(e => e.event_name).join(', ') + ' this year vs ' + lastYearEvents.map(e => e.event_name).join(', ') + ' last year';
+    }
+
+    ok(res, {
+      thisWeek: thisWeekEvents,
+      lastYear: lastYearEvents,
+      weather: w1.rows,
+      weatherLastYear: w2.rows,
+      contextMessage: contextMsg,
+    });
+  } catch(e) { next(e); }
+});
+
+// Weather endpoint
+router.get('/context/weather', auth, async (req, res, next) => {
+  try {
+    const r = await database_js_1.db.query(
+      "SELECT w.location_id, w.recorded_date, w.avg_temp_c, w.description, w.icon, " +
+      "ly.avg_temp_c as last_year_temp " +
+      "FROM weather_history w " +
+      "LEFT JOIN weather_history ly ON ly.location_id = w.location_id " +
+      "AND ly.recorded_date = w.recorded_date - INTERVAL '1 year' " +
+      "WHERE w.recorded_date >= CURRENT_DATE - INTERVAL '7 days' " +
+      "ORDER BY w.location_id, w.recorded_date DESC"
+    );
+    ok(res, r.rows);
+  } catch(e) { next(e); }
+});
+
+// Manual weather sync trigger
+router.post('/sync/weather', auth, async (req, res, next) => {
+  try {
+    await syncWeather();
+    ok(res, { message: 'Weather synced' });
+  } catch(e) { next(e); }
+});
+
+
+// ── CPL LEARNING ─────────────────────────────────────────────────────────────
+
+const CPL_KEY = process.env['CPL_API_KEY'];
+const CPL_BASE = 'https://clientapi.cplonline.co.uk';
+
+const CPL_SITES = {
+  '0001': 153247,  // The Griffin Inn
+  '0002': 162024,  // The Tap & Run  
+  '0003': 171559,  // The Long Hop
+};
+
+async function syncCPL() {
+  if (!CPL_KEY) { console.log('[CPL] No API key'); return; }
+  const axios = (await import('axios')).default;
+  const headers = { 'x-api-key': CPL_KEY };
+  let totalSynced = 0;
+
+  // Create CPL tables if not exist
+  await database_js_1.db.query(`
+    CREATE TABLE IF NOT EXISTS cpl_training (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      employee_id INTEGER,
+      team_member_id UUID,
+      location_id VARCHAR(10),
+      course_id INTEGER,
+      course_name VARCHAR(500),
+      course_type INTEGER,
+      status VARCHAR(50),
+      score INTEGER,
+      valid_from TIMESTAMPTZ,
+      valid_to TIMESTAMPTZ,
+      synced_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(employee_id, course_id)
+    )
+  `).catch(()=>{});
+
+  await database_js_1.db.query(`
+    CREATE TABLE IF NOT EXISTS cpl_users (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      employee_id INTEGER UNIQUE,
+      employee_reference VARCHAR(50),
+      first_name VARCHAR(100),
+      last_name VARCHAR(100),
+      site_id INTEGER,
+      location_id VARCHAR(10),
+      active BOOLEAN,
+      email VARCHAR(255),
+      team_member_id UUID,
+      synced_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `).catch(()=>{});
+
+  // Sync users across all sites
+  for (const [locationId, siteId] of Object.entries(CPL_SITES)) {
+    try {
+      const usersR = await axios.get(CPL_BASE + '/users?siteId=' + siteId, { headers });
+      const users = usersR.data || [];
+      
+      for (const u of users) {
+        // Try to match to team_member by name
+        const tmR = await database_js_1.db.query(
+          "SELECT id FROM team_members WHERE location_id=$1 AND LOWER(first_name)=LOWER($2) AND LOWER(last_name)=LOWER($3) LIMIT 1",
+          [locationId, u.firstname, u.lastname]
+        ).catch(()=>({rows:[]}));
+        const tmId = tmR.rows[0]?.id || null;
+
+        // Map user's actual siteId to locationId
+        const siteToLoc = {153247:'0001', 162024:'0002', 171559:'0003'};
+        const userLocationId = siteToLoc[u.siteId] || locationId;
+        await database_js_1.db.query(
+          "INSERT INTO cpl_users (employee_id, employee_reference, first_name, last_name, site_id, location_id, active, email, team_member_id) " +
+          "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) " +
+          "ON CONFLICT (employee_id) DO UPDATE SET active=$7, email=$8, team_member_id=$9, location_id=$6, synced_at=NOW()",
+          [u.employeeId, u.employeeReference||null, u.firstname, u.lastname, u.siteId, userLocationId, u.active, u.emailAddress||null, tmId]
+        ).catch(()=>{});
+      }
+      console.log('[CPL] Users synced for', locationId, ':', users.length);
+
+      // Sync training completions
+      const trainR = await axios.get(CPL_BASE + '/users/training?siteId=' + siteId, { headers });
+      const trainData = trainR.data || [];
+
+      for (const t of trainData) {
+        for (const course of t.training || []) {
+          const statusVal = course.status?.find(s => s.type === 0)?.value || 'Unknown';
+          const scoreVal = parseInt(course.status?.find(s => s.type === 1)?.value || '0');
+          
+          await database_js_1.db.query(
+            "INSERT INTO cpl_training (employee_id, course_id, course_name, course_type, status, score, valid_from, valid_to) " +
+            "VALUES ($1,$2,$3,$4,$5,$6,$7,$8) " +
+            "ON CONFLICT (employee_id, course_id) DO UPDATE SET status=$5, score=$6, valid_from=$7, valid_to=$8, synced_at=NOW()",
+            [t.employeeId, course.id, course.description?.replace(/\u001a/g,'').trim(), course.type,
+             statusVal, scoreVal, course.validFrom||null, course.validTo||null]
+          ).catch(()=>{});
+          totalSynced++;
+        }
+      }
+      console.log('[CPL] Training synced for', locationId, ':', trainData.length, 'staff');
+    } catch(e) { console.error('[CPL] Error for', locationId, ':', e.message); }
+  }
+  return totalSynced;
+}
+
+// CPL sync endpoint
+router.post('/sync/cpl', auth, async (req, res, next) => {
+  try {
+    const count = await syncCPL();
+    ok(res, { message: 'CPL sync complete', records: count });
+  } catch(e) { next(e); }
+});
+
+// CPL compliance overview
+router.get('/cpl/compliance', auth, async (req, res, next) => {
+  try {
+    const { locationId } = req.query;
+    const where = locationId ? "WHERE cu.location_id='" + locationId + "'" : '';
+    const r = await database_js_1.db.query(
+      "SELECT cu.first_name, cu.last_name, cu.location_id, cu.active, " +
+      "COUNT(ct.course_id) as total_courses, " +
+      "COUNT(ct.course_id) FILTER (WHERE ct.status='Complete') as completed, " +
+      "COUNT(ct.course_id) FILTER (WHERE ct.valid_to < NOW()) as expired, " +
+      "ROUND(AVG(ct.score)::numeric, 0) as avg_score " +
+      "FROM cpl_users cu " +
+      "LEFT JOIN cpl_training ct ON ct.employee_id = cu.employee_id " +
+      where + " GROUP BY cu.first_name, cu.last_name, cu.location_id, cu.active " +
+      "ORDER BY cu.location_id, completed DESC"
+    ).catch(()=>({rows:[]}));
+    ok(res, r.rows);
+  } catch(e) { next(e); }
+});
+
+// CPL individual training record
+router.get('/cpl/user/:employeeId', auth, async (req, res, next) => {
+  try {
+    const r = await database_js_1.db.query(
+      "SELECT ct.*, cu.first_name, cu.last_name FROM cpl_training ct " +
+      "JOIN cpl_users cu ON cu.employee_id = ct.employee_id " +
+      "WHERE ct.employee_id=$1 ORDER BY ct.status DESC, ct.course_name",
+      [req.params.employeeId]
+    ).catch(()=>({rows:[]}));
+    ok(res, r.rows);
+  } catch(e) { next(e); }
+});
+
+
+// Team flex cost - using real RotaReady signed-off hours data
+router.get('/metrics/team/flex', auth, async (req, res, next) => {
+  try {
+    const { locationId } = req.query;
+    const locWhere = locationId ? "AND t.location_id='" + locationId + "'" : '';
+    const axios = (await import('axios')).default;
+
+    // This week's revenue
+    // Use subquery to avoid row multiplication from sold_items join
+    const salesR = await database_js_1.db.query(
+      "SELECT t.location_id, " +
+      "SUM(t.total_net_item_cost) as net_revenue, " +
+      "(SELECT SUM(si.quantity) FROM relay_sold_items si JOIN relay_transactions t2 ON t2.id=si.transaction_id " +
+      " WHERE t2.location_id=t.location_id AND si.sales_group='31' AND t2.datetime_opened >= DATE_TRUNC('week', NOW())) as covers " +
+      "FROM relay_transactions t " +
+      "WHERE t.datetime_opened >= DATE_TRUNC('week', NOW()) " + locWhere + " GROUP BY t.location_id"
+    );
+
+    // Get pay data from database (synced hourly by RotaReady sync)
+    let payByEntity = {};
+    try {
+      const payR = await database_js_1.db.query(
+        "SELECT location_id, " +
+        "COUNT(DISTINCT user_id) as staff, " +
+        "SUM(basic_pay) as basic, " +
+        "SUM(total_pay) as total, " +
+        "SUM(hours_paid) as hours " +
+        "FROM rotaready_pay " +
+        "WHERE pay_date >= DATE_TRUNC('week', CURRENT_DATE) " +
+        "GROUP BY location_id"
+      );
+      payR.rows.forEach(r => {
+        payByEntity[r.location_id] = {
+          staff: Number(r.staff),
+          basic: parseFloat(r.basic||0),
+          total: parseFloat(r.total||0),
+          hours: parseFloat(r.hours||0)
+        };
+      });
+    } catch(e) { console.error('[Flex] Pay DB error:', e.message); }
+
+    const result = salesR.rows.map(s => {
+      const netRev = Number(s.net_revenue||0);
+      const covers = Number(s.covers||0);
+      const pay = payByEntity[s.location_id] || {basic:0, total:0, staff:0};
+      const targetLabour = netRev * 0.28; // 28% labour cost target
+      const actualLabour = pay.basic;
+      const flex = targetLabour - actualLabour;
+      return {
+        location_id: s.location_id,
+        net_revenue: netRev.toFixed(2),
+        covers,
+        staff_worked: pay.staff,
+        hours_worked: pay.hours ? pay.hours.toFixed(1) : null,
+        basic_pay: actualLabour.toFixed(2),
+        total_cost: pay.total.toFixed(2),
+        target_labour: targetLabour.toFixed(2),
+        labour_pct: netRev > 0 ? ((actualLabour/netRev)*100).toFixed(1) : '0',
+        flex: flex.toFixed(2),
+        flex_direction: flex > 0 ? 'under' : 'over',
+      };
+    });
+    ok(res, result);
+  } catch(e) { next(e); }
+});
+
+// ─── SCORING ENGINE v3 - DB-driven ────────────────────────────────────────
+
+// Metric definitions - maps DB metric_key to how we calculate the actual value
+// actual_fn receives the raw clerk data and returns the actual value in target units
+const METRIC_CALCULATORS = {
+  avg_spend_dry: {
+    label: 'Dry ASPH (£)',
+    actual: (m) => m.mains > 0 ? parseFloat((m.dry_rev / m.mains).toFixed(2)) : 0
+  },
+  sides_pct: {
+    label: 'Sides % of Mains',
+    actual: (m) => m.mains > 0 ? parseFloat((m.sides / m.mains * 100).toFixed(1)) : 0
+  },
+  nibbles_pct: {
+    label: 'Nibbles % of Mains',
+    actual: (m) => m.mains > 0 ? parseFloat((m.nibbles / m.mains * 100).toFixed(1)) : 0
+  },
+  starters_desserts: {
+    label: 'Starters & Desserts % of Mains',
+    actual: (m) => m.mains > 0 ? parseFloat(((m.starters + m.desserts) / m.mains * 100).toFixed(1)) : 0
+  },
+  drinks_per_cover: {
+    label: 'Drinks per Main',
+    actual: (m) => {
+      if (m.mains < 1) return 0;
+      const ratio = m.drinks / m.mains;
+      // Cap at 10 - anything higher indicates a bar clerk not food server
+      return ratio > 10 ? 0 : parseFloat(ratio.toFixed(2));
+    }
+  },
+  premium_wine: {
+    label: 'Premium Wine per Cover',
+    actual: (m) => m.mains > 0 ? parseFloat((m.prem_wine / m.mains).toFixed(2)) : 0
+  },
+  named_review: {
+    label: 'Named Reviews',
+    actual: (m) => Number(m.named_review || 0)
+  },
+  double_spirits: {
+    label: 'Double Spirits %',
+    actual: (m) => m.spirits > 0 ? parseFloat((m.dbl_spirits / m.spirits * 100).toFixed(1)) : 0
+  },
+  large_wine: {
+    label: 'Large Wine %',
+    actual: (m) => m.all_wine > 0 ? parseFloat((m.lg_wine / m.all_wine * 100).toFixed(1)) : 0
+  },
+  bottled_water: {
+    label: 'Bottled Water per 10 Mains',
+    actual: (m) => m.mains > 0 ? parseFloat((m.water / m.mains * 10).toFixed(1)) : 0
+  },
+  avg_spend_wet: {
+    label: 'Wet ASPH (£)',
+    actual: (m) => m.mains > 0 ? parseFloat((m.wet_rev / m.mains).toFixed(2)) : 0
+  },
+};
+
+function scoreMetric(actual, target) {
+  if (!target || target === 0) return 0;
+  const ratio = actual / target;
+  // Linear: 0 at zero actual, 100 at target, capped at 100
+  return Math.min(100, Math.round(ratio * 100));
+}
+
+function calcFinalScore(metricScores, activeMetrics) {
+  let totalWeight = 0;
+  let weighted = 0;
+  for (const m of activeMetrics) {
+    const score = metricScores[m.metric_key] || 0;
+    weighted += score * Number(m.weight);
+    totalWeight += Number(m.weight);
+  }
+  return totalWeight > 0 ? Math.round(weighted / totalWeight) : 0;
+}
+
+function getSellerTier(score) {
+  if (score >= 75) return 'could-say';
+  if (score >= 50) return 'should-say';
+  if (score >= 25) return 'have-to';
+  return 'review';
+}
+
+async function calculateScores(period, locationId) {
+  const interval = period === 'month' ? '30 days' : period === 'today' ? '1 day' : '7 days';
+  const pc = "AND t.datetime_opened >= NOW() - INTERVAL '" + interval + "'";
+
+  // Load active metrics from DB - this is the single source of truth
+  const metricsR = await database_js_1.db.query(
+    "SELECT metric_key, name, weight, target, is_active FROM selector_metrics WHERE is_active=true ORDER BY weight DESC"
+  );
+  const activeMetrics = metricsR.rows;
+  if (!activeMetrics.length) return [];
+
+  const clerksR = await database_js_1.db.query(
+    "SELECT DISTINCT rcm.clerk_id, rcm.location_id, rcm.team_member_id, " +
+    "tm.display_name, tm.first_name, tm.last_name, v.name as venue_name, " +
+    "tm.avatar_initials, tm.avatar_color " +
+    "FROM relay_clerk_mappings rcm " +
+    "JOIN team_members tm ON tm.id=rcm.team_member_id " +
+    "JOIN connector_venue_mappings cvm ON cvm.location_id=rcm.location_id " +
+    "JOIN venues v ON v.id=cvm.venue_id " +
+    "WHERE rcm.team_member_id IS NOT NULL" +
+    (locationId ? " AND rcm.location_id='" + locationId + "'" : "")
+  );
+
+  const scores = [];
+  for (const clerk of clerksR.rows) {
+    const mR = await database_js_1.db.query(
+      "SELECT " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group='31' AND si.individual_net_price>=5),0) as mains, " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group='32'),0) as sides, " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group='29'),0) as nibbles, " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group='30'),0) as starters, " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('33','35')),0) as desserts, " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('1','2','3','4','5','6','8','9','10','15','17','18','19','21','22','23','26','27','28','38')),0) as drinks, " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('3','4','5','6') AND (si.individual_net_price>40 OR (LOWER(si.name) LIKE 'btl%' AND si.individual_net_price>25))),0) as prem_wine, " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('8','15')),0) as spirits, " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('8','9','10') AND LOWER(si.name) LIKE '%dbl%'),0) as dbl_spirits, " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('3','4','5','6') AND LOWER(si.name) LIKE '%250ml%'),0) as lg_wine, " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('3','4','5','6')),0) as all_wine, " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE LOWER(si.name) LIKE '%water%' AND si.sales_group NOT IN ('30000','20')),0) as water, " +
+      "COALESCE(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('1','2','3','4','5','6','8','9','10','15','17','18','19','21','22','23','26','27','28','38')),0) as wet_rev, " +
+      "COALESCE(SUM(si.total_net_price) FILTER (WHERE si.sales_group='31' AND si.individual_net_price>=5),0) as dry_rev, " +
+      "COALESCE(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('29','30','31','32','33','34','35') AND si.individual_net_price>=0),0) as food_rev " +
+      "FROM relay_transactions t " +
+      "JOIN relay_sold_items si ON si.transaction_id=t.id " +
+      "WHERE si.added_by_clerk_id=$1 AND t.location_id=$2 " + pc,
+      [clerk.clerk_id, clerk.location_id]
+    );
+
+    const m = mR.rows[0];
+    const mains = Number(m.mains);
+    if (mains < 20) continue; // Need 20+ mains for meaningful score
+
+    // Count named reviews for this clerk
+    const revR = await database_js_1.db.query(
+      "SELECT COUNT(*) as cnt FROM google_reviews WHERE named_staff ILIKE '%' || $1 || '%' " +
+      "AND review_date >= NOW() - INTERVAL '" + interval + "'",
+      [clerk.first_name]
+    ).catch(() => ({rows:[{cnt:0}]}));
+    m.named_review = Number(revR.rows[0].cnt);
+
+    // Calculate actuals for each active metric using calculator functions
+    const actuals = {};
+    const metricScores = {};
+
+    for (const metric of activeMetrics) {
+      const calc = METRIC_CALCULATORS[metric.metric_key];
+      if (!calc) continue;
+      const actual = calc.actual(m);
+      actuals[metric.metric_key] = actual;
+      metricScores[metric.metric_key] = scoreMetric(actual, Number(metric.target));
+    }
+
+    const finalScore = calcFinalScore(metricScores, activeMetrics);
+    const tier = getSellerTier(finalScore);
+
+    // Update team_members table
+    await database_js_1.db.query(
+      "UPDATE team_members SET selector_score=$1, selector_tier=$2, selector_updated_at=NOW() WHERE id=$3",
+      [finalScore, tier, clerk.team_member_id]
+    ).catch(()=>{});
+
+    scores.push({
+      team_member_id: clerk.team_member_id,
+      clerk_id: clerk.clerk_id,
+      display_name: clerk.display_name,
+      venue_name: clerk.venue_name,
+      avatar_initials: clerk.avatar_initials,
+      avatar_color: clerk.avatar_color,
+      score: finalScore,
+      tier,
+      mains,
+      actuals,
+      metric_scores: metricScores,
+      active_metrics: activeMetrics.map(m => ({key: m.metric_key, label: m.name, weight: m.weight, target: m.target}))
+    });
+  }
+
+  return scores.sort((a,b) => b.score - a.score);
+}
+
+
+// Scores - calculate
+router.post('/scores/calculate', auth, async (req, res, next) => {
+  try {
+    const { period, locationId, venue } = req.body || {};
+    const locMap = {'griffin':'0001','taprun':'0002','longhop':'0003'};
+    const loc = locationId || locMap[venue] || null;
+    const scores = await calculateScores(period || 'week', loc);
+    const top10 = scores.slice(0, 10);
+    ok(res, { calculated: scores.length, top10, all: scores });
+  } catch(e) { next(e); }
+});
+
+// Scores - leaderboard (read cached scores from team_members)
+router.get('/scores/leaderboard', auth, async (req, res, next) => {
+  try {
+    const { period, venue, locationId } = req.query;
+    const locMap = {'griffin':'0001','taprun':'0002','longhop':'0003'};
+    const loc = locationId || locMap[venue] || null;
+    
+    // Recalculate fresh scores
+    const scores = await calculateScores(period || 'week', loc);
+    ok(res, scores);
+  } catch(e) { next(e); }
+});
+
+// Individual score
+router.get('/scores/:teamMemberId', auth, async (req, res, next) => {
+  try {
+    const r = await database_js_1.db.query(
+      'SELECT tm.*, v.name as venue_name FROM team_members tm JOIN venues v ON v.id=tm.venue_id WHERE tm.id=$1',
+      [req.params.teamMemberId]
+    );
+    ok(res, r.rows[0] || null);
+  } catch(e) { next(e); }
+});
+
+// ── USER MANAGEMENT ──
+
+// Seed default users if none exist
+async function seedUsers() {
+  const count = await database_js_1.db.query('SELECT COUNT(*) FROM coach_users');
+  if (parseInt(count.rows[0].count) > 0) return;
+  const users = [
+    { email:'ian@foxitc.com', pass:'FoxITC2026!', name:'Ian Mackness', initials:'IM', role:'admin', venue:'all' },
+    { email:'jack@foxitc.com', pass:'FoxITC2026!', name:'Jack Whitehead', initials:'JW', role:'admin', venue:'all' },
+    { email:'lee@catandwickets.com', pass:'CW2026!', name:'Lee Cash', initials:'LC', role:'admin', venue:'all' },
+    { email:'coach.griffin@catandwickets.com', pass:'Coach2026!', name:'Griffin Coach', initials:'GC', role:'gm', venue:'griffin' },
+    { email:'coach.taprun@catandwickets.com', pass:'Coach2026!', name:'Tap & Run Coach', initials:'TC', role:'gm', venue:'taprun' },
+    { email:'coach.longhop@catandwickets.com', pass:'Coach2026!', name:'Long Hop Coach', initials:'LH', role:'gm', venue:'longhop' },
+  ];
+  for (const u of users) {
+    const bcrypt = require('bcrypt');
+    const hash = await bcrypt.hash(u.pass, 10);
+    await database_js_1.db.query(
+      'INSERT INTO coach_users (email,password_hash,name,initials,role,venue) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (email) DO NOTHING',
+      [u.email, hash, u.name, u.initials, u.role, u.venue]
+    );
+  }
+  console.log('[Users] Default users seeded');
+}
+seedUsers().catch(e => console.error('[Users] Seed error:', e.message));
+
+// Auth login via DB
+router.post('/auth/login/db', async (req, res, next) => {
+  try {
+    const { email, password } = req.body;
+    const r = await database_js_1.db.query(
+      'SELECT * FROM coach_users WHERE email=$1 AND is_active=true', [email]
+    );
+    if (!r.rows.length) return err(res, 'Invalid credentials', 401);
+    const user = r.rows[0];
+    const bcrypt = require('bcrypt');
+    const valid = await bcrypt.compare(password, user.password_hash);
+    if (!valid) return err(res, 'Invalid credentials', 401);
+    await database_js_1.db.query('UPDATE coach_users SET last_login=NOW() WHERE id=$1', [user.id]);
+    const jwt = require('jsonwebtoken');
+    const token = jwt.sign(
+      { userId: user.id, email: user.email, role: user.role, venueId: null },
+      process.env.JWT_SECRET || 'selector-secret-2026',
+      { expiresIn: '7d' }
+    );
+    ok(res, { token, user: { id: user.id, email: user.email, name: user.name, initials: user.initials, role: user.role, venue: user.venue } });
+  } catch(e) { next(e); }
+});
+
+// Get all users (admin only)
+router.get('/users', auth, async (req, res, next) => {
+  try {
+    if (!['admin'].includes(req.user?.role)) return err(res, 'Forbidden', 403);
+    const r = await database_js_1.db.query(
+      'SELECT id, email, name, initials, role, venue, is_active, created_at, last_login FROM coach_users ORDER BY created_at'
+    );
+    ok(res, r.rows);
+  } catch(e) { next(e); }
+});
+
+// Create user (admin only)
+router.post('/users', auth, async (req, res, next) => {
+  try {
+    if (!['admin'].includes(req.user?.role)) return err(res, 'Forbidden', 403);
+    const { email, password, name, initials, role, venue } = req.body;
+    if (!email || !password || !name) return err(res, 'email, password and name required', 400);
+    const bcrypt = require('bcrypt');
+    const hash = await bcrypt.hash(password, 10);
+    const ini = initials || (name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2));
+    const r = await database_js_1.db.query(
+      'INSERT INTO coach_users (email,password_hash,name,initials,role,venue) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id,email,name,initials,role,venue,is_active,created_at',
+      [email.toLowerCase(), hash, name, ini, role||'coach', venue||'all']
+    );
+    ok(res, r.rows[0], 201);
+  } catch(e) {
+    if (e.code === '23505') return err(res, 'Email already exists', 409);
+    next(e);
+  }
+});
+
+// Update user (admin only)
+router.put('/users/:id', auth, async (req, res, next) => {
+  try {
+    if (!['admin'].includes(req.user?.role)) return err(res, 'Forbidden', 403);
+    const { id } = req.params;
+    const { name, role, venue, is_active, password } = req.body;
+    if (password) {
+      const bcrypt = require('bcrypt');
+    const hash = await bcrypt.hash(password, 10);
+      await database_js_1.db.query(
+        'UPDATE coach_users SET name=$1,role=$2,venue=$3,is_active=$4,password_hash=$5,updated_at=NOW() WHERE id=$6',
+        [name, role, venue, is_active, hash, id]
+      );
+    } else {
+      await database_js_1.db.query(
+        'UPDATE coach_users SET name=$1,role=$2,venue=$3,is_active=$4,updated_at=NOW() WHERE id=$5',
+        [name, role, venue, is_active, id]
+      );
+    }
+    ok(res, { message: 'User updated' });
+  } catch(e) { next(e); }
+});
+
+// Delete user (admin only)
+router.delete('/users/:id', auth, async (req, res, next) => {
+  try {
+    if (!['admin'].includes(req.user?.role)) return err(res, 'Forbidden', 403);
+    await database_js_1.db.query('UPDATE coach_users SET is_active=false WHERE id=$1', [req.params.id]);
+    ok(res, { message: 'User deactivated' });
   } catch(e) { next(e); }
 });
 
@@ -1543,6 +2478,12 @@ async function runScheduledSyncs() {
     } catch(e) { console.error('[Scheduler] ResDiary error:', e.message); }
   }
 
+  // WEATHER - every 6 hours: 06:00, 12:00, 18:00, 00:00 UTC
+  if ([0, 6, 12, 18].includes(hour)) {
+    console.log('[Scheduler] Weather sync');
+    try { await syncWeather(); } catch(e) { console.error('[Scheduler] Weather error:', e.message); }
+  }
+
   // GOOGLE PLACES - hourly between 07:00-23:00 UTC
   if (hour >= 7 && hour <= 23) {
     console.log('[Scheduler] Google Places sync');
@@ -1561,7 +2502,8 @@ async function runScheduledSyncs() {
           });
           const place = r.data.result || {};
           await database_js_1.db.query(
-            "INSERT INTO google_place_ratings (location_id, venue_name, rating, total_reviews, synced_at) VALUES ($1,$2,$3,$4,NOW()) ON CONFLICT (location_id) DO UPDATE SET rating=$3, total_reviews=$4, synced_at=NOW()",
+            "INSERT INTO google_place_ratings (location_id, venue_name, rating, total_reviews, synced_at) VALUES ($1,$2,$3,$4,NOW()) " +
+            "ON CONFLICT (location_id) DO UPDATE SET previous_rating=google_place_ratings.rating, previous_total=google_place_ratings.total_reviews, rating=$3, total_reviews=$4, synced_at=NOW()",
             [venue.locationId, venue.name, place.rating||0, place.user_ratings_total||0]
           ).catch(()=>{});
           console.log('[Scheduler] Google Places:', venue.name, place.rating, place.user_ratings_total);
@@ -1570,10 +2512,10 @@ async function runScheduledSyncs() {
     } catch(e) { console.error('[Scheduler] Google Places error:', e.message); }
   }
 
-  // CPL - daily at 08:00 UTC
-  if (hour === 8) {
+  // CPL - twice daily: 08:00 and 20:00 UTC
+  if (hour === 8 || hour === 20) {
     console.log('[Scheduler] CPL daily sync');
-    // CPL connector to be built once real account is set up
+    try { await syncCPL(); console.log('[Scheduler] CPL sync complete'); } catch(e) { console.error('[Scheduler] CPL error:', e.message); }
   }
 
   // ROTAREADY - hourly between 07:00-01:00 UTC (08:00-02:00 BST)
@@ -1586,3 +2528,59 @@ async function runScheduledSyncs() {
     } catch(e) { console.error('[Scheduler] RotaReady error:', e.message); }
   }
 }
+
+// Wire up scheduler - run every 10 minutes, function self-limits to first 5 mins of hour
+setInterval(runScheduledSyncs, 10 * 60 * 1000);
+// Startup syncs run immediately regardless of hour/minute
+console.log('[Scheduler] Scheduler wired - running every 10 minutes');
+
+
+// Wire up scheduler - run every 10 minutes, function self-limits to first 5 mins of hour
+setInterval(runScheduledSyncs, 10 * 60 * 1000);
+// Startup syncs run immediately regardless of hour/minute
+console.log('[Scheduler] Scheduler wired - running every 10 minutes');
+
+// Force run on startup regardless of minute
+async function runStartupSyncs() {
+  console.log('[Scheduler] Running startup syncs...');
+  try { await syncWeather(); } catch(e) { console.error('[Scheduler] Startup weather error:', e.message); }
+  try {
+    const axios = (await import('axios')).default;
+    const apiKey = process.env['GOOGLE_PLACES_API_KEY'];
+    if (apiKey) {
+      const venues = [
+        {placeId:'ChIJkY6ikuPfeUgRTwYKwMOxnRQ', name:'The Griffin Inn', locationId:'0001'},
+        {placeId:'ChIJL1fXX1rReUgRoasMv1zsgZI', name:'Tap & Run', locationId:'0002'},
+        {placeId:'ChIJF_oJeAADekgRpSlCi0O92BI', name:'The Long Hop', locationId:'0003'},
+      ];
+      for (const venue of venues) {
+        const r = await axios.get('https://maps.googleapis.com/maps/api/place/details/json', {
+          params: {place_id: venue.placeId, fields: 'name,rating,user_ratings_total,reviews', key: apiKey, language: 'en'}
+        });
+        const place = r.data.result || {};
+        await database_js_1.db.query(
+          "INSERT INTO google_place_ratings (location_id, venue_name, rating, total_reviews, synced_at) VALUES ($1,$2,$3,$4,NOW()) ON CONFLICT (location_id) DO UPDATE SET previous_rating=google_place_ratings.rating, previous_total=google_place_ratings.total_reviews, rating=$3, total_reviews=$4, synced_at=NOW()",
+          [venue.locationId, venue.name, place.rating||0, place.user_ratings_total||0]
+        ).catch(()=>{});
+        // Store reviews
+        const reviews = place.reviews || [];
+        for (const review of reviews) {
+          const text = review.text || '';
+          const reviewDate = new Date(review.time * 1000).toISOString();
+          const membersRes = await database_js_1.db.query("SELECT first_name, last_name, venue_id FROM team_members WHERE is_active=true").catch(()=>({rows:[]}));
+          const locVenueMap = {'0001':'e87b5986-0826-4464-ad62-e55175f9c3c4','0002':'38749619-c192-45d1-806b-2fdc5922adea','0003':'d9657ea0-19c4-4793-9c0c-21fd4179ac56'};
+          const namedStaff = membersRes.rows.filter(m => m.venue_id === locVenueMap[venue.locationId] && text.toLowerCase().includes(m.first_name.toLowerCase()) && m.first_name.length > 2).map(m => m.first_name + ' ' + m.last_name);
+          await database_js_1.db.query(
+            "INSERT INTO google_reviews (location_name, reviewer_name, star_rating, comment, create_time, named_staff) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING",
+            [venue.name, review.author_name, String(review.rating), text, reviewDate, namedStaff]
+          ).catch(()=>{});
+        }
+        console.log('[Startup] Google Places:', venue.name, place.rating, place.user_ratings_total);
+      }
+    }
+  } catch(e) { console.error('[Scheduler] Startup Google error:', e.message); }
+  try { await syncRotaReadyStaff(); console.log('[Startup] RotaReady synced'); } catch(e) { console.error('[Startup] RotaReady error:', e.message); }
+  try { await syncCPL(); console.log('[Startup] CPL synced'); } catch(e) { console.error('[Startup] CPL error:', e.message); }
+  console.log('[Scheduler] Startup syncs complete');
+}
+setTimeout(runStartupSyncs, 10 * 1000);
