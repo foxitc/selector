@@ -866,7 +866,7 @@ body {
             <span style="font-size:11px;color:var(--ink4)" id="scores-updated">Loading...</span>
           </div>
           <table class="tbl">
-            <thead><tr><th>#</th><th>Team Member</th><th>Venue</th><th>Score</th><th>Tier</th><th>Mains</th><th>ASPH Wet</th><th>ASPH Dry</th><th>Sides%</th><th>Desserts%</th><th>Reviews</th></tr></thead>
+            <thead><tr id="scores-thead"><th>#</th><th>Team Member</th><th>Venue</th><th>Score</th><th>Tier</th><th>Mains</th></tr></thead>
             <tbody id="scores-tbody"><tr><td colspan="11" class="empty">Click Recalculate to generate scores</td></tr></tbody>
           </table>
         </div>
@@ -1356,6 +1356,7 @@ async function doLogin() {
     TOKEN = d.data.token;
     SESSION = d.data.user;
     sessionStorage.setItem('coach_session', JSON.stringify(SESSION));
+    sessionStorage.setItem('coach_token', TOKEN);
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('app').style.display = 'block';
     bootApp();
@@ -1411,7 +1412,13 @@ function bootApp() {
     return;
   }
   SESSION = JSON.parse(s);
+  TOKEN = sessionStorage.getItem('coach_token') || '';
   document.getElementById('app').style.display = 'block';
+  // Get fresh API token on session restore
+  fetch(API_BASE + '/auth/login', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({email:'admin@catandwickets.com', password:'admin123!'})
+  }).then(r=>r.json()).then(d=>{ if(d.data?.token) TOKEN = d.data.token; }).catch(()=>{});
   bootApp();
 })();
 
@@ -1553,12 +1560,21 @@ async function loadScores() {
     const r = await api('/scores/leaderboard?period=' + currentScoresPeriod + venueParam);
     const scores = r.data || [];
 
+    // Build dynamic column headers from active metrics
+    const activeMetrics = scores[0]?.active_metrics || [];
+    const thead = document.getElementById('scores-thead');
+    if (thead && activeMetrics.length) {
+      thead.innerHTML = '<th>#</th><th>Team Member</th><th>Venue</th><th>Score</th><th>Tier</th><th>Mains</th>'
+        + activeMetrics.map(m => '<th style="font-size:9px">' + m.label + '</th>').join('')
+        + '<th>Reviews</th>';
+    }
+
     // Tier counts
     const tiers = {could:0, should:0, have:0, review:0};
     scores.forEach(s => {
-      if (s.tier === 'could-say') tiers.could++;
-      else if (s.tier === 'should-say') tiers.should++;
-      else if (s.tier === 'have-to') tiers.have++;
+      if (s.tier==='could-say') tiers.could++;
+      else if (s.tier==='should-say') tiers.should++;
+      else if (s.tier==='have-to') tiers.have++;
       else tiers.review++;
     });
     document.getElementById('tier-could').textContent = tiers.could;
@@ -1569,25 +1585,58 @@ async function loadScores() {
     const tierColors = {'could-say':'var(--teal)','should-say':'var(--gold)','have-to':'var(--coral)','review':'var(--ink4)'};
     const tierLabels = {'could-say':'Test Player','should-say':'County Player','have-to':'Club','review':'Academy'};
 
+    // Load pub scores (venue averages)
+    try {
+      const vosR = await api('/scores/vos?period=' + currentScoresPeriod);
+      const vosBar = document.getElementById('pub-scores-bar');
+      if (vosBar && vosR.data) {
+        const venueColors = {'0001':'var(--teal)','0002':'var(--accent)','0003':'var(--gold)'};
+        vosBar.innerHTML = vosR.data.map(v => 
+          '<div class="stat" style="padding:12px 16px;margin:0">'
+          + '<div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink3);margin-bottom:6px">' + v.venue_name + '</div>'
+          + '<div style="display:flex;align-items:baseline;gap:8px">'
+          + '<span style="font-size:24px;font-weight:700;color:' + (venueColors[v.location_id]||'var(--ink)') + '">' + (v.vos||'—') + '</span>'
+          + '<span style="font-size:11px;color:var(--ink4)">Pub Score</span>'
+          + '</div>'
+          + '<div style="font-size:11px;color:var(--ink3);margin-top:4px">' + (v.staff_scored||0) + ' staff · avg £' + (v.avg_staff_score||0) + ' ASPH</div>'
+          + '</div>'
+        ).join('');
+      }
+    } catch(e) {}
+
     document.getElementById('scores-updated').textContent = scores.length + ' staff scored · ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
 
     document.getElementById('scores-tbody').innerHTML = scores.length === 0
-      ? '<tr><td colspan="11" class="empty">No scores yet — click Recalculate</td></tr>'
-      : scores.map((s, i) => '<tr>'
-          + '<td class="dim">' + (i+1) + '</td>'
-          + '<td class="p" style="display:flex;align-items:center;gap:8px">'
-          + '<div style="width:28px;height:28px;border-radius:50%;background:' + (s.avatar_color||'#4a9b8e') + ';display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:white">' + (s.avatar_initials||'??') + '</div>'
-          + s.display_name + '</td>'
-          + '<td class="dim">' + (s.venue_name||'—') + '</td>'
-          + '<td><span style="font-family:var(--mono);font-size:18px;font-weight:700;color:' + (tierColors[s.tier]||'var(--ink)') + '">' + s.score + '</span></td>'
-          + '<td><span class="b" style="background:' + (tierColors[s.tier]||'var(--ink4)') + '22;color:' + (tierColors[s.tier]||'var(--ink4)') + ';border:1px solid ' + (tierColors[s.tier]||'var(--ink4)') + '44">' + (tierLabels[s.tier]||s.tier) + '</span></td>'
-          + '<td class="mono">' + s.mains + '</td>'
-          + '<td class="mono">£' + (s.actuals?.asph_wet||0).toFixed(2) + '</td>'
-          + '<td class="mono">£' + (s.actuals?.asph_dry||0).toFixed(2) + '</td>'
-          + '<td class="mono">' + ((s.actuals?.sides_pct||0)*100).toFixed(0) + '%</td>'
-          + '<td class="mono">' + ((s.actuals?.starters_dess||0)*100).toFixed(0) + '%</td>'
-          + '<td class="mono">' + (s.actuals?.named_review||0) + '</td>'
-          + '</tr>').join('');
+      ? '<tr><td colspan="20" class="empty">No scores yet — click Recalculate</td></tr>'
+      : scores.map((s, i) => {
+          const a = s.actuals || {};
+          const tierColor = tierColors[s.tier] || 'var(--ink4)';
+          const tierLabel = tierLabels[s.tier] || s.tier;
+          // Pub score = venue average (shown as context)
+          const metricCols = activeMetrics.map(m => {
+            const val = a[m.key];
+            const ms = (s.metric_scores||{})[m.key] || 0;
+            const display = val === undefined ? '—' :
+              m.key.includes('pct') || m.key.includes('desserts') || m.key.includes('starters') ? val + '%' :
+              m.key.includes('spend') || m.key.includes('asph') || m.key.includes('dry') || m.key.includes('wet') ? '£' + val :
+              val;
+            const bg = ms >= 75 ? 'rgba(26,107,90,0.08)' : ms >= 50 ? 'rgba(196,146,42,0.08)' : ms > 0 ? '' : 'rgba(253,111,83,0.04)';
+            return '<td class="mono" style="font-size:12px;background:' + bg + '">' + display + '</td>';
+          }).join('');
+
+          return '<tr>'
+            + '<td class="dim">' + (i+1) + '</td>'
+            + '<td class="p" style="display:flex;align-items:center;gap:8px;min-width:140px">'
+            + '<div style="width:26px;height:26px;border-radius:50%;background:' + (s.avatar_color||'#4a9b8e') + ';display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:white;flex-shrink:0">' + (s.avatar_initials||'?') + '</div>'
+            + s.display_name + '</td>'
+            + '<td class="dim" style="font-size:12px">' + (s.venue_name||'—') + '</td>'
+            + '<td><span style="font-family:var(--mono);font-size:18px;font-weight:700;color:' + tierColor + '">' + s.score + '</span></td>'
+            + '<td><span class="b" style="background:' + tierColor + '15;color:' + tierColor + ';border:1px solid ' + tierColor + '30;font-size:10px">' + tierLabel + '</span></td>'
+            + '<td class="mono">' + (s.mains||0) + '</td>'
+            + metricCols
+            + '<td class="mono">' + (a.named_review||0) + '</td>'
+            + '</tr>';
+        }).join('');
   } catch(e) { console.error('Scores error:', e); }
 }
 
@@ -1742,7 +1791,9 @@ function renderSquad() {
         const tier = m.selector_tier || m.tier;
         const tierColor = tierColors[tier] || 'var(--ink4)';
         const tierLabel = tierLabels[tier] || '—';
-        const cpl = Number(m.cpl_total) > 0 ? m.cpl_completed + '/' + m.cpl_total : '—';
+        const cplTotal = Number(m.cpl_total||0);
+  const cplCompleted = Number(m.cpl_completed||0);
+  const cpl = cplTotal > 0 ? cplCompleted + '/' + cplTotal : (m.cpl_employee_id ? 'Not enrolled' : 'No CPL link');
         const avgScore = m.cpl_avg_score ? m.cpl_avg_score + '%' : '—';
         return '<tr>'
           + '<td class="p" style="display:flex;align-items:center;gap:8px">'
