@@ -1321,7 +1321,7 @@ tr.sel-excluded { opacity: 0.45; }
 <script>
 'use strict';
 
-const API_BASE = 'https://theclub.thecatandwickets.com/api/v1';
+const API_BASE = '/api/v1';
 
 // Users — role-based access
 const USERS = [
@@ -1790,8 +1790,12 @@ async function loadSquad() {
     });
     const d = await r.json();
     squadData = (d && d.data) || [];
+    const filterEl = document.getElementById('squad-filter');
+    if (filterEl) filterEl.value = 'all';
     console.log('[Squad] Loaded', squadData.length, 'members');
     renderSquad();
+    setTimeout(function(){ renderSquad(); }, 100);
+    setTimeout(function(){ renderSquad(); }, 500);
   } catch(e) { console.error('Squad error:', e); squadData = []; renderSquad(); }
 }
 
@@ -2215,22 +2219,7 @@ async function loadVenuesDetail() {
 }
 
 // Squad
-async function loadSquad() {
-  try {
-    const r = await api('/squad');
-    const members = r.data || [];
-    document.getElementById('squad-count').textContent = members.length+' member'+(members.length!==1?'s':'');
-    document.getElementById('squad-tbl').innerHTML = members.length ? members.map(m => `
-      <tr>
-        <td class="p">${m.first_name} ${m.last_name}</td>
-        <td>${m.venue_name||'—'}</td>
-        <td>${m.role||'—'}</td>
-        <td class="mono">—</td>
-        <td><span class="b b-teal"><span class="dot"></span>Active</span></td>
-      </tr>
-    `).join('') : '<tr><td colspan="5" class="empty">No team members — connect RotaReady to import staff</td></tr>';
-  } catch(e) {}
-}
+// [Removed duplicate loadSquad stub that was overriding the real one]
 
 // Clerks
 
