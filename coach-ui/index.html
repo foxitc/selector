@@ -1489,7 +1489,7 @@ function nav(id) {
   if (id==='sales') loadSales();
   if (id==='products') loadProductIntel();
   if (id==='scores') loadScores();
-  if (id==='squad') loadSquad();
+  if (id==='squad') { setTimeout(function(){ loadSquad(); }, 50); }
   if (id==='venues') loadVenuesDetail();
   if (id==='clerks') loadClerks();
   if (id==='users') loadUsers();
@@ -1784,10 +1784,15 @@ async function loadSquad() {
   const venue = document.getElementById('squad-venue-filter')?.value || '';
   const venueParam = venue ? '?venue=' + venue : '';
   try {
-    const r = await api('/squad' + venueParam);
-    squadData = r.data || [];
+    const token = sessionStorage.getItem('coach_token') || '';
+    const r = await fetch('/api/v1/squad' + venueParam, {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    const d = await r.json();
+    squadData = (d && d.data) || [];
+    console.log('[Squad] Loaded', squadData.length, 'members');
     renderSquad();
-  } catch(e) { console.error('Squad error:', e); }
+  } catch(e) { console.error('Squad error:', e); squadData = []; renderSquad(); }
 }
 
 function renderSquad() {
