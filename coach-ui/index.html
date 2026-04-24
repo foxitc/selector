@@ -876,7 +876,8 @@ tr.sel-excluded { opacity: 0.45; }
           <div><div class="ph-t">The Selector — Scores</div><div class="ph-s"><span style="color:var(--accent);font-weight:600">Pub Score</span> = venue average · <span style="color:var(--teal);font-weight:600">Player Score</span> = individual</div></div>
           <div style="display:flex;gap:6px;align-items:center">
             <button class="period-btn btn btn-ghost btn-sm" data-period="today" onclick="setScoresPeriod('today')">Today</button>
-            <button class="period-btn btn btn-ghost btn-sm active" data-period="week" onclick="setScoresPeriod('week')">This Week</button>
+            <button class="period-btn btn btn-ghost btn-sm active" data-period="week" onclick="setScoresPeriod('week')">Rolling 7d</button>
+            <button class="period-btn btn btn-ghost btn-sm" data-period="last_week" onclick="setScoresPeriod('last_week')">Last Week</button>
             <button class="period-btn btn btn-ghost btn-sm" data-period="month" onclick="setScoresPeriod('month')">This Month</button>
             <button class="btn btn-primary btn-sm" onclick="recalcScores()">Recalculate</button>
           </div>
@@ -1654,7 +1655,7 @@ async function loadScores() {
             return '<td class="mono" style="font-size:12px;background:' + bg + '">' + display + '</td>';
           }).join('');
 
-          return '<tr>'
+          return '<tr data-tmid="' + s.team_member_id + '">'
             + '<td class="dim">' + (i+1) + '</td>'
             + '<td class="p" style="min-width:180px">'
             + '<div style="display:flex;align-items:center;gap:8px">'
@@ -2621,5 +2622,160 @@ function applyLeagueStickyColumns() {
 })();
 
 </script>
+<style>
+#member-panel-overlay{position:fixed;inset:0;background:rgba(15,17,21,0.35);opacity:0;pointer-events:none;transition:opacity .2s ease;z-index:1000}
+#member-panel-overlay.open{opacity:1;pointer-events:auto}
+#member-panel{position:fixed;top:0;right:0;bottom:0;width:min(560px,92vw);background:#fff;box-shadow:-8px 0 40px rgba(0,0,0,0.12);transform:translateX(100%);transition:transform .25s ease;z-index:1001;overflow-y:auto}
+#member-panel.open{transform:translateX(0)}
+.mp-header{display:flex;align-items:center;gap:12px;padding:20px 24px;border-bottom:0.5px solid rgba(0,0,0,0.08);position:sticky;top:0;background:#fff;z-index:2}
+.mp-avatar{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-weight:600;font-size:14px;flex-shrink:0}
+.mp-close{background:transparent;border:0;font-size:24px;cursor:pointer;color:#888;line-height:1;padding:4px 8px;border-radius:4px}
+.mp-close:hover{background:rgba(0,0,0,0.05);color:#333}
+.mp-body{padding:20px 24px 40px}
+.mp-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:24px}
+.mp-stat{background:#f6f7f8;border-radius:8px;padding:12px}
+.mp-stat-label{font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.3px}
+.mp-stat-value{font-size:20px;font-weight:600;margin-top:4px;color:#222}
+.mp-section-title{font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.3px;margin:20px 0 8px}
+.mp-chart{width:100%;height:140px;background:#fafafa;border-radius:8px;padding:12px;box-sizing:border-box}
+.mp-metrics-tbl{width:100%;border-collapse:collapse;font-size:13px;background:#fff;border:0.5px solid rgba(0,0,0,0.08);border-radius:8px;overflow:hidden}
+.mp-metrics-tbl td{padding:10px 12px;border-bottom:0.5px solid rgba(0,0,0,0.06)}
+.mp-metrics-tbl tr:last-child td{border-bottom:0}
+.mp-metrics-tbl td.val{text-align:right;font-family:var(--mono);color:#333}
+.mp-metrics-tbl td.delta{text-align:right;font-size:11px;width:60px}
+.mp-metrics-tbl td.delta.up{color:#1D9E75}
+.mp-metrics-tbl td.delta.down{color:#d85a30}
+.mp-metrics-tbl td.delta.flat{color:#9ca3af}
+.mp-history-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:0.5px solid rgba(0,0,0,0.06);font-size:13px}
+.mp-history-row:last-child{border:0}
+.mp-history-row .dt{color:#6b7280}
+.mp-history-row .sc{font-weight:600;color:#222}
+.mp-history-row .sc .ch{font-size:11px;font-weight:400;margin-left:6px}
+#scores-tbody tr{cursor:pointer;transition:background .1s}
+#scores-tbody tr:hover{background:rgba(0,0,0,0.02)}
+</style>
+
+<div id="member-panel-overlay" onclick="closeMemberPanel()"></div>
+<div id="member-panel" role="dialog">
+  <div class="mp-header">
+    <div class="mp-avatar" id="mp-avatar">?</div>
+    <div style="flex:1;min-width:0">
+      <div id="mp-name" style="font-weight:600;font-size:15px">—</div>
+      <div id="mp-sub" style="font-size:12px;color:#6b7280">—</div>
+    </div>
+    <button class="mp-close" onclick="closeMemberPanel()">&times;</button>
+  </div>
+  <div class="mp-body" id="mp-body">Loading…</div>
+</div>
+
+<script>
+async function openMemberPanel(tmId) {
+  var panel = document.getElementById('member-panel');
+  var overlay = document.getElementById('member-panel-overlay');
+  var body = document.getElementById('mp-body');
+  body.innerHTML = 'Loading…';
+  panel.classList.add('open');
+  overlay.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  try {
+    var r = await api('/scores/' + tmId);
+    var d = r.data;
+    if (!d) { body.innerHTML = 'Not found'; return; }
+    renderMemberPanel(d);
+  } catch(e) {
+    body.innerHTML = '<div style="color:#d85a30">Error loading details</div>';
+  }
+}
+function closeMemberPanel() {
+  document.getElementById('member-panel').classList.remove('open');
+  document.getElementById('member-panel-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeMemberPanel(); });
+
+function renderMemberPanel(d) {
+  var tm = d.team_member || {}, cur = d.current || {}, hist = d.history || [];
+  var tierLabels = {'could-say':'Test Player','should-say':'County','have-to':'Academy','review':'Review'};
+  var tierColors = {'could-say':'#1D9E75','should-say':'#378add','have-to':'#BA7517','review':'#d85a30'};
+  var tierLabel = tierLabels[cur.tier] || cur.tier || '—';
+  var tierColor = tierColors[cur.tier] || '#6b7280';
+  document.getElementById('mp-avatar').textContent = tm.avatar_initials || '?';
+  document.getElementById('mp-avatar').style.background = tm.avatar_color || '#4a9b8e';
+  document.getElementById('mp-name').textContent = tm.name || '';
+  document.getElementById('mp-sub').textContent = (tm.venue_name || '') + (tm.role ? ' · ' + tm.role : '');
+  var sc = cur.score_change;
+  var trendHtml = '<span style="color:#9ca3af">—</span>';
+  if (sc !== null && sc !== undefined) {
+    var n = Number(sc);
+    if (n > 1) trendHtml = '<span style="color:#1D9E75">↑ +' + n.toFixed(1) + '</span>';
+    else if (n < -1) trendHtml = '<span style="color:#d85a30">↓ ' + n.toFixed(1) + '</span>';
+    else trendHtml = '<span style="color:#9ca3af">→</span>';
+  }
+  var rankHtml = cur.rank_in_venue ? cur.rank_in_venue + '<span style="font-size:12px;color:#9ca3af;font-weight:400">/' + cur.venue_total + '</span>' : '—';
+  var activeMap = {};
+  (d.active_metrics || []).forEach(function(m) { activeMap[m.key] = m; });
+  var actuals = cur.actuals || {}, deltas = cur.metric_deltas || {};
+  var metricRows = Object.keys(actuals).map(function(key) {
+    var meta = activeMap[key] || {label: key};
+    var val = actuals[key];
+    var delta = deltas[key];
+    var deltaCls = 'flat', deltaTxt = '→';
+    if (delta !== undefined && delta !== null) {
+      var n2 = Number(delta);
+      if (n2 > 0.1) { deltaCls = 'up'; deltaTxt = '↑ +' + n2.toFixed(1); }
+      else if (n2 < -0.1) { deltaCls = 'down'; deltaTxt = '↓ ' + n2.toFixed(1); }
+    }
+    var valStr = typeof val === 'number' ? (key.indexOf('spend') > -1 ? '£' + val.toFixed(2) : (key.indexOf('pct') > -1 || key === 'starters_desserts' ? val.toFixed(1) + '%' : val.toFixed(1))) : val;
+    return '<tr><td>' + (meta.label || key) + '</td><td class="val">' + valStr + '</td><td class="delta ' + deltaCls + '">' + deltaTxt + '</td></tr>';
+  }).join('');
+  var historyHtml = hist.slice(0, 12).map(function(h) {
+    var dt = new Date(h.week_ending);
+    var dtStr = 'Wk ending ' + dt.toLocaleDateString('en-GB', {day:'numeric', month:'short'});
+    var chHtml = '';
+    if (h.score_change !== null && h.score_change !== undefined) {
+      var n3 = Number(h.score_change);
+      if (n3 > 1) chHtml = '<span class="ch" style="color:#1D9E75">↑ +' + n3.toFixed(1) + '</span>';
+      else if (n3 < -1) chHtml = '<span class="ch" style="color:#d85a30">↓ ' + n3.toFixed(1) + '</span>';
+    }
+    return '<div class="mp-history-row"><span class="dt">' + dtStr + '</span><span class="sc">' + Number(h.total_score).toFixed(0) + chHtml + '</span></div>';
+  }).join('');
+  var chartHtml = renderMemberChart(hist);
+  document.getElementById('mp-body').innerHTML =
+    '<div class="mp-stats">' +
+      '<div class="mp-stat"><div class="mp-stat-label">Score</div><div class="mp-stat-value">' + (cur.score !== null ? Number(cur.score).toFixed(0) : '—') + '</div></div>' +
+      '<div class="mp-stat"><div class="mp-stat-label">Trend</div><div class="mp-stat-value">' + trendHtml + '</div></div>' +
+      '<div class="mp-stat"><div class="mp-stat-label">Tier</div><div class="mp-stat-value" style="font-size:14px;color:' + tierColor + '">' + tierLabel + '</div></div>' +
+      '<div class="mp-stat"><div class="mp-stat-label">Rank</div><div class="mp-stat-value">' + rankHtml + '</div></div>' +
+    '</div>' +
+    '<div class="mp-section-title">Score Trend</div>' +
+    '<div class="mp-chart">' + chartHtml + '</div>' +
+    '<div class="mp-section-title">Current Metrics</div>' +
+    '<table class="mp-metrics-tbl"><tbody>' + (metricRows || '<tr><td style="text-align:center;color:#9ca3af" colspan="3">No data</td></tr>') + '</tbody></table>' +
+    '<div class="mp-section-title">Score History</div>' +
+    (historyHtml || '<div style="color:#9ca3af;font-size:13px">No history yet — accumulates weekly</div>');
+}
+
+function renderMemberChart(hist) {
+  if (!hist || hist.length < 2) {
+    return '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#9ca3af;font-size:12px">Not enough history yet — chart builds over coming weeks</div>';
+  }
+  var sorted = hist.slice().reverse();
+  var scores = sorted.map(function(h) { return Number(h.total_score); });
+  var mn = Math.min.apply(null, scores) - 5;
+  var mx = Math.max.apply(null, scores) + 5;
+  var w = 500, h = 110, pad = 8;
+  var xStep = sorted.length > 1 ? (w - pad*2) / (sorted.length - 1) : 0;
+  var yScale = function(sc) { return h - pad - ((sc - mn) / (mx - mn || 1)) * (h - pad*2); };
+  var pts = sorted.map(function(d,i) { return (pad + i * xStep) + ',' + yScale(Number(d.total_score)); }).join(' ');
+  var dots = sorted.map(function(d,i) { return '<circle cx="' + (pad + i * xStep) + '" cy="' + yScale(Number(d.total_score)) + '" r="3" fill="#1D9E75"/>'; }).join('');
+  return '<svg viewBox="0 0 ' + w + ' ' + h + '" style="width:100%;height:100%"><polyline points="' + pts + '" fill="none" stroke="#1D9E75" stroke-width="2"/>' + dots + '</svg>';
+}
+
+document.addEventListener('click', function(e) {
+  var row = e.target.closest('#scores-tbody tr[data-tmid]');
+  if (row) openMemberPanel(row.dataset.tmid);
+});
+</script>
+
 </body>
 </html>
