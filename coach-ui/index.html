@@ -386,6 +386,32 @@ body {
 .tbl-scroll .tbl {
   min-width: max-content;
 }
+/* Unblock sticky positioning by overriding ancestor overflow: hidden */
+.card:has(.tbl-scroll) { overflow: visible; }
+/* Pin first 5 columns: Rank, Team Member, Venue, Score, Tier */
+.tbl-scroll .tbl thead th:nth-child(-n+5),
+.tbl-scroll .tbl tbody td:nth-child(-n+5) {
+  position: sticky;
+  background: var(--surface, #fff);
+  z-index: 2;
+}
+.tbl-scroll .tbl thead th:nth-child(-n+5) { z-index: 3; }
+.tbl-scroll .tbl thead th:nth-child(1),
+.tbl-scroll .tbl tbody td:nth-child(1) { left: 0; min-width: 44px; }
+.tbl-scroll .tbl thead th:nth-child(2),
+.tbl-scroll .tbl tbody td:nth-child(2) { left: 44px; min-width: 220px; }
+.tbl-scroll .tbl thead th:nth-child(3),
+.tbl-scroll .tbl tbody td:nth-child(3) { left: 264px; min-width: 110px; }
+.tbl-scroll .tbl thead th:nth-child(4),
+.tbl-scroll .tbl tbody td:nth-child(4) { left: 374px; min-width: 70px; }
+.tbl-scroll .tbl thead th:nth-child(5),
+.tbl-scroll .tbl tbody td:nth-child(5) { left: 444px; min-width: 110px; }
+.tbl-scroll .tbl tr:hover td:nth-child(-n+5) { background: rgba(0,0,0,0.02); }
+/* Subtle right-edge shadow on the last pinned cell to show scroll boundary */
+.tbl-scroll .tbl thead th:nth-child(5),
+.tbl-scroll .tbl tbody td:nth-child(5) {
+  box-shadow: 4px 0 6px -4px rgba(0,0,0,0.08);
+}
 /* Sticky first two columns on the league table */
 .tbl-scroll .tbl thead th:nth-child(1),
 .tbl-scroll .tbl tbody td:nth-child(1) {
@@ -1664,7 +1690,16 @@ async function loadScores() {
             + '<td class="dim">' + (i+1) + '</td>'
             + '<td class="p" style="display:flex;align-items:center;gap:8px;min-width:140px">'
             + '<div style="width:26px;height:26px;border-radius:50%;background:' + (s.avatar_color||'#4a9b8e') + ';display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:white;flex-shrink:0">' + (s.avatar_initials||'?') + '</div>'
-            + s.display_name + '</td>'
+            + '<span style="flex:1">' + s.display_name + '</span>'
+            + (function(){
+                var sc = s.score_change;
+                if (sc === null || sc === undefined) return '';
+                var n = Number(sc);
+                if (n > 1) return '<span style="color:var(--teal);font-weight:600;font-size:11px;white-space:nowrap">↑ +' + n.toFixed(1) + '</span>';
+                if (n < -1) return '<span style="color:var(--coral);font-weight:600;font-size:11px;white-space:nowrap">↓ ' + n.toFixed(1) + '</span>';
+                return '<span class="dim" style="font-size:11px">→</span>';
+              })()
+            + '</td>'
             + '<td class="dim" style="font-size:12px">' + (s.venue_name||'—') + '</td>'
             + '<td><span style="font-family:var(--mono);font-size:18px;font-weight:700;color:' + tierColor + '">' + s.score + '</span></td>'
             + '<td><span class="b" style="background:' + tierColor + '15;color:' + tierColor + ';border:1px solid ' + tierColor + '30;font-size:10px">' + tierLabel + '</span></td>'
