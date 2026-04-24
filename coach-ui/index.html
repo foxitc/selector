@@ -377,6 +377,36 @@ body {
 .tbl td.dim { color: var(--ink4); font-size: 12px; }
 .tbl td.mono { font-family: var(--mono); font-size: 13px; }
 
+/* ── Horizontal scroll wrapper for wide tables ── */
+.tbl-scroll {
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+}
+.tbl-scroll .tbl {
+  min-width: max-content;
+}
+/* Sticky first two columns on the league table */
+.tbl-scroll .tbl thead th:nth-child(1),
+.tbl-scroll .tbl tbody td:nth-child(1) {
+  position: sticky;
+  left: 0;
+  background: var(--surface);
+  z-index: 2;
+}
+.tbl-scroll .tbl thead th:nth-child(2),
+.tbl-scroll .tbl tbody td:nth-child(2) {
+  position: sticky;
+  left: 48px;
+  background: var(--surface);
+  z-index: 2;
+}
+.tbl-scroll .tbl thead th { z-index: 3; }
+.tbl-scroll .tbl tr:hover td:nth-child(1),
+.tbl-scroll .tbl tr:hover td:nth-child(2) {
+  background: rgba(0,0,0,0.02);
+}
+
 /* ── BUTTONS ── */
 .btn {
   display: inline-flex; align-items: center; gap: 6px;
@@ -865,10 +895,12 @@ body {
             <div class="card-t">The Selector — League Table</div>
             <span style="font-size:11px;color:var(--ink4)" id="scores-updated">Loading...</span>
           </div>
-          <table class="tbl">
-            <thead><tr id="scores-thead"><th>#</th><th>Team Member</th><th>Venue</th><th>Score</th><th>Tier</th><th>Mains</th></tr></thead>
-            <tbody id="scores-tbody"><tr><td colspan="11" class="empty">Click Recalculate to generate scores</td></tr></tbody>
-          </table>
+          <div class="tbl-scroll">
+            <table class="tbl">
+              <thead><tr id="scores-thead"><th>#</th><th>Team Member</th><th>Venue</th><th>Score</th><th>Tier</th><th>Mains</th></tr></thead>
+              <tbody id="scores-tbody"><tr><td colspan="11" class="empty">Click Recalculate to generate scores</td></tr></tbody>
+            </table>
+          </div>
         </div>
       </div>
 
