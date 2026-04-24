@@ -626,25 +626,8 @@ body {
 .login-submit:hover { background: #e85d3f; }
 .login-error { color: var(--accent); font-size: 12px; display: none; }
 
-/* Selector inclusion toggle on Squad rows */
-.sel-toggle { position: relative; display: inline-block; width: 34px; height: 18px; vertical-align: middle; }
-.sel-toggle input { opacity: 0; width: 0; height: 0; }
-.sel-slider {
-  position: absolute; cursor: pointer; inset: 0;
-  background: #d1d5db; border-radius: 18px;
-  transition: background .15s ease;
-}
-.sel-slider:before {
-  content: ''; position: absolute;
-  height: 14px; width: 14px; left: 2px; top: 2px;
-  background: white; border-radius: 50%;
-  transition: transform .15s ease;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.2);
-}
-.sel-toggle input:checked + .sel-slider { background: var(--teal, #1a6b5a); }
-.sel-toggle input:checked + .sel-slider:before { transform: translateX(16px); }
+.sel-chk { width: 18px; height: 18px; cursor: pointer; accent-color: var(--teal, #1a6b5a); }
 tr.sel-excluded { opacity: 0.45; }
-tr.sel-excluded td { background: rgba(0,0,0,0.02); }
 </style>
 </head>
 <body>
@@ -917,7 +900,7 @@ tr.sel-excluded td { background: rgba(0,0,0,0.02); }
           </div>
           <div class="tbl-scroll">
             <table class="tbl">
-              <thead><tr id="scores-thead"><th>#</th><th>Team Member</th><th>Venue</th><th>Score</th><th>Tier</th><th>Mains</th></tr></thead>
+              <thead><tr id="scores-thead"><th>#</th><th>Team Member</th><th>Venue</th><th>Score</th><th>Tier</th><th>Mains</th><th style="text-align:center">Score?</th></tr></thead>
               <tbody id="scores-tbody"><tr><td colspan="11" class="empty">Click Recalculate to generate scores</td></tr></tbody>
             </table>
           </div>
@@ -1455,41 +1438,6 @@ function bootApp() {
   }).catch(()=>{});
 }
 
-
-// ── Selector inclusion toggle ──
-async function toggleSelectorMember(teamMemberId, excluded, checkboxEl) {
-  try {
-    const r = await fetch((typeof API_BASE !== 'undefined' ? API_BASE : '/api/v1') + '/squad/' + teamMemberId + '/selector-toggle', {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + (TOKEN || sessionStorage.getItem('coach_token') || '')
-      },
-      body: JSON.stringify({ excluded: excluded })
-    });
-    const d = await r.json();
-    if (!r.ok || d.error) {
-      alert('Could not toggle: ' + (d.error?.message || r.statusText));
-      // revert checkbox
-      if (checkboxEl) checkboxEl.checked = !checkboxEl.checked;
-      return;
-    }
-    // Update local squad cache so re-renders are consistent
-    if (typeof squadData !== 'undefined' && Array.isArray(squadData)) {
-      const m = squadData.find(x => x.id === teamMemberId);
-      if (m) m.selector_excluded = excluded;
-    }
-    // Grey-out / un-grey the row
-    if (checkboxEl) {
-      const row = checkboxEl.closest('tr');
-      if (row) row.classList.toggle('sel-excluded', excluded);
-    }
-  } catch (e) {
-    alert('Network error: ' + e.message);
-    if (checkboxEl) checkboxEl.checked = !checkboxEl.checked;
-  }
-}
-
 // Auto-login
 (function() {
   const s = sessionStorage.getItem('coach_session');
@@ -1872,7 +1820,7 @@ function renderSquad() {
 
   console.log('[Squad] Rendering', data.length, 'members, first CPL:', data[0]?.cpl_total);
   document.getElementById('squad-tbody').innerHTML = data.length === 0
-    ? '<tr><td colspan="10" class="empty">No team members found</td></tr>'
+    ? '<tr><td colspan="9" class="empty">No team members found</td></tr>'
     : data.map(m => {
         const score = m.selector_score ? Number(m.selector_score).toFixed(0) : '—';
         const tier = m.selector_tier || m.tier;
@@ -1882,7 +1830,7 @@ function renderSquad() {
   const cplCompleted = Number(m.cpl_completed||0);
   const cpl = cplTotal > 0 ? cplCompleted + '/' + cplTotal : (m.cpl_employee_id ? 'Not enrolled' : 'No CPL link');
         const avgScore = m.cpl_avg_score ? m.cpl_avg_score + '%' : '—';
-        return '<tr class="' + (m.selector_excluded ? 'sel-excluded' : '') + '">'
+        return '<tr data-member-id="' + m.id + '"' + (m.selector_excluded ? ' class="sel-excluded"' : '') + '>'
           + '<td class="p" style="display:flex;align-items:center;gap:8px">'
           + '<div style="width:28px;height:28px;border-radius:50%;background:' + (m.avatar_color||'#4a9b8e') + ';display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:white;flex-shrink:0">' + (m.avatar_initials||'??') + '</div>'
           + m.display_name + '</td>'
@@ -1895,11 +1843,9 @@ function renderSquad() {
           + '<td>' + statusBadge(m.allergen_status) + '</td>'
           + '<td>' + statusBadge(m.induction_status || m.cw_induction_status) + '</td>'
           + '<td style="text-align:center">'
-          +   '<label class="sel-toggle" title="Include this team member in Selector scoring">'
-          +     '<input type="checkbox" ' + (m.selector_excluded ? '' : 'checked') + ' '
-          +       'onchange="toggleSelectorMember(\'' + m.id + '\', !this.checked, this)">'
-          +     '<span class="sel-slider"></span>'
-          +   '</label>'
+          +   '<input type="checkbox" class="sel-chk" '
+          +   'data-member-id="' + m.id + '" '
+          +   (m.selector_excluded ? '' : 'checked') + '>'
           + '</td>'
           + '</tr>';
       }).join('');
@@ -2569,6 +2515,46 @@ async function loadClerkBreakdown(productName) {
   } catch(e) {}
 }
 
+
+
+// Delegated toggle handler for the Squad "Score?" checkbox
+document.addEventListener('change', function(ev) {
+  var el = ev.target;
+  if (!el || !el.classList || !el.classList.contains('sel-chk')) return;
+  var memberId = el.getAttribute('data-member-id');
+  if (!memberId) return;
+  var excluded = !el.checked;  // unchecked = excluded
+  var tr = el.closest('tr');
+  // Optimistic UI
+  if (tr) tr.classList.toggle('sel-excluded', excluded);
+  el.disabled = true;
+  fetch('/api/v1/squad/' + memberId + '/selector-toggle', {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + (sessionStorage.getItem('coach_token') || '')
+    },
+    body: JSON.stringify({ excluded: excluded })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (d && d.error) {
+      // Revert
+      el.checked = !el.checked;
+      if (tr) tr.classList.toggle('sel-excluded', !excluded);
+      alert('Could not toggle: ' + (d.error.message || 'unknown'));
+    } else if (typeof squadData !== 'undefined' && Array.isArray(squadData)) {
+      var row = squadData.find(function(x) { return x.id === memberId; });
+      if (row) row.selector_excluded = excluded;
+    }
+  })
+  .catch(function(e) {
+    el.checked = !el.checked;
+    if (tr) tr.classList.toggle('sel-excluded', !excluded);
+    alert('Network error: ' + e.message);
+  })
+  .finally(function() { el.disabled = false; });
+});
 
 </script>
 </body>
