@@ -135,6 +135,7 @@
   <div class="tabs">
     <button class="tab active" data-tab="users">Users</button>
     <button class="tab" data-tab="clerks">Clerk Mapping <span class="badge" id="tab-unmapped-count">-</span></button>
+    <button class="tab" data-tab="apikeys">API Keys</button>
   </div>
 
   <div class="tab-panel" id="panel-users">
@@ -243,6 +244,54 @@
     <div class="modal-actions">
       <button class="btn" onclick="closeClerkModal()">Cancel</button>
       <button class="btn btn-primary" onclick="saveMapping()">Map Clerk</button>
+    </div>
+  </div>
+</div>
+
+
+<div class="tab-panel" id="panel-apikeys" style="display:none;">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;gap:16px">
+    <div>
+      <h2 style="margin:0 0 4px;font-size:18px">API Keys</h2>
+      <p style="margin:0;color:var(--text-faint);font-size:13px;max-width:520px">Generate keys for external read-only access. Each key allows GET requests only and is rate-limited per hour. Keys are shown once at creation — copy immediately.</p>
+    </div>
+    <button class="btn-primary" onclick="openCreateKey()" style="white-space:nowrap">+ New API Key</button>
+  </div>
+  <div id="apikey-reveal" style="display:none;background:#fff8e1;border:1px solid #f5b400;border-radius:6px;padding:14px;margin-bottom:16px">
+    <div style="font-weight:600;margin-bottom:6px;color:#7a5c00">⚠ Copy this key now — it will not be shown again</div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <input id="apikey-reveal-input" readonly style="flex:1;font-family:monospace;font-size:13px;padding:8px;border:1px solid var(--border);border-radius:4px;background:#fff" value="">
+      <button class="btn-ghost" onclick="copyRevealKey()">Copy</button>
+      <button class="btn-ghost" onclick="document.getElementById('apikey-reveal').style.display='none'">Dismiss</button>
+    </div>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Prefix</th>
+        <th>Rate limit</th>
+        <th>Requests (24h)</th>
+        <th>Last used</th>
+        <th>Created</th>
+        <th>Status</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="apikeys-tbody"><tr><td colspan="8" style="text-align:center;color:var(--text-faint);padding:24px">Loading…</td></tr></tbody>
+  </table>
+</div>
+
+<div id="create-key-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:8px;padding:24px;width:90%;max-width:420px">
+    <h3 style="margin:0 0 16px">New API Key</h3>
+    <label style="display:block;font-size:13px;font-weight:500;margin-bottom:4px">Name</label>
+    <input id="new-key-name" placeholder="e.g. Harry Dashboard" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:4px;margin-bottom:12px;box-sizing:border-box">
+    <label style="display:block;font-size:13px;font-weight:500;margin-bottom:4px">Rate limit (requests/hour)</label>
+    <input id="new-key-limit" type="number" value="1000" min="10" max="100000" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:4px;margin-bottom:18px;box-sizing:border-box">
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn-ghost" onclick="closeCreateKey()">Cancel</button>
+      <button class="btn-primary" onclick="createApiKey()">Create Key</button>
     </div>
   </div>
 </div>
@@ -528,6 +577,78 @@ function escapeAttr(s) { return String(s || '').replace(/'/g, "\\'").replace(/"/
     document.getElementById('tab-unmapped-count').textContent = stats.unmapped;
   } catch (e) {}
 })();
+
+// ── API Keys management ──
+async function loadApiKeys() {
+  try {
+    const r = await api('/admin/api-keys');
+    const keys = r.data || [];
+    document.getElementById('apikeys-tbody').innerHTML = keys.length === 0
+      ? '<tr><td colspan="8" style="text-align:center;color:var(--text-faint);padding:24px">No API keys yet. Click "New API Key" to create one.</td></tr>'
+      : keys.map(k => {
+          const status = k.revoked_at ? '<span style="color:var(--text-faint)">Revoked</span>' : '<span style="color:#1d9e75">Active</span>';
+          const lastUsed = k.last_used_at ? new Date(k.last_used_at).toLocaleString('en-GB') : '<span style="color:var(--text-faint)">Never</span>';
+          const created = new Date(k.created_at).toLocaleDateString('en-GB');
+          const action = k.revoked_at ? '' : '<button class="btn-ghost" style="color:#d85a30;font-size:12px;padding:2px 8px" onclick="revokeKey(\'' + k.id + '\', \'' + k.name.replace(/\'/g, '') + '\')">Revoke</button>';
+          return '<tr>'
+            + '<td style="font-weight:500">' + k.name + '</td>'
+            + '<td style="font-family:monospace;font-size:12px;color:var(--text-faint)">' + k.key_prefix + '…</td>'
+            + '<td>' + k.rate_limit + '/hr</td>'
+            + '<td>' + (k.requests_24h || 0) + '</td>'
+            + '<td style="font-size:12px">' + lastUsed + '</td>'
+            + '<td style="font-size:12px;color:var(--text-faint)">' + created + '</td>'
+            + '<td>' + status + '</td>'
+            + '<td>' + action + '</td>'
+            + '</tr>';
+        }).join('');
+  } catch(e) {
+    document.getElementById('apikeys-tbody').innerHTML = '<tr><td colspan="8" style="text-align:center;color:#d85a30;padding:24px">Error loading: ' + e.message + '</td></tr>';
+  }
+}
+
+function openCreateKey() {
+  document.getElementById('new-key-name').value = '';
+  document.getElementById('new-key-limit').value = 1000;
+  document.getElementById('create-key-modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('new-key-name').focus(), 50);
+}
+function closeCreateKey() {
+  document.getElementById('create-key-modal').style.display = 'none';
+}
+async function createApiKey() {
+  const name = document.getElementById('new-key-name').value.trim();
+  const rate_limit = parseInt(document.getElementById('new-key-limit').value) || 1000;
+  if (name.length < 2) { alert('Name must be at least 2 characters'); return; }
+  try {
+    const r = await api('/admin/api-keys', { method: 'POST', body: JSON.stringify({ name, rate_limit }) });
+    if (r.error) { alert('Error: ' + r.error.message); return; }
+    closeCreateKey();
+    document.getElementById('apikey-reveal-input').value = r.data.key;
+    document.getElementById('apikey-reveal').style.display = 'block';
+    loadApiKeys();
+  } catch(e) {
+    alert('Error: ' + e.message);
+  }
+}
+async function revokeKey(id, name) {
+  if (!confirm('Revoke API key "' + name + '"? This cannot be undone — anyone using this key will lose access.')) return;
+  try {
+    const r = await api('/admin/api-keys/' + id, { method: 'DELETE' });
+    if (r.error) { alert('Error: ' + r.error.message); return; }
+    loadApiKeys();
+  } catch(e) {
+    alert('Error: ' + e.message);
+  }
+}
+function copyRevealKey() {
+  const input = document.getElementById('apikey-reveal-input');
+  input.select();
+  document.execCommand('copy');
+  // visual feedback
+  const btns = document.querySelectorAll('#apikey-reveal button');
+  if (btns[0]) { const t = btns[0].textContent; btns[0].textContent = 'Copied!'; setTimeout(() => { btns[0].textContent = t; }, 1500); }
+}
+
 </script>
 
 </body>
