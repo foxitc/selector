@@ -842,6 +842,17 @@ tr.sel-excluded { opacity: 0.45; }
           <div class="empty" style="grid-column:1/-1">Loading venues...</div>
         </div>
 
+        <!-- Mon-Sun Net Revenue per Pub -->
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-h">
+            <div class="card-t">Weekly Revenue — Mon to Sun</div>
+            <span style="font-size:11px;color:var(--ink3)" id="weekly-rev-dates"></span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0" id="weekly-rev-grid">
+            <div class="empty" style="grid-column:1/-1">Loading...</div>
+          </div>
+        </div>
+
         <!-- Two column layout: Insights + Bookings -->
         <div style="display:grid;grid-template-columns:1fr 1.6fr;gap:14px;margin-bottom:14px">
 
@@ -1526,6 +1537,7 @@ function switchVenue() {
   loadDashboard();
   loadBookingsToday();
   loadContextBanner();
+  loadWeeklyRevenue();
   // Reload whichever view is currently active
   const activeView = document.querySelector('.view.active')?.id?.replace('v-','');
   if (activeView === 'sales') loadSales();
@@ -1548,6 +1560,7 @@ async function init() {
   loadDashboard();
   loadBookingsToday();
   loadContextBanner();
+  loadWeeklyRevenue();
 async function loadLocationMap() {
   try {
     const r = await api('/venues/mappings');
@@ -1610,7 +1623,7 @@ async function loadScores() {
     const thead = document.getElementById('scores-thead');
     if (thead && activeMetrics.length) {
       thead.innerHTML = '<th>#</th><th>Team Member</th><th>Venue</th><th>Score</th><th>Tier</th><th>Mains</th>'
-        + activeMetrics.map(m => '<th style="font-size:9px">' + m.label + '</th>').join('')
+        + activeMetrics.map(m => '<th style="font-size:9px;cursor:help" title="' + m.label + ' | Target: ' + m.target + ' | Weight: ' + m.weight + '/5 | Score 50 = hit target, 100 = 2x target, 0 = zero activity">' + m.label + '</th>').join('')
         + '<th style="text-align:center">Trend</th>'
         + '<th>Reviews</th>';
     }
@@ -1929,6 +1942,60 @@ async function loadBookingsToday() {
     const upd = document.getElementById('bookings-updated');
     if (upd) upd.textContent = total + ' bookings · ' + covers + ' covers · ' + new Date().toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit'});
   } catch(e) { console.error('Bookings error:', e); }
+}
+
+
+async function loadWeeklyRevenue() {
+  try {
+    // Get Monday of current week
+    const now = new Date();
+    const day = now.getDay(); // 0=Sun, 1=Mon
+    const daysToMon = day === 0 ? -6 : 1 - day;
+    const mon = new Date(now);
+    mon.setDate(now.getDate() + daysToMon);
+    mon.setHours(0,0,0,0);
+    const sun = new Date(mon);
+    sun.setDate(mon.getDate() + 6);
+    sun.setHours(23,59,59,999);
+
+    const monStr = mon.toISOString().split('T')[0];
+    const sunStr = sun.toISOString().split('T')[0];
+
+    document.getElementById('weekly-rev-dates').textContent = 
+      mon.toLocaleDateString('en-GB',{day:'numeric',month:'short'}) + ' – ' + 
+      sun.toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+
+    const r = await api('/transactions/summary?from=' + monStr + '&to=' + sunStr);
+    const byVenue = r.data?.byVenue || [];
+
+    const venueOrder = ['0001','0002','0003'];
+    const venueNames = {'0001':'The Griffin Inn','0002':'Tap & Run','0003':'Long Hop'};
+    const venueColors = {'0001':'var(--teal)','0002':'var(--accent)','0003':'var(--gold)'};
+
+    if (!byVenue.length) {
+      // Fallback - use ASPH endpoint for current week
+      const ar = await api('/metrics/asph?period=week');
+      const data = ar.data || [];
+      document.getElementById('weekly-rev-grid').innerHTML = data.map(v => 
+        '<div style="padding:16px 20px;border-right:1px solid var(--border)">'
+        + '<div style="font-size:11px;font-weight:600;color:var(--ink3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px">' + (venueNames[v.location_id]||v.location_id) + '</div>'
+        + '<div style="font-size:26px;font-weight:700;color:' + (venueColors[v.location_id]||'var(--ink)') + ';letter-spacing:-0.5px">£' + Math.round(Number(v.net_revenue||0)).toLocaleString('en-GB') + '</div>'
+        + '<div style="font-size:11px;color:var(--ink4);margin-top:4px">' + (v.transactions||'—') + ' transactions · £' + (v.asph||'—') + ' ASPH</div>'
+        + '</div>'
+      ).join('');
+      return;
+    }
+
+    document.getElementById('weekly-rev-grid').innerHTML = venueOrder.map((loc,i) => {
+      const v = byVenue.find(b => b.location_id === loc) || {};
+      const rev = Math.round(Number(v.net_revenue||0));
+      return '<div style="padding:16px 20px' + (i<2?';border-right:1px solid var(--border)':'') + '">'
+        + '<div style="font-size:11px;font-weight:600;color:var(--ink3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px">' + venueNames[loc] + '</div>'
+        + '<div style="font-size:26px;font-weight:700;color:' + venueColors[loc] + ';letter-spacing:-0.5px">£' + rev.toLocaleString('en-GB') + '</div>'
+        + '<div style="font-size:11px;color:var(--ink4);margin-top:4px">' + (v.transactions||0) + ' transactions</div>'
+        + '</div>';
+    }).join('');
+  } catch(e) { console.error('Weekly rev error:', e); }
 }
 
 let currentDashPeriod = 'week';
