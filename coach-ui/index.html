@@ -711,6 +711,10 @@ tr.sel-excluded { opacity: 0.45; }
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
         Trail
       </button>
+      <a href="/pub-league.html" class="nav-item" style="text-decoration:none">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 010-5H6"/><path d="M18 9h1.5a2.5 2.5 0 000-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0012 0V2z"/></svg>
+        Pub League
+      </a>
       <button class="nav-item" onclick="nav('sales')" id="nav-sales">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
         Sales Data
@@ -786,9 +790,11 @@ tr.sel-excluded { opacity: 0.45; }
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
           <span style="font-size:12px;color:var(--ink3);font-weight:500">Period:</span>
           <div style="display:flex;gap:4px">
-            <button class="btn btn-ghost btn-sm dash-period active" data-period="week" onclick="setDashPeriod(this)">Last 7 days</button>
-            <button class="btn btn-ghost btn-sm dash-period" data-period="month" onclick="setDashPeriod(this)">Last 28 days</button>
-            <button class="btn btn-ghost btn-sm dash-period" data-period="today" onclick="setDashPeriod(this)">Last 24 hrs</button>
+            <button class="btn btn-ghost btn-sm dash-period active" data-period="week" onclick="setDashPeriod(this)">7 days</button>
+            <button class="btn btn-ghost btn-sm dash-period" data-period="fortnight" onclick="setDashPeriod(this)">14 days</button>
+            <button class="btn btn-ghost btn-sm dash-period" data-period="month" onclick="setDashPeriod(this)">28 days</button>
+            <button class="btn btn-ghost btn-sm dash-period" data-period="quarter" onclick="setDashPeriod(this)">90 days</button>
+            <button class="btn btn-ghost btn-sm dash-period" data-period="today" onclick="setDashPeriod(this)">24 hrs</button>
           </div>
           <span style="font-size:11px;color:var(--ink4);margin-left:auto" id="dash-date-range"></span>
         </div>
@@ -875,10 +881,11 @@ tr.sel-excluded { opacity: 0.45; }
         <div class="ph">
           <div><div class="ph-t">The Selector — Scores</div><div class="ph-s"><span style="color:var(--accent);font-weight:600">Pub Score</span> = venue average · <span style="color:var(--teal);font-weight:600">Player Score</span> = individual</div></div>
           <div style="display:flex;gap:6px;align-items:center">
-            <button class="period-btn btn btn-ghost btn-sm" data-period="today" onclick="setScoresPeriod('today')">Today</button>
-            <button class="period-btn btn btn-ghost btn-sm active" data-period="week" onclick="setScoresPeriod('week')">Rolling 7d</button>
-            <button class="period-btn btn btn-ghost btn-sm" data-period="last_week" onclick="setScoresPeriod('last_week')">Last Week</button>
-            <button class="period-btn btn btn-ghost btn-sm" data-period="month" onclick="setScoresPeriod('month')">This Month</button>
+            <button class="period-btn btn btn-ghost btn-sm" data-period="today" onclick="setScoresPeriod('today')">24 hrs</button>
+            <button class="period-btn btn btn-ghost btn-sm active" data-period="week" onclick="setScoresPeriod('week')">7 days</button>
+            <button class="period-btn btn btn-ghost btn-sm" data-period="fortnight" onclick="setScoresPeriod('fortnight')">14 days</button>
+            <button class="period-btn btn btn-ghost btn-sm" data-period="month" onclick="setScoresPeriod('month')">28 days</button>
+            <button class="period-btn btn btn-ghost btn-sm" data-period="quarter" onclick="setScoresPeriod('quarter')">90 days</button>
             <button class="btn btn-primary btn-sm" onclick="recalcScores()">Recalculate</button>
           </div>
         </div>
@@ -931,10 +938,10 @@ tr.sel-excluded { opacity: 0.45; }
         <div class="ph">
           <div><div class="ph-t">Sales Data</div><div class="ph-s">EPOS transaction data from Relay</div></div>
           <div style="display:flex;gap:6px;align-items:center">
-            <button class="period-btn btn btn-ghost btn-sm active" data-period="all" onclick="setSalesPeriod('all')">All Time</button>
+            <button class="period-btn btn btn-ghost btn-sm active" data-period="all" onclick="setSalesPeriod('all')">All time</button>
             <button class="period-btn btn btn-ghost btn-sm" data-period="today" onclick="setSalesPeriod('today')">Today</button>
-            <button class="period-btn btn btn-ghost btn-sm" data-period="week" onclick="setSalesPeriod('week')">This Week</button>
-            <button class="period-btn btn btn-ghost btn-sm" data-period="month" onclick="setSalesPeriod('month')">This Month</button>
+            <button class="period-btn btn btn-ghost btn-sm" data-period="week" onclick="setSalesPeriod('week')">7 days</button>
+            <button class="period-btn btn btn-ghost btn-sm" data-period="month" onclick="setSalesPeriod('month')">28 days</button>
           </div>
         </div>
         <div class="stats" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px">
@@ -978,8 +985,8 @@ tr.sel-excluded { opacity: 0.45; }
           <div><div class="ph-t">Product Intelligence</div><div class="ph-s">Sales performance, leaderboards & promotion tracking</div></div>
           <div style="display:flex;gap:6px;align-items:center">
             <button class="period-btn btn btn-ghost btn-sm" data-period="today" onclick="setProductPeriod('today')">Today</button>
-            <button class="period-btn btn btn-ghost btn-sm active" data-period="week" onclick="setProductPeriod('week')">This Week</button>
-            <button class="period-btn btn btn-ghost btn-sm" data-period="month" onclick="setProductPeriod('month')">This Month</button>
+            <button class="period-btn btn btn-ghost btn-sm active" data-period="week" onclick="setProductPeriod('week')">7 days</button>
+            <button class="period-btn btn btn-ghost btn-sm" data-period="month" onclick="setProductPeriod('month')">28 days</button>
           </div>
         </div>
 
@@ -1128,6 +1135,12 @@ tr.sel-excluded { opacity: 0.45; }
             <div class="ph-t">The Selector</div>
             <div class="ph-s">Configure metric weights and targets for scoring</div>
           </div>
+          <select id="metricsPeriod" onchange="loadMetrics()" class="form-input" style="margin-right:10px;width:auto;padding:6px 10px">
+            <option value="7d">Last 7 days</option>
+            <option value="14d">Last 14 days</option>
+            <option value="30d" selected>Last 30 days</option>
+            <option value="90d">Last 90 days</option>
+          </select>
           <button class="btn btn-primary" onclick="saveMetrics()">Save Changes</button>
         </div>
         <div class="card">
@@ -1140,14 +1153,15 @@ tr.sel-excluded { opacity: 0.45; }
               <tr>
                 <th>Metric</th>
                 <th>Category</th>
-                <th>Weight</th>
                 <th>Target</th>
+                <th>Actual Avg</th>
+                <th>Weight</th>
                 <th>Active</th>
                 <th>Notes</th>
               </tr>
             </thead>
             <tbody id="metrics-tbody">
-              <tr><td colspan="6" class="empty">Loading...</td></tr>
+              <tr><td colspan="7" class="empty">Loading...</td></tr>
             </tbody>
           </table>
         </div>
@@ -1182,7 +1196,7 @@ tr.sel-excluded { opacity: 0.45; }
           </div>
           <table class="tbl">
             <thead><tr><th>Clerk ID</th><th>Venue</th><th>First Seen</th><th>Transactions</th><th>Match To</th><th></th></tr></thead>
-            <tbody id="uc-tbody"><tr><td colspan="6" class="empty">Loading...</td></tr></tbody>
+            <tbody id="uc-tbody"><tr><td colspan="7" class="empty">Loading...</td></tr></tbody>
           </table>
         </div>
         <div class="card">
@@ -1332,6 +1346,7 @@ const VENUE_NAMES = { griffin:'The Griffin Inn', longhop:'Long Hop', taprun:'Tap
 let LOCATION_MAP = {}; // Loaded dynamically from database
 
 let SESSION = null, TOKEN = '', currentVenue = 'all';
+let pubScores = {}; // {griffin: 61.5, taprun: 60.8, longhop: 58.4}
 
 // Clock
 setInterval(() => {
@@ -1929,7 +1944,8 @@ function setDashPeriod(btn) {
   btn.style.borderColor = 'var(--accent)';
   currentDashPeriod = btn.dataset.period;
   const now = new Date();
-  const from = new Date(now - (currentDashPeriod==='today'?86400000:currentDashPeriod==='week'?7*86400000:28*86400000));
+  const ms = {'today':86400000,'week':7*86400000,'fortnight':14*86400000,'month':28*86400000,'quarter':90*86400000};
+  const from = new Date(now - (ms[currentDashPeriod]||7*86400000));
   document.getElementById('dash-date-range').textContent = 
     from.toLocaleDateString('en-GB',{day:'numeric',month:'short'}) + ' – ' + 
     now.toLocaleDateString('en-GB',{day:'numeric',month:'short'});
@@ -2008,6 +2024,10 @@ async function loadDashboard() {
        const ar = await api('/metrics/asph?period=' + (currentDashPeriod||'week'));
        if (Array.isArray(ar.data)) ar.data.forEach(v => { asphByLoc[v.location_id] = v; });
      } catch(e) {}
+     try {
+       const lr = await api('/league/pubs?period=30d');
+       if (lr.data?.league) lr.data.league.forEach(v => { pubScores[v.venue_id] = v.score; });
+     } catch(e) { console.warn('pub league fetch:', e.message); }
 
 
     const cardsEl = document.getElementById('venue-cards');
@@ -2016,6 +2036,11 @@ async function loadDashboard() {
       const score = ts ? Math.round(Number(ts.combined_trail_score)) : null;
       const scoreColor = score===null ? 'var(--ink4)' : score>=75 ? 'var(--teal)' : score>=50 ? 'var(--gold)' : 'var(--coral)';
       const scoreBg   = score===null ? 'var(--bg)' : score>=75 ? 'var(--teal-bg)' : score>=50 ? 'var(--gold-bg)' : 'var(--coral-bg)';
+      // Pub Score lookup (from cached league/pubs response)
+      const pubVenueKey = v.name === 'The Griffin Inn' ? 'griffin' : (v.name === 'Tap & Run' || v.name === 'The Tap & Run') ? 'taprun' : (v.name === 'Long Hop' || v.name === 'The Long Hop') ? 'longhop' : null;
+      const pubScore = pubVenueKey && pubScores[pubVenueKey] !== undefined ? pubScores[pubVenueKey] : null;
+      const pubColor = pubScore===null ? 'var(--ink4)' : pubScore>=80 ? 'var(--teal)' : pubScore>=60 ? 'var(--gold)' : 'var(--coral)';
+      const pubBg    = pubScore===null ? 'var(--bg)' : pubScore>=80 ? 'var(--teal-bg)' : pubScore>=60 ? 'var(--gold-bg)' : 'var(--coral-bg)';
       const rate = ts ? Number(ts.avg_completion_rate).toFixed(1) : '—';
       const locId = getLocationId(v.name);
       const vs = venueSales[v.name] || {tx:0, rev:0, covers:0};
@@ -2037,12 +2062,16 @@ async function loadDashboard() {
            + (wxStr ? '<span style="color:var(--ink2);font-weight:600">'+wxStr+'</span>' : '')
            + '</div>'
         + '</div>'
-        + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">'
-          + '<div style="background:'+scoreBg+';border-radius:9px;padding:6px 14px;text-align:center">'
+        + '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px">'
+          + '<div style="background:'+scoreBg+';border-radius:9px;padding:6px 12px;text-align:center;flex:1">'
             + '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:'+scoreColor+';margin-bottom:1px">Trail Score</div>'
             + '<div style="font-family:var(--display);font-size:22px;font-weight:700;color:'+scoreColor+';line-height:1">'+(score!==null?score:'—')+'</div>'
           + '</div>'
-          + '<div style="text-align:right">'
+          + '<div onclick="event.stopPropagation();window.location.href=\'/pub-league.html\'" style="background:'+pubBg+';border-radius:9px;padding:6px 12px;text-align:center;flex:1;cursor:pointer;border:1px solid '+pubColor+'33;transition:transform 0.1s" onmouseover="this.style.transform=\'translateY(-1px)\'" onmouseout="this.style.transform=\'\'">'
+            + '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:'+pubColor+';margin-bottom:1px">Pub Score</div>'
+            + '<div style="font-family:var(--display);font-size:22px;font-weight:700;color:'+pubColor+';line-height:1">'+(pubScore!==null?pubScore:'—')+'</div>'
+          + '</div>'
+          + '<div style="text-align:right;flex:1">'
             + '<div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink4);margin-bottom:2px">Trail Rate</div>'
             + '<div style="font-family:var(--mono);font-size:16px;font-weight:600;color:var(--ink)">'+rate+'%</div>'
           + '</div>'
@@ -2153,9 +2182,9 @@ async function loadSales() {
       const pEl = document.getElementById('sales-period-stats');
       if (pEl) pEl.innerHTML =
         '<div class="vm"><div class="vm-label">Today</div><div class="vm-val">'+Number(d.today_transactions||0)+' txns · £'+Number(d.today_revenue||0).toFixed(2)+'</div></div>'
-        +'<div class="vm"><div class="vm-label">This Week</div><div class="vm-val">'+Number(d.week_transactions||0)+' txns · £'+Number(d.week_revenue||0).toFixed(2)+'</div></div>'
-        +'<div class="vm"><div class="vm-label">This Month</div><div class="vm-val">'+Number(d.month_transactions||0)+' txns · £'+Number(d.month_revenue||0).toFixed(2)+'</div></div>'
-        +'<div class="vm"><div class="vm-label">All Time</div><div class="vm-val">'+Number(d.total_transactions||0)+' txns · £'+Number(d.total_revenue||0).toFixed(2)+'</div></div>';
+        +'<div class="vm"><div class="vm-label">7 days</div><div class="vm-val">'+Number(d.week_transactions||0)+' txns · £'+Number(d.week_revenue||0).toFixed(2)+'</div></div>'
+        +'<div class="vm"><div class="vm-label">28 days</div><div class="vm-val">'+Number(d.month_transactions||0)+' txns · £'+Number(d.month_revenue||0).toFixed(2)+'</div></div>'
+        +'<div class="vm"><div class="vm-label">All time</div><div class="vm-val">'+Number(d.total_transactions||0)+' txns · £'+Number(d.total_revenue||0).toFixed(2)+'</div></div>';
     }
     let list = txR.data || [];
     if (locFilter) list = list.filter(t => t.location_id === locFilter);
@@ -2242,18 +2271,33 @@ async function loadVenuesDetail() {
 
 async function loadMetrics() {
   try {
-    const r = await api('/selector/metrics');
-    metricsData = r.data || [];
+    const period = document.getElementById('metricsPeriod')?.value || '30d';
+    const venueParam = currentVenue && currentVenue !== 'all' ? '&venue=' + currentVenue : '&venue=all';
+    const r = await api('/selector/metrics/with-averages?period=' + period + venueParam);
+    metricsData = r.data?.metrics || r.data || [];
     document.getElementById('metrics-tbody').innerHTML = metricsData.length === 0
-      ? '<tr><td colspan="6" class="empty">No metrics configured</td></tr>'
-      : metricsData.map(m => '<tr>'
-          + '<td class="p">' + (m.name || m.metric_key) + '</td>'
-          + '<td class="dim">' + (m.category || '—') + '</td>'
-          + '<td><input type="number" step="0.5" min="0" max="20" value="' + m.weight + '" data-key="' + m.metric_key + '" data-field="weight" class="form-input" style="width:70px;padding:4px 8px"></td>'
-          + '<td><input type="number" step="0.01" min="0" value="' + m.target + '" data-key="' + m.metric_key + '" data-field="target" class="form-input" style="width:90px;padding:4px 8px"></td>'
-          + '<td><input type="checkbox" ' + (m.is_active ? 'checked' : '') + ' data-key="' + m.metric_key + '" data-field="is_active" onchange="toggleMetric(this)"></td>'
-          + '<td class="dim" style="font-size:12px">' + (m.notes || '—') + '</td>'
-          + '</tr>').join('');
+      ? '<tr><td colspan="7" class="empty">No metrics configured</td></tr>'
+      : metricsData.map(m => {
+          const avgColor = m.actual_average === null || m.actual_average === undefined
+            ? 'var(--ink4)'
+            : m.status === 'green' ? 'var(--teal)'
+            : m.status === 'amber' ? 'var(--gold)'
+            : 'var(--coral)';
+          const target = Number(m.target);
+          const fractionDigits = target < 10 ? 2 : 1;
+          const avgDisplay = m.actual_average === null || m.actual_average === undefined
+            ? '—'
+            : Number(m.actual_average).toLocaleString(undefined, {minimumFractionDigits: fractionDigits, maximumFractionDigits: fractionDigits});
+          return '<tr>'
+            + '<td class="p">' + (m.name || m.metric_key) + '</td>'
+            + '<td class="dim">' + (m.category || '—') + '</td>'
+            + '<td><input type="number" step="0.01" min="0" value="' + m.target + '" data-key="' + m.metric_key + '" data-field="target" class="form-input" style="width:90px;padding:4px 8px"></td>'
+            + '<td style="font-family:DM Mono,monospace;font-weight:600;color:' + avgColor + '">' + avgDisplay + '</td>'
+            + '<td><input type="number" step="0.5" min="0" max="20" value="' + m.weight + '" data-key="' + m.metric_key + '" data-field="weight" class="form-input" style="width:70px;padding:4px 8px"></td>'
+            + '<td><input type="checkbox" ' + (m.is_active ? 'checked' : '') + ' data-key="' + m.metric_key + '" data-field="is_active" onchange="toggleMetric(this)"></td>'
+            + '<td class="dim" style="font-size:12px">' + (m.notes || '—') + '</td>'
+            + '</tr>';
+        }).join('');
   } catch(e) { console.error('Metrics error:', e); }
 }
 

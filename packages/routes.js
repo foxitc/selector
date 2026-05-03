@@ -2395,7 +2395,8 @@ router.get('/products/intel', auth, async (req, res, next) => {
 router.get('/metrics/asph', auth, async (req, res, next) => {
   try {
     const { period } = req.query;
-    const interval = period === 'month' ? '30 days' : period === 'today' ? '1 day' : '7 days';
+    const intervalMap = {'today':'1 day','week':'7 days','fortnight':'14 days','month':'28 days','quarter':'90 days'};
+    const interval = intervalMap[period] || '7 days';
     
     const r = await database_js_1.db.query(
       "WITH food_metrics AS (" +
