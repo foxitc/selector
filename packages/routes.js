@@ -65,6 +65,7 @@ router.post('/auth/login', async (req, res, next) => {
 });
 // Auth middleware
 function auth(req, res, next) {
+    if (req.apiKey) return next();
     const header = req.headers.authorization;
     if (!header?.startsWith('Bearer '))
         return err(res, 'Unauthorized', 401);
@@ -83,6 +84,350 @@ function adminOnly(req, res, next) {
         return err(res, 'Admin access required', 403);
     next();
 }
+
+function generateApiKey() {
+    const crypto = require('crypto');
+    return 'cw_' + crypto.randomBytes(24).toString('base64url').slice(0, 32);
+}
+
+async function apiKeyAuth(req, res, next) {
+    const headerKey = req.headers['x-api-key'];
+    if (!headerKey) return next();
+    if (typeof headerKey !== 'string' || !headerKey.startsWith('cw_')) {
+        return err(res, 'Invalid API key format', 401);
+    }
+    const prefix = headerKey.slice(0, 8);
+    try {
+        const r = await database_js_1.db.query(
+            "SELECT id, name, key_hash, rate_limit FROM api_keys WHERE key_prefix=$1 AND revoked_at IS NULL LIMIT 1",
+            [prefix]
+        );
+        if (!r.rows.length) return err(res, 'Invalid API key', 401);
+        const row = r.rows[0];
+        const okMatch = await bcryptjs_1.default.compare(headerKey, row.key_hash);
+        if (!okMatch) return err(res, 'Invalid API key', 401);
+        if (req.method !== 'GET') {
+            return err(res, 'API keys are read-only', 405);
+        }
+        const hourBucket = new Date();
+        hourBucket.setMinutes(0, 0, 0);
+        const usageR = await database_js_1.db.query(
+            "INSERT INTO api_key_usage (api_key_id, hour_bucket, request_count) VALUES ($1, $2, 1) " +
+            "ON CONFLICT (api_key_id, hour_bucket) DO UPDATE SET request_count = api_key_usage.request_count + 1 " +
+            "RETURNING request_count",
+            [row.id, hourBucket]
+        );
+        const used = usageR.rows[0]?.request_count || 0;
+        if (used > row.rate_limit) {
+            return err(res, 'Rate limit exceeded (' + row.rate_limit + '/hour)', 429);
+        }
+        database_js_1.db.query("UPDATE api_keys SET last_used_at=NOW() WHERE id=$1", [row.id]).catch(()=>{});
+        req.apiKey = { id: row.id, name: row.name };
+        req.user = { role: 'api', name: row.name };
+        next();
+    } catch(e) {
+        console.error('[apiKeyAuth]', e.message);
+        return err(res, 'API key auth error', 500);
+    }
+}
+
+router.use(apiKeyAuth);
+// ── API KEY ADMIN ──────────────────────────────────────────────────────────
+router.get('/admin/api-keys', auth, adminOnly, async (req, res, next) => {
+    try {
+        const r = await database_js_1.db.query(
+            "SELECT id, name, key_prefix, rate_limit, created_at, last_used_at, revoked_at, " +
+            "(SELECT COALESCE(SUM(request_count),0) FROM api_key_usage u WHERE u.api_key_id=k.id AND u.hour_bucket >= NOW() - INTERVAL '24 hours') as requests_24h " +
+            "FROM api_keys k ORDER BY created_at DESC"
+        );
+        ok(res, r.rows);
+    } catch(e) { next(e); }
+});
+
+router.post('/admin/api-keys', auth, adminOnly, async (req, res, next) => {
+    try {
+        const { name, rate_limit } = req.body || {};
+        if (!name || name.length < 2) return err(res, 'Name required', 400);
+        const rawKey = generateApiKey();
+        const prefix = rawKey.slice(0, 8);
+        const hash = await bcryptjs_1.default.hash(rawKey, 10);
+        const r = await database_js_1.db.query(
+            "INSERT INTO api_keys (name, key_prefix, key_hash, rate_limit, created_by) " +
+            "VALUES ($1, $2, $3, $4, $5) RETURNING id, name, key_prefix, rate_limit, created_at",
+            [name, prefix, hash, rate_limit || 1000, req.user.sub || null]
+        );
+        ok(res, Object.assign({}, r.rows[0], { key: rawKey, warning: 'Copy this key now. It will not be shown again.' }));
+    } catch(e) { next(e); }
+});
+
+router.delete('/admin/api-keys/:id', auth, adminOnly, async (req, res, next) => {
+    try {
+        const r = await database_js_1.db.query(
+            "UPDATE api_keys SET revoked_at=NOW() WHERE id=$1 AND revoked_at IS NULL RETURNING id, name",
+            [req.params.id]
+        );
+        if (!r.rows.length) return err(res, 'Key not found or already revoked', 404);
+        ok(res, { revoked: r.rows[0] });
+    } catch(e) { next(e); }
+});
+
+// ── CLUB HEALTH ────────────────────────────────────────────────────────────
+let _clubHealthCache = { at: 0, data: null };
+const CLUB_HEALTH_CACHE_MS = 30000;
+
+router.get('/club/health', auth, async (req, res, next) => {
+  try {
+    const now = Date.now();
+    if (_clubHealthCache.data && (now - _clubHealthCache.at) < CLUB_HEALTH_CACHE_MS) {
+      return ok(res, _clubHealthCache.data);
+    }
+
+    const checks = [];
+    const since = (ts) => {
+      if (!ts) return null;
+      return Math.max(0, (Date.now() - new Date(ts).getTime()) / 1000); // seconds
+    };
+    const fmtAge = (sec) => {
+      if (sec === null) return '—';
+      if (sec < 60) return Math.round(sec) + 's';
+      if (sec < 3600) return Math.round(sec/60) + ' min';
+      if (sec < 86400) return (sec/3600).toFixed(1) + 'h';
+      return (sec/86400).toFixed(1) + ' days';
+    };
+
+    // 1. Relay
+    try {
+      const r = await database_js_1.db.query("SELECT MAX(datetime_opened) AS last_tx, COUNT(*) FILTER (WHERE datetime_opened > NOW() - INTERVAL '24 hours') AS tx_24h FROM relay_transactions");
+      const last = r.rows[0].last_tx;
+      const ageS = since(last);
+      let status = 'green', message = 'Last transaction ' + fmtAge(ageS) + ' ago';
+      if (!last) { status = 'red'; message = 'No transactions ever received'; }
+      else if (ageS > 21600) { status = 'red'; message = 'No transactions for ' + fmtAge(ageS); }
+      else if (ageS > 3600) { status = 'amber'; message = 'No transactions for ' + fmtAge(ageS); }
+      checks.push({ id: 'relay_freshness', source: 'Relay', status, message, details: { last_event_at: last, transactions_24h: Number(r.rows[0].tx_24h) } });
+    } catch(e) {
+      checks.push({ id: 'relay_freshness', source: 'Relay', status: 'red', message: 'Query failed: ' + e.message });
+    }
+
+    // 2. ResDiary webhooks
+    try {
+      const r = await database_js_1.db.query("SELECT MAX(received_at) AS last_event, COUNT(*) FILTER (WHERE received_at > NOW() - INTERVAL '24 hours') AS evts_24h FROM resdiary_webhook_events");
+      const last = r.rows[0].last_event;
+      const ageS = since(last);
+      let status = 'green', message = 'Last event ' + fmtAge(ageS) + ' ago';
+      if (!last) { status = 'red'; message = 'No webhook events ever'; }
+      else if (ageS > 43200) { status = 'red'; message = 'No webhook events for ' + fmtAge(ageS); }
+      else if (ageS > 14400) { status = 'amber'; message = 'Quiet for ' + fmtAge(ageS); }
+      checks.push({ id: 'resdiary_webhook', source: 'ResDiary', status, message, details: { last_event_at: last, events_24h: Number(r.rows[0].evts_24h) } });
+    } catch(e) {
+      checks.push({ id: 'resdiary_webhook', source: 'ResDiary', status: 'red', message: 'Query failed: ' + e.message });
+    }
+
+    // 3. ResDiary API auth (we know it's broken — flag explicitly)
+    checks.push({ id: 'resdiary_api', source: 'ResDiary', status: 'amber', message: 'Data Extraction API: password reset pending', details: { issue: '401 from /api/Jwt/Token — awaiting password reset from ResDiary support' } });
+
+    // 4. Rotaready
+    try {
+      const r = await database_js_1.db.query("SELECT MAX(pay_date) AS last_pay, NOW()::date - MAX(pay_date) AS days_behind, COUNT(*) FILTER (WHERE hours_paid > 0) AS nonzero, COUNT(*) AS total FROM rotaready_pay");
+      const row = r.rows[0];
+      let status = 'green', message = 'Last pay date ' + (row.days_behind || 0) + 'd behind';
+      if (!row.last_pay) { status = 'red'; message = 'No Rotaready data'; }
+      else if (Number(row.days_behind) > 3) { status = 'red'; message = (row.days_behind) + ' days behind'; }
+      else if (Number(row.days_behind) > 1 || Number(row.nonzero) === 0) {
+        status = 'amber';
+        if (Number(row.nonzero) === 0) message = 'hours_paid all zero (using estimated hours)';
+        else message = (row.days_behind) + ' days behind';
+      }
+      checks.push({ id: 'rotaready_freshness', source: 'Rotaready', status, message, details: { last_pay_date: row.last_pay, days_behind: Number(row.days_behind), rows_with_hours: Number(row.nonzero), total_rows: Number(row.total) } });
+    } catch(e) {
+      checks.push({ id: 'rotaready_freshness', source: 'Rotaready', status: 'red', message: 'Query failed: ' + e.message });
+    }
+
+    // 5. Trail
+    try {
+      const r = await database_js_1.db.query("SELECT MAX(synced_at) AS last_sync FROM trail_venue_metrics");
+      const last = r.rows[0].last_sync;
+      const ageS = since(last);
+      let status = 'green', message = 'Last sync ' + fmtAge(ageS) + ' ago';
+      if (!last) { status = 'red'; message = 'No Trail data'; }
+      else if (ageS > 108000) { status = 'red'; message = 'Last sync ' + fmtAge(ageS) + ' ago'; }
+      else if (ageS > 21600) { status = 'amber'; message = 'Last sync ' + fmtAge(ageS) + ' ago'; }
+      checks.push({ id: 'trail_freshness', source: 'Trail', status, message, details: { last_sync: last } });
+    } catch(e) {
+      checks.push({ id: 'trail_freshness', source: 'Trail', status: 'red', message: 'Query failed: ' + e.message });
+    }
+
+    // 6. Selector recalc (use created_at)
+    try {
+      const r = await database_js_1.db.query("SELECT MAX(created_at) AS last_run FROM selector_scores");
+      const last = r.rows[0].last_run;
+      const ageS = since(last);
+      let status = 'green', message = 'Last recalc ' + fmtAge(ageS) + ' ago';
+      if (!last) { status = 'amber'; message = 'No scores recorded'; }
+      else if (ageS > 604800) { status = 'red'; message = 'Last recalc ' + fmtAge(ageS) + ' ago'; }
+      else if (ageS > 172800) { status = 'amber'; message = 'Last recalc ' + fmtAge(ageS) + ' ago'; }
+      checks.push({ id: 'selector_recalc', source: 'Selector', status, message, details: { last_run: last } });
+    } catch(e) {
+      checks.push({ id: 'selector_recalc', source: 'Selector', status: 'amber', message: 'Cannot determine recalc time' });
+    }
+
+    // 7. Disk
+    try {
+      const { execSync } = require('child_process');
+      const out = execSync("df / --output=pcent | tail -1").toString().trim();
+      const usedPct = parseInt(out.replace('%',''));
+      const freePct = 100 - usedPct;
+      let status = 'green', message = freePct + '% free';
+      if (freePct < 10) { status = 'red'; }
+      else if (freePct < 25) { status = 'amber'; }
+      checks.push({ id: 'disk_space', source: 'System', status, message, details: { used_pct: usedPct, free_pct: freePct } });
+    } catch(e) {
+      checks.push({ id: 'disk_space', source: 'System', status: 'amber', message: 'Could not check disk' });
+    }
+
+    // 8. Postgres connections
+    try {
+      const r = await database_js_1.db.query("SELECT count(*) FROM pg_stat_activity WHERE state='active'");
+      const conn = Number(r.rows[0].count);
+      let status = 'green', message = conn + ' active connections';
+      if (conn > 90) status = 'red';
+      else if (conn > 50) status = 'amber';
+      checks.push({ id: 'pg_connections', source: 'Postgres', status, message, details: { active: conn } });
+    } catch(e) {
+      checks.push({ id: 'pg_connections', source: 'Postgres', status: 'amber', message: 'Cannot count connections' });
+    }
+
+    // Summary
+    const summary = {
+      green: checks.filter(c => c.status === 'green').length,
+      amber: checks.filter(c => c.status === 'amber').length,
+      red: checks.filter(c => c.status === 'red').length,
+      total: checks.length,
+      worst: checks.some(c => c.status === 'red') ? 'red' : checks.some(c => c.status === 'amber') ? 'amber' : 'green'
+    };
+
+    const payload = { checks, summary, generated_at: new Date().toISOString() };
+    _clubHealthCache = { at: Date.now(), data: payload };
+    ok(res, payload);
+  } catch(e) { next(e); }
+});
+
+// ── HARRY / OUTBOUND READ ENDPOINTS ─────────────────────────────────────────
+
+// ResDiary raw webhook events (NoShow, Cancelled, MealStatusChanged, etc.)
+router.get('/resdiary/events', auth, async (req, res, next) => {
+  try {
+    const { bookingId, eventType, from, to, limit, offset } = req.query;
+    const conditions = [];
+    const params = [];
+    if (bookingId) { params.push(bookingId); conditions.push("(payload->>'BookingId')::text=$"+params.length); }
+    if (eventType) { params.push(eventType); conditions.push('event_type=$'+params.length); }
+    if (from) { params.push(from); conditions.push('received_at>=$'+params.length); }
+    if (to) { params.push(to); conditions.push('received_at<=$'+params.length); }
+    const where = conditions.length ? 'WHERE '+conditions.join(' AND ') : '';
+    const lim = Math.min(parseInt(limit) || 500, 5000);
+    const off = parseInt(offset) || 0;
+    params.push(lim); const limIdx = params.length;
+    params.push(off); const offIdx = params.length;
+    const cR = await database_js_1.db.query('SELECT COUNT(*) AS total FROM resdiary_webhook_events ' + where, params.slice(0, params.length - 2));
+    const r = await database_js_1.db.query(
+      'SELECT id, event_type, restaurant_name, payload, processed, received_at ' +
+      'FROM resdiary_webhook_events ' + where + ' ORDER BY received_at DESC LIMIT $' + limIdx + ' OFFSET $' + offIdx,
+      params
+    );
+    ok(res, { rows: r.rows, total: Number(cR.rows[0].total), limit: lim, offset: off });
+  } catch(e) { next(e); }
+});
+
+// Rotaready pay/shift rows (one row per person per day)
+router.get('/rotaready/pay', auth, async (req, res, next) => {
+  try {
+    const { userId, from, to, locationId, limit, offset } = req.query;
+    const conditions = [];
+    const params = [];
+    if (userId) { params.push(userId); conditions.push('rp.user_id=$'+params.length); }
+    if (from) { params.push(from); conditions.push('rp.pay_date>=$'+params.length); }
+    if (to) { params.push(to); conditions.push('rp.pay_date<=$'+params.length); }
+    if (locationId) { params.push(locationId); conditions.push('rp.location_id=$'+params.length); }
+    const where = conditions.length ? 'WHERE '+conditions.join(' AND ') : '';
+    const lim = Math.min(parseInt(limit) || 500, 5000);
+    const off = parseInt(offset) || 0;
+    params.push(lim); const limIdx = params.length;
+    params.push(off); const offIdx = params.length;
+    const cR = await database_js_1.db.query('SELECT COUNT(*) AS total FROM rotaready_pay rp ' + where, params.slice(0, params.length - 2));
+    const r = await database_js_1.db.query(
+      "SELECT rp.user_id, rp.entity_id, rp.location_id, rp.pay_date, rp.basic_pay, rp.total_pay, rp.hours_paid, rp.hourly_rate, rp.is_salaried, rp.synced_at, " +
+      "tm.display_name, tm.role, tm.department, " +
+      "CASE WHEN rp.hourly_rate > 5 AND NOT rp.is_salaried THEN ROUND((rp.basic_pay / rp.hourly_rate)::numeric, 2) " +
+      "WHEN rp.is_salaried AND rp.total_pay > 0 THEN ROUND((rp.total_pay / 12.21)::numeric, 2) " +
+      "ELSE 0 END AS estimated_hours " +
+      "FROM rotaready_pay rp LEFT JOIN team_members tm ON tm.rota_id = rp.user_id::text " +
+      where + ' ORDER BY rp.pay_date DESC, rp.user_id ASC LIMIT $' + limIdx + ' OFFSET $' + offIdx,
+      params
+    );
+    ok(res, { rows: r.rows, total: Number(cR.rows[0].total), limit: lim, offset: off });
+  } catch(e) { next(e); }
+});
+
+// Rotaready users (staff with rota mapping)
+router.get('/rotaready/users', auth, async (req, res, next) => {
+  try {
+    const { locationId, limit, offset } = req.query;
+    const conditions = ['tm.rota_id IS NOT NULL'];
+    const params = [];
+    if (locationId) { params.push(locationId); conditions.push('EXISTS (SELECT 1 FROM rotaready_pay rp WHERE rp.user_id::text = tm.rota_id AND rp.location_id=$'+params.length+')'); }
+    const where = 'WHERE '+conditions.join(' AND ');
+    const lim = Math.min(parseInt(limit) || 500, 5000);
+    const off = parseInt(offset) || 0;
+    params.push(lim); const limIdx = params.length;
+    params.push(off); const offIdx = params.length;
+    const r = await database_js_1.db.query(
+      "SELECT tm.id AS team_member_id, tm.rota_id::integer AS rotaready_user_id, tm.display_name, tm.role, tm.department, tm.venue_id, v.name AS venue, " +
+      "(SELECT MAX(pay_date) FROM rotaready_pay WHERE user_id::text = tm.rota_id) AS last_pay_date, " +
+      "(SELECT MAX(hourly_rate) FROM rotaready_pay WHERE user_id::text = tm.rota_id) AS hourly_rate, " +
+      "(SELECT BOOL_OR(is_salaried) FROM rotaready_pay WHERE user_id::text = tm.rota_id) AS is_salaried " +
+      "FROM team_members tm LEFT JOIN venues v ON v.id = tm.venue_id " +
+      where + ' ORDER BY tm.display_name LIMIT $' + limIdx + ' OFFSET $' + offIdx,
+      params
+    );
+    ok(res, { rows: r.rows, limit: lim, offset: off });
+  } catch(e) { next(e); }
+});
+
+// API self-documentation - lists all read endpoints
+router.get('/docs', auth, async (req, res, next) => {
+  ok(res, {
+    base_url: 'https://theclub.thecatandwickets.com/api/v1',
+    auth: { type: 'header', name: 'X-API-Key', example: 'X-API-Key: cw_xxxxx...' },
+    rate_limit: '1000 requests per hour per key',
+    method_restriction: 'API keys are GET-only. POST/PUT/DELETE return 405.',
+    endpoints: [
+      { path: '/scores/leaderboard', method: 'GET', description: 'Team selector scores ranked', params: ['period (week|last_week|month|today)', 'venue (griffin|taprun|longhop)'] },
+      { path: '/scores/:teamMemberId', method: 'GET', description: 'Detailed score history for one team member', params: [] },
+      { path: '/squad', method: 'GET', description: 'Active team members across all venues', params: [] },
+      { path: '/league', method: 'GET', description: 'Venue-level league table', params: [] },
+      { path: '/clerks', method: 'GET', description: 'POS clerks with team_member mapping', params: [] },
+      { path: '/venues', method: 'GET', description: 'Venue list', params: [] },
+      { path: '/bookings/resdiary', method: 'GET', description: 'ResDiary bookings (full data)', params: ['venue', 'date', 'from', 'to', 'status', 'limit', 'offset'] },
+      { path: '/bookings/resdiary/today', method: 'GET', description: 'Today summary per venue', params: [] },
+      { path: '/resdiary/events', method: 'GET', description: 'Raw ResDiary webhook events', params: ['bookingId', 'eventType', 'from', 'to', 'limit', 'offset'] },
+      { path: '/rotaready/pay', method: 'GET', description: 'Rotaready pay/shift rows (one per person per day)', params: ['userId', 'from', 'to', 'locationId', 'limit', 'offset'] },
+      { path: '/rotaready/users', method: 'GET', description: 'Staff with Rotaready mapping + roles + rates', params: ['locationId', 'limit', 'offset'] },
+      { path: '/metrics/asph', method: 'GET', description: 'Average spend per head, per venue', params: [] },
+      { path: '/metrics/google/ratings', method: 'GET', description: 'Google review summary', params: [] },
+      { path: '/metrics/google/reviews', method: 'GET', description: 'Latest Google reviews', params: [] },
+      { path: '/metrics/trail/breakdown', method: 'GET', description: 'Trail compliance scores by venue', params: ['weekEnding'] },
+      { path: '/metrics/resdiary', method: 'GET', description: 'ResDiary daily metrics summary', params: ['startDate', 'endDate'] },
+      { path: '/metrics/team/flex', method: 'GET', description: 'Team flexibility metrics', params: [] },
+      { path: '/products/leaderboard', method: 'GET', description: 'Top selling products', params: ['period', 'venue', 'salesGroup'] },
+      { path: '/products/clerks', method: 'GET', description: 'Which clerks sold a given product', params: ['product', 'period', 'venue'] },
+      { path: '/transactions/recent', method: 'GET', description: 'Recent POS transactions', params: ['limit'] },
+      { path: '/transactions/summary', method: 'GET', description: 'Transaction count summary', params: [] },
+      { path: '/selector/metrics', method: 'GET', description: 'Active selector metric configurations', params: [] }
+    ]
+  });
+});
+
 // ----------------------------------------------------------------
 // VENUES
 // ----------------------------------------------------------------
@@ -829,6 +1174,305 @@ router.put('/selector/metrics/:key', auth, async (req, res, next) => {
   } catch(e) { next(e); }
 });
 
+// Selector metrics with computed pub-level averages
+// Filters: period (7d|14d|30d|90d), venue (all|griffin|taprun|longhop)
+router.get('/selector/metrics/with-averages', auth, async (req, res, next) => {
+  try {
+    const { period, venue } = req.query;
+    const intervalMap = { '7d': '7 days', '14d': '14 days', '30d': '30 days', '90d': '90 days' };
+    const interval = intervalMap[period] || '7 days';
+    const venueMap = { 'griffin': '0001', 'taprun': '0002', 'longhop': '0003' };
+    const locId = venueMap[venue] || null;
+
+    // Get all metrics
+    const metricsR = await database_js_1.db.query(
+      'SELECT * FROM selector_metrics ORDER BY weight DESC, metric_key'
+    );
+
+    // Aggregate raw data using same shape as per-clerk aggregator
+    const params = [];
+    let where = "WHERE 1=1 AND si.datetime_sold >= NOW() - INTERVAL '" + interval + "'";
+    if (locId) {
+      params.push(locId);
+      where += ' AND t.location_id=$' + params.length;
+    }
+
+    const aggR = await database_js_1.db.query(
+      "SELECT " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group='31' AND si.individual_net_price>=5),0) as mains, " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group='32'),0) as sides, " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group='29'),0) as nibbles, " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group='30'),0) as starters, " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('33','35')),0) as desserts, " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('1','2','3','4','5','6','8','9','10','15','17','18','19','21','22','23','26','27','28','38')),0) as drinks, " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('3','4','5','6') AND (si.individual_net_price>40 OR (LOWER(si.name) LIKE 'btl%' AND si.individual_net_price>25))),0) as prem_wine, " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('8','15')),0) as spirits, " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('8','9','10') AND LOWER(si.name) LIKE '%dbl%'),0) as dbl_spirits, " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('3','4','5','6') AND LOWER(si.name) LIKE '%250ml%'),0) as lg_wine, " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('3','4','5','6')),0) as all_wine, " +
+      "COALESCE(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('3','4','5','6')),0) as wine_net_rev, " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE LOWER(si.name) LIKE '%water%' AND si.sales_group NOT IN ('30000','20')),0) as water, " +
+      "COALESCE(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('1','2','3','4','5','6','8','9','10','15','17','18','19','21','22','23','26','27','28','38')),0) as wet_rev, " +
+      "COALESCE(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('29','30','31','32','33','34','35') AND si.individual_net_price>0),0) as dry_rev, " +
+      "COALESCE(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('29','30','31','32','33','34','35') AND si.individual_net_price>=0),0) as food_rev " +
+      "FROM relay_transactions t JOIN relay_sold_items si ON si.transaction_id=t.id " + where,
+      params
+    );
+    const m = aggR.rows[0] || {};
+    m.est_hours = 0; // will be computed if needed below
+
+    // Estimated labour hours over the same period+venue (for rev_per_labour_hour)
+    let hoursWhere = "WHERE rp.pay_date >= NOW()::date - INTERVAL '" + interval + "'";
+    const hoursParams = [];
+    if (locId) {
+      hoursParams.push(locId);
+      hoursWhere += ' AND rp.location_id=$' + hoursParams.length;
+    }
+    const hoursR = await database_js_1.db.query(
+      "SELECT COALESCE(SUM(CASE " +
+      "WHEN rp.hourly_rate > 5 AND NOT rp.is_salaried THEN rp.basic_pay / rp.hourly_rate " +
+      "WHEN rp.is_salaried AND rp.total_pay > 0 THEN rp.total_pay / 12.21 " +
+      "ELSE 0 END), 0) AS est_hours FROM rotaready_pay rp " + hoursWhere,
+      hoursParams
+    ).catch(() => ({ rows: [{ est_hours: 0 }] }));
+    m.est_hours = Number(hoursR.rows[0]?.est_hours || 0);
+
+    // Compute actual for each metric using existing calculators
+    const result = metricsR.rows.map(metric => {
+      const calc = METRIC_CALCULATORS[metric.metric_key];
+      const actual_average = calc ? calc.actual(m) : null;
+      const target = Number(metric.target);
+      const direction = metric.direction;
+      let status = 'unknown';
+      if (actual_average !== null && target > 0) {
+        const ratio = actual_average / target;
+        if (direction === 'positive') {
+          status = ratio >= 1 ? 'green' : ratio >= 0.9 ? 'amber' : 'red';
+        } else {
+          status = ratio <= 1 ? 'green' : ratio <= 1.1 ? 'amber' : 'red';
+        }
+      }
+      return {
+        metric_key: metric.metric_key,
+        category: metric.category,
+        name: metric.name,
+        direction: metric.direction,
+        target: metric.target,
+        weight: metric.weight,
+        is_active: metric.is_active,
+        notes: metric.notes,
+        actual_average,
+        status,
+        period_used: period || '7d',
+        venue_used: venue || 'all'
+      };
+    });
+
+    ok(res, { metrics: result, raw: { ...m, est_hours: m.est_hours }, filters: { period: period || '7d', venue: venue || 'all' } });
+  } catch(e) { next(e); }
+});
+
+// Pub vs Pub league table - one row per venue with score + actuals
+router.get('/league/pubs', auth, async (req, res, next) => {
+  try {
+    const { period, metrics: metricsFilter } = req.query;
+    const intervalMap = { '7d': '7 days', '14d': '14 days', '30d': '30 days', '90d': '90 days' };
+    const interval = intervalMap[period] || '7 days';
+
+    const venues = [
+      { id: 'griffin', name: 'The Griffin Inn', short: 'GRI', location_id: '0001' },
+      { id: 'taprun',  name: 'The Tap & Run',   short: 'TAP', location_id: '0002' },
+      { id: 'longhop', name: 'The Long Hop',    short: 'HOP', location_id: '0003' }
+    ];
+
+    // Get all active metrics
+    const metricsR = await database_js_1.db.query(
+      'SELECT * FROM selector_metrics WHERE is_active=true ORDER BY weight DESC, metric_key'
+    );
+    let activeMetrics = metricsR.rows;
+
+    // Optional filter to specific metric_keys
+    if (metricsFilter) {
+      const wanted = String(metricsFilter).split(',').map(s => s.trim()).filter(Boolean);
+      if (wanted.length > 0) {
+        activeMetrics = activeMetrics.filter(m => wanted.includes(m.metric_key));
+      }
+    }
+
+    const totalWeight = activeMetrics.reduce((sum, m) => sum + Number(m.weight), 0);
+
+    // For each venue, run the same aggregation as with-averages
+    const result = [];
+    for (const v of venues) {
+      const aggR = await database_js_1.db.query(
+        "SELECT " +
+        "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group='31' AND si.individual_net_price>=5),0) as mains, " +
+        "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group='32'),0) as sides, " +
+        "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group='29'),0) as nibbles, " +
+        "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group='30'),0) as starters, " +
+        "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('33','35')),0) as desserts, " +
+        "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('1','2','3','4','5','6','8','9','10','15','17','18','19','21','22','23','26','27','28','38')),0) as drinks, " +
+        "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('3','4','5','6') AND (si.individual_net_price>40 OR (LOWER(si.name) LIKE 'btl%' AND si.individual_net_price>25))),0) as prem_wine, " +
+        "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('8','15')),0) as spirits, " +
+        "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('8','9','10') AND LOWER(si.name) LIKE '%dbl%'),0) as dbl_spirits, " +
+        "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('3','4','5','6') AND LOWER(si.name) LIKE '%250ml%'),0) as lg_wine, " +
+        "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('3','4','5','6')),0) as all_wine, " +
+        "COALESCE(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('3','4','5','6')),0) as wine_net_rev, " +
+        "COALESCE(SUM(si.quantity) FILTER (WHERE LOWER(si.name) LIKE '%water%' AND si.sales_group NOT IN ('30000','20')),0) as water, " +
+        "COALESCE(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('1','2','3','4','5','6','8','9','10','15','17','18','19','21','22','23','26','27','28','38')),0) as wet_rev, " +
+        "COALESCE(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('29','30','31','32','33','34','35') AND si.individual_net_price>0),0) as dry_rev, " +
+        "COALESCE(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('29','30','31','32','33','34','35') AND si.individual_net_price>=0),0) as food_rev " +
+        "FROM relay_transactions t JOIN relay_sold_items si ON si.transaction_id=t.id " +
+        "WHERE si.datetime_sold >= NOW() - INTERVAL '" + interval + "' AND t.location_id=$1",
+        [v.location_id]
+      );
+      const m = aggR.rows[0] || {};
+
+      // Compute estimated labour hours for this venue + period
+      const hoursR = await database_js_1.db.query(
+        "SELECT COALESCE(SUM(CASE " +
+        "WHEN rp.hourly_rate > 5 AND NOT rp.is_salaried THEN rp.basic_pay / rp.hourly_rate " +
+        "WHEN rp.is_salaried AND rp.total_pay > 0 THEN rp.total_pay / 12.21 " +
+        "ELSE 0 END), 0) AS est_hours FROM rotaready_pay rp " +
+        "WHERE rp.pay_date >= NOW()::date - INTERVAL '" + interval + "' AND rp.location_id=$1",
+        [v.location_id]
+      ).catch(() => ({ rows: [{ est_hours: 0 }] }));
+      m.est_hours = Number(hoursR.rows[0]?.est_hours || 0);
+      m.named_review = 0; // not venue-level, set to 0 to avoid breaking calculator
+
+      // Compute actuals + scores per metric
+      const metric_values = {};
+      let weightedScore = 0;
+      for (const metric of activeMetrics) {
+        const calc = METRIC_CALCULATORS[metric.metric_key];
+        if (!calc) continue;
+        const actual = calc.actual(m);
+        const target = Number(metric.target);
+        const direction = metric.direction;
+        const rawScore = scoreMetric(actual, target, direction);
+        const status = rawScore >= 80 ? 'green' : rawScore >= 50 ? 'amber' : 'red';
+        metric_values[metric.metric_key] = {
+          actual,
+          target,
+          status,
+          direction,
+          weight: metric.weight,
+          name: metric.name,
+          score: Math.round(rawScore)
+        };
+        weightedScore += rawScore * (Number(metric.weight) / totalWeight);
+      }
+
+      result.push({
+        venue_id: v.id,
+        venue_name: v.name,
+        venue_short: v.short,
+        location_id: v.location_id,
+        score: Math.round(weightedScore * 10) / 10,
+        tier: weightedScore < 60 ? 'Club Player' : weightedScore < 80 ? 'County Player' : 'Test Player',
+        metrics: metric_values
+      });
+    }
+
+    // Sort by score descending and add rank
+    result.sort((a, b) => b.score - a.score);
+    result.forEach((r, i) => { r.rank = i + 1; });
+
+    ok(res, { league: result, period: period || '7d', metric_count: activeMetrics.length, total_weight: totalWeight });
+  } catch(e) { next(e); }
+});
+
+// Pub trend - weekly scores for last N weeks
+router.get('/league/pubs/trend', auth, async (req, res, next) => {
+  try {
+    const weeks = Math.min(Math.max(parseInt(req.query.weeks) || 8, 1), 12);
+    const venues = [
+      { id: 'griffin', name: 'The Griffin Inn', short: 'GRI', location_id: '0001' },
+      { id: 'taprun',  name: 'The Tap & Run',   short: 'TAP', location_id: '0002' },
+      { id: 'longhop', name: 'The Long Hop',    short: 'HOP', location_id: '0003' }
+    ];
+
+    // Active metrics
+    const metricsR = await database_js_1.db.query("SELECT * FROM selector_metrics WHERE is_active=true ORDER BY weight DESC");
+    const activeMetrics = metricsR.rows;
+    const totalWeight = activeMetrics.reduce((sum, m) => sum + Number(m.weight), 0);
+
+    // Build week ranges (Mon-Sun, ending most recent)
+    const weekRanges = [];
+    const now = new Date();
+    const dayOfWeek = (now.getUTCDay() + 6) % 7; // Mon=0..Sun=6
+    const lastSunday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - dayOfWeek - 1));
+    
+    for (let w = 0; w < weeks; w++) {
+      const sun = new Date(lastSunday); sun.setUTCDate(lastSunday.getUTCDate() - w*7);
+      const mon = new Date(sun); mon.setUTCDate(sun.getUTCDate() - 6);
+      weekRanges.push({
+        week_ending: sun.toISOString().slice(0,10),
+        start: mon.toISOString().slice(0,10),
+        end: sun.toISOString().slice(0,10)
+      });
+    }
+    weekRanges.reverse(); // oldest first
+
+    // For each week+venue: aggregate, score, return
+    const result = [];
+    for (const wk of weekRanges) {
+      const weekData = { week_ending: wk.week_ending, week_start: wk.start, scores: {} };
+      
+      for (const v of venues) {
+        const aggR = await database_js_1.db.query(
+          "SELECT " +
+          "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group='31' AND si.individual_net_price>=5),0) as mains, " +
+          "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group='32'),0) as sides, " +
+          "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group='29'),0) as nibbles, " +
+          "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group='30'),0) as starters, " +
+          "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('33','35')),0) as desserts, " +
+          "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('1','2','3','4','5','6','8','9','10','15','17','18','19','21','22','23','26','27','28','38')),0) as drinks, " +
+          "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('3','4','5','6') AND (si.individual_net_price>40 OR (LOWER(si.name) LIKE 'btl%' AND si.individual_net_price>25))),0) as prem_wine, " +
+          "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('8','15')),0) as spirits, " +
+          "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('8','9','10') AND LOWER(si.name) LIKE '%dbl%'),0) as dbl_spirits, " +
+          "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('3','4','5','6') AND LOWER(si.name) LIKE '%250ml%'),0) as lg_wine, " +
+          "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('3','4','5','6')),0) as all_wine, " +
+          "COALESCE(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('3','4','5','6')),0) as wine_net_rev, " +
+          "COALESCE(SUM(si.quantity) FILTER (WHERE LOWER(si.name) LIKE '%water%' AND si.sales_group NOT IN ('30000','20')),0) as water, " +
+          "COALESCE(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('1','2','3','4','5','6','8','9','10','15','17','18','19','21','22','23','26','27','28','38')),0) as wet_rev, " +
+          "COALESCE(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('29','30','31','32','33','34','35') AND si.individual_net_price>0),0) as dry_rev " +
+          "FROM relay_transactions t JOIN relay_sold_items si ON si.transaction_id=t.id " +
+          "WHERE si.datetime_sold >= $1::date AND si.datetime_sold < ($2::date + INTERVAL '1 day') AND t.location_id=$3",
+          [wk.start, wk.end, v.location_id]
+        );
+        const m = aggR.rows[0] || {};
+
+        // Hours for this week + venue
+        const hoursR = await database_js_1.db.query(
+          "SELECT COALESCE(SUM(CASE " +
+          "WHEN rp.hourly_rate > 5 AND NOT rp.is_salaried THEN rp.basic_pay / rp.hourly_rate " +
+          "WHEN rp.is_salaried AND rp.total_pay > 0 THEN rp.total_pay / 12.21 " +
+          "ELSE 0 END), 0) AS est_hours FROM rotaready_pay rp " +
+          "WHERE rp.pay_date >= $1::date AND rp.pay_date <= $2::date AND rp.location_id=$3",
+          [wk.start, wk.end, v.location_id]
+        ).catch(() => ({ rows: [{ est_hours: 0 }] }));
+        m.est_hours = Number(hoursR.rows[0]?.est_hours || 0);
+        m.named_review = 0;
+
+        // Compute score (weighted)
+        let weighted = 0;
+        let hasData = Number(m.dry_rev || 0) > 0;
+        for (const metric of activeMetrics) {
+          const calc = METRIC_CALCULATORS[metric.metric_key];
+          if (!calc) continue;
+          const actual = calc.actual(m);
+          weighted += scoreMetric(actual, Number(metric.target), metric.direction) * (Number(metric.weight) / totalWeight);
+        }
+        weekData.scores[v.id] = hasData ? Math.round(weighted * 10) / 10 : null;
+      }
+      result.push(weekData);
+    }
+
+    ok(res, { weeks: result, weeks_requested: weeks, venues: venues.map(v => ({ id: v.id, name: v.name, short: v.short })) });
+  } catch(e) { next(e); }
+});
+
 // Service bands - get
 router.get('/selector/bands', auth, async (req, res, next) => {
   try {
@@ -928,11 +1572,12 @@ router.post('/webhooks/resdiary', async (req, res, next) => {
       const locationId = locMap[restaurantName] || null;
       const customerName = ((booking.Customer?.FirstName||'') + ' ' + (booking.Customer?.Surname||'')).trim();
       database_js_1.db.query(
-        "INSERT INTO resdiary_bookings (booking_id, reference, restaurant_name, location_id, visit_date, visit_time, party_size, table_numbers, table_ids, area_ids, booking_status, arrival_status, meal_status, channel_code, customer_email, customer_name, special_requests, booking_duration, customer_spend, last_event_type, last_event_at) " +
-        "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21) " +
-        "ON CONFLICT (booking_id) DO UPDATE SET booking_status=EXCLUDED.booking_status, arrival_status=EXCLUDED.arrival_status, meal_status=EXCLUDED.meal_status, table_numbers=EXCLUDED.table_numbers, party_size=EXCLUDED.party_size, last_event_type=EXCLUDED.last_event_type, last_event_at=EXCLUDED.last_event_at, updated_at=NOW()",
+        "INSERT INTO resdiary_bookings (booking_id, reference, restaurant_name, location_id, visit_date, visit_time, party_size, covers, table_numbers, table_ids, area_ids, booking_status, arrival_status, meal_status, channel_code, customer_email, customer_name, special_requests, booking_duration, customer_spend, last_event_type, last_event_at) " +
+        "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22) " +
+        "ON CONFLICT (booking_id) DO UPDATE SET booking_status=EXCLUDED.booking_status, arrival_status=EXCLUDED.arrival_status, meal_status=EXCLUDED.meal_status, table_numbers=EXCLUDED.table_numbers, party_size=EXCLUDED.party_size, covers=EXCLUDED.covers, last_event_type=EXCLUDED.last_event_type, last_event_at=EXCLUDED.last_event_at, updated_at=NOW()",
         [booking.Id, reference, restaurantName, locationId,
          visitDate||null, visitTime||null, partySize||0,
+         booking.Covers||booking.covers||null,
          booking.TableNumbers||null, JSON.stringify(booking.TableIds||[]),
          JSON.stringify(booking.AreaIdList||[]),
          booking.BookingStatus||null, booking.ArrivalStatus||null,
@@ -1381,6 +2026,21 @@ async function syncRotaReadyStaff() {
       "display_name=EXCLUDED.display_name, venue_id=EXCLUDED.venue_id, is_active=EXCLUDED.is_active, updated_at=NOW()",
       [venueId, s.firstName, s.lastName, s.firstName+' '+s.lastName, initials, String(s.id), s.flags.active]
     ).catch(e => console.error('[RotaReady] Upsert error:', e.message));
+
+    // Discover position/group taxonomy as we go - populate position_map
+    const appt = s.appointment;
+    if (appt?.position?.id) {
+      await database_js_1.db.query(
+        "INSERT INTO rotaready_position_map (position_id, group_id, position_name, group_name, entity_id, shift_type) " +
+        "VALUES ($1, $2, $3, $4, $5, 'other') " +
+        "ON CONFLICT (position_id) DO UPDATE SET " +
+        "  group_id = EXCLUDED.group_id, " +
+        "  position_name = EXCLUDED.position_name, " +
+        "  group_name = EXCLUDED.group_name, " +
+        "  entity_id = EXCLUDED.entity_id",
+        [appt.position.id, appt.groupId, appt.position.name, appt.groupName, appt.entityId]
+      ).catch(()=>{});
+    }
     upserted++;
   }
   // Sync pay/labour data
@@ -1388,7 +2048,7 @@ async function syncRotaReadyStaff() {
     const now = new Date();
     // Pull rolling 28 days to build history
     const startD = new Date(now);
-    startD.setUTCDate(startD.getUTCDate() - 28);
+    startD.setUTCDate(startD.getUTCDate() - 90);
     const startDate = startD.toISOString().split('T')[0];
     const endDate = now.toISOString().split('T')[0];
     console.log('[RotaReady] Pay sync date range:', startDate, 'to', endDate);
@@ -1404,13 +2064,16 @@ async function syncRotaReadyStaff() {
         const cp = w.calculatedPay || {};
         const isSalaried = w.payAmount > 100;
         await database_js_1.db.query(
-          "INSERT INTO rotaready_pay (user_id, entity_id, location_id, pay_date, basic_pay, total_pay, hours_paid, hourly_rate, is_salaried) " +
-          "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) " +
-          "ON CONFLICT (user_id, pay_date, entity_id) DO UPDATE SET basic_pay=$5, total_pay=$6, hours_paid=$7, synced_at=NOW()",
+          "INSERT INTO rotaready_pay (user_id, entity_id, location_id, pay_date, basic_pay, total_pay, hours_paid, hourly_rate, is_salaried, position_id, group_id, shift_type) " +
+          "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) " +
+          "ON CONFLICT (user_id, pay_date, entity_id) DO UPDATE SET basic_pay=$5, total_pay=$6, hours_paid=$7, position_id=$10, group_id=$11, shift_type=$12, synced_at=NOW()",
           [item.userId, item.entityId, loc, item.date?.split('T')[0],
            parseFloat(cp.base||0), parseFloat(cp.totalPay||0),
            isSalaried ? 0 : parseFloat(w.durationPaid||0),
-           isSalaried ? 0 : parseFloat(w.payAmount||0), isSalaried]
+           isSalaried ? 0 : parseFloat(w.payAmount||0), isSalaried,
+           item.appointment?.positionId || null,
+           item.appointment?.groupId || null,
+           null]
         ).catch(()=>{});
         paySynced++;
       }
@@ -1446,6 +2109,96 @@ router.post('/sync/rotaready', auth, async (req, res, next) => {
   } catch(e) {
     console.error('[RotaReady]', e.message);
     err(res, 'RotaReady sync failed: '+e.message, 500);
+  }
+});
+
+// Deep historical backfill - runs chunked 3-month requests against signedOffHours
+router.post('/sync/rotaready/backfill', auth, async (req, res, next) => {
+  try {
+    const { startYear, startMonth } = req.body || {};
+    const axios = (await import('axios')).default;
+    const token = await getRotaReadyToken();
+    const headers = { 'Authorization': 'Bearer '+token, 'Time-Zone': 'Europe/London' };
+
+    // Default chunks: Oct 2023 -> April 2026
+    let chunks = req.body?.chunks || [
+      ['2023-10-01', '2023-12-31'],
+      ['2024-01-01', '2024-03-31'],
+      ['2024-04-01', '2024-06-30'],
+      ['2024-07-01', '2024-09-30'],
+      ['2024-10-01', '2024-12-31'],
+      ['2025-01-01', '2025-03-31'],
+      ['2025-04-01', '2025-06-30'],
+      ['2025-07-01', '2025-09-30'],
+      ['2025-10-01', '2025-12-31'],
+      ['2026-01-01', '2026-04-30']
+    ];
+
+    const entityLoc = {gri:'0001', tap:'0002', tlh:'0003'};
+    const summary = [];
+    let totalSynced = 0;
+
+    for (const [startDate, endDate] of chunks) {
+      const t0 = Date.now();
+      let synced = 0;
+      try {
+        const r = await axios.get('https://api.rotaready.com/report/signedOffHours?startDate='+startDate+'&endDate='+endDate, { headers, validateStatus: () => true });
+        if (r.status !== 200) {
+          summary.push({ chunk: startDate+'_'+endDate, status: r.status, synced: 0, error: JSON.stringify(r.data).slice(0,150) });
+          continue;
+        }
+        const items = r.data?.items || [];
+        for (const item of items) {
+          const loc = entityLoc[item.entityId];
+          if (!loc) continue;
+          for (const w of (item.work||[])) {
+            if (!w.representsBasicPay) continue;
+            const cp = w.calculatedPay || {};
+            const isSalaried = w.payAmount > 100;
+            await database_js_1.db.query(
+              'INSERT INTO rotaready_pay (user_id, entity_id, location_id, pay_date, basic_pay, total_pay, hours_paid, hourly_rate, is_salaried, position_id, group_id, shift_type) ' +
+              'VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) ' +
+              'ON CONFLICT (user_id, pay_date, entity_id) DO UPDATE SET basic_pay=$5, total_pay=$6, hours_paid=$7, position_id=$10, group_id=$11, shift_type=$12, synced_at=NOW()',
+              [item.userId, item.entityId, loc, item.date?.split('T')[0],
+               parseFloat(cp.base||0), parseFloat(cp.totalPay||0),
+               isSalaried ? 0 : parseFloat(w.durationPaid||0),
+               isSalaried ? 0 : parseFloat(w.payAmount||0), isSalaried,
+               item.appointment?.positionId || null,
+               item.appointment?.groupId || null,
+               null]
+            ).catch(()=>{});
+            synced++;
+          }
+        }
+        summary.push({ chunk: startDate+'_'+endDate, status: 200, items: items.length, synced, ms: Date.now()-t0 });
+        totalSynced += synced;
+      } catch(e) {
+        summary.push({ chunk: startDate+'_'+endDate, error: e.message });
+      }
+    }
+
+    // Backfill shift_type from position map
+    const sR = await database_js_1.db.query(
+      'UPDATE rotaready_pay rp SET shift_type = pm.shift_type ' +
+      'FROM rotaready_position_map pm ' +
+      'WHERE rp.position_id = pm.position_id AND rp.shift_type IS NULL'
+    );
+
+    // Final stats
+    const stats = await database_js_1.db.query(
+      'SELECT MIN(pay_date) AS earliest, MAX(pay_date) AS latest, COUNT(*) AS total_rows, COUNT(*) FILTER (WHERE position_id IS NOT NULL) AS with_position FROM rotaready_pay'
+    );
+
+    ok(res, {
+      message: 'Backfill complete',
+      total_synced: totalSynced,
+      shift_type_backfilled_rows: sR.rowCount,
+      chunks: summary,
+      stats: stats.rows[0]
+    });
+  } catch(e) {
+    console.error('[Backfill]', e.message);
+    err(res, 'Backfill failed: '+e.message, 500);
   }
 });
 
@@ -1723,20 +2476,27 @@ router.get('/products/clerks', auth, async (req, res, next) => {
 // ResDiary bookings
 router.get('/bookings/resdiary', auth, async (req, res, next) => {
   try {
-    const { venue, date, status } = req.query;
+    const { venue, date, from, to, status, limit, offset } = req.query;
     const locMap = {'griffin':'0001','taprun':'0002','longhop':'0003'};
     const conditions = ["restaurant_name NOT LIKE '%Test%'"];
     const params = [];
     if (venue && locMap[venue]) { params.push(locMap[venue]); conditions.push('location_id=$'+params.length); }
     if (date) { params.push(date); conditions.push('visit_date=$'+params.length); }
+    if (from) { params.push(from); conditions.push('visit_date>=$'+params.length); }
+    if (to) { params.push(to); conditions.push('visit_date<=$'+params.length); }
     if (status) { params.push(status); conditions.push('booking_status=$'+params.length); }
-    const where = conditions.length ? 'WHERE '+conditions.join(' AND ') : '';
+    const where = 'WHERE '+conditions.join(' AND ');
+    const lim = Math.min(parseInt(limit) || 500, 5000);
+    const off = parseInt(offset) || 0;
+    params.push(lim); const limIdx = params.length;
+    params.push(off); const offIdx = params.length;
+    const cR = await database_js_1.db.query('SELECT COUNT(*) AS total FROM resdiary_bookings ' + where, params.slice(0, params.length - 2));
     const r = await database_js_1.db.query(
-      'SELECT booking_id, reference, restaurant_name, location_id, visit_date, visit_time, party_size, table_numbers, booking_status, arrival_status, meal_status, customer_name, special_requests, channel_code, last_event_type, last_event_at ' +
-      'FROM resdiary_bookings ' + where + ' ORDER BY visit_date ASC, visit_time ASC',
+      'SELECT booking_id, reference, restaurant_name, location_id, visit_date, visit_time, party_size, covers, table_numbers, table_ids, area_ids, booking_status, arrival_status, meal_status, channel_code, customer_email, customer_name, special_requests, booking_duration, customer_spend, last_event_type, last_event_at, created_at, updated_at ' +
+      'FROM resdiary_bookings ' + where + ' ORDER BY visit_date DESC, visit_time DESC LIMIT $' + limIdx + ' OFFSET $' + offIdx,
       params
     );
-    ok(res, r.rows);
+    ok(res, { rows: r.rows, total: Number(cR.rows[0].total), limit: lim, offset: off });
   } catch(e) { next(e); }
 });
 
@@ -2095,7 +2855,7 @@ router.get('/metrics/team/flex', auth, async (req, res, next) => {
 // actual_fn receives the raw clerk data and returns the actual value in target units
 const METRIC_CALCULATORS = {
   avg_spend_dry: {
-    label: 'Dry ASPH (£)',
+    label: 'ASPH (£)',
     actual: (m) => m.mains > 0 ? parseFloat((m.dry_rev / m.mains).toFixed(2)) : 0
   },
   sides_pct: {
@@ -2108,36 +2868,47 @@ const METRIC_CALCULATORS = {
   },
   starters_desserts: {
     label: 'Starters & Desserts % of Mains',
-    actual: (m) => m.mains > 0 ? parseFloat(((m.starters + m.desserts) / m.mains * 100).toFixed(1)) : 0
+    actual: (m) => Number(m.mains) > 0 ? parseFloat(((Number(m.starters) + Number(m.desserts)) / Number(m.mains) * 100).toFixed(1)) : 0
   },
   drinks_per_cover: {
-    label: 'Drinks per Main',
+    label: 'Drinks % of Mains',
     actual: (m) => {
       if (m.mains < 1) return 0;
       const ratio = m.drinks / m.mains;
-      // Cap at 10 - anything higher indicates a bar clerk not food server
-      return ratio > 10 ? 0 : parseFloat(ratio.toFixed(2));
+      return ratio > 10 ? 0 : parseFloat((ratio * 100).toFixed(1));
     }
   },
   premium_wine: {
-    label: 'Premium Wine per Cover',
-    actual: (m) => m.mains > 0 ? parseFloat((m.prem_wine / m.mains).toFixed(2)) : 0
+    label: 'Premium Wine % of Mains',
+    actual: (m) => m.mains > 0 ? parseFloat((m.prem_wine / m.mains * 100).toFixed(1)) : 0
+  },
+  avg_wine_spend: {
+    label: 'Avg Wine Spend per Item',
+    actual: (m) => m.all_wine > 0 ? parseFloat((Number(m.wine_net_rev) / Number(m.all_wine)).toFixed(2)) : 0
   },
   named_review: {
     label: 'Named Reviews',
     actual: (m) => Number(m.named_review || 0)
   },
   double_spirits: {
-    label: 'Double Spirits %',
-    actual: (m) => m.spirits > 0 ? parseFloat((m.dbl_spirits / m.spirits * 100).toFixed(1)) : 0
+    label: 'Double Spirits % of Mains',
+    actual: (m) => m.mains > 0 ? parseFloat((m.dbl_spirits / m.mains * 100).toFixed(1)) : 0
   },
   large_wine: {
-    label: 'Large Wine %',
-    actual: (m) => m.all_wine > 0 ? parseFloat((m.lg_wine / m.all_wine * 100).toFixed(1)) : 0
+    label: 'Large Wine % of Mains',
+    actual: (m) => m.mains > 0 ? parseFloat((m.lg_wine / m.mains * 100).toFixed(1)) : 0
   },
   bottled_water: {
-    label: 'Bottled Water per 10 Mains',
-    actual: (m) => m.mains > 0 ? parseFloat((m.water / m.mains * 10).toFixed(1)) : 0
+    label: 'Bottled Water % of Mains',
+    actual: (m) => m.mains > 0 ? parseFloat((m.water / m.mains * 100).toFixed(1)) : 0
+  },
+  wine_per_10_mains: {
+    label: 'Wine Items per 10 Mains',
+    actual: (m) => m.mains > 0 ? parseFloat((Number(m.all_wine) / Number(m.mains) * 10).toFixed(1)) : 0
+  },
+  rev_per_labour_hour: {
+    label: 'Revenue per Labour Hour (£)',
+    actual: (m) => Number(m.est_hours) > 0 ? parseFloat((Number(m.dry_rev) / Number(m.est_hours)).toFixed(2)) : 0
   },
   avg_spend_wet: {
     label: 'Wet ASPH (£)',
@@ -2146,10 +2917,17 @@ const METRIC_CALCULATORS = {
 };
 
 function scoreMetric(actual, target) {
-  if (!target || target === 0) return 0;
+  if (!target || target === 0) return 50; // No target = neutral
+  if (actual === 0) return 0;
   const ratio = actual / target;
-  // Linear: 0 at zero actual, 100 at target, capped at 100
-  return Math.min(100, Math.round(ratio * 100));
+  if (ratio >= 1) {
+    // Above target: 50 + up to 50 bonus (capped at 100)
+    // At 2x target = 100, at 1.5x target = 75
+    return Math.min(100, Math.round(50 + (ratio - 1) * 100));
+  } else {
+    // Below target: linear from 0 to 50
+    return Math.max(0, Math.round(ratio * 50));
+  }
 }
 
 function calcFinalScore(metricScores, activeMetrics) {
@@ -2171,8 +2949,23 @@ function getSellerTier(score) {
 }
 
 async function calculateScores(period, locationId) {
-  const interval = period === 'month' ? '30 days' : period === 'today' ? '1 day' : '7 days';
-  const pc = "AND t.datetime_opened >= NOW() - INTERVAL '" + interval + "'";
+  let pc = "";
+  let interval = '7 days';
+  let periodRange = { start: null, end: null };
+  if (period === 'last_week') {
+    const now = new Date();
+    const day = now.getUTCDay();
+    const thisMondayOffset = day === 0 ? 6 : day - 1;
+    const lastSunday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - thisMondayOffset - 1));
+    const lastMonday = new Date(Date.UTC(lastSunday.getUTCFullYear(), lastSunday.getUTCMonth(), lastSunday.getUTCDate() - 6));
+    periodRange.start = lastMonday.toISOString().slice(0,10);
+    periodRange.end = lastSunday.toISOString().slice(0,10);
+    pc = "AND t.datetime_opened >= '" + periodRange.start + "' AND t.datetime_opened < ('" + periodRange.end + "'::date + INTERVAL '1 day')";
+    interval = '7 days';
+  } else {
+    interval = period === 'month' ? '30 days' : period === 'today' ? '1 day' : '7 days';
+    pc = "AND t.datetime_opened >= NOW() - INTERVAL '" + interval + "'";
+  }
 
   // Load active metrics from DB - this is the single source of truth
   const metricsR = await database_js_1.db.query(
@@ -2183,18 +2976,31 @@ async function calculateScores(period, locationId) {
 
   const clerksR = await database_js_1.db.query(
     "SELECT DISTINCT rcm.clerk_id, rcm.location_id, rcm.team_member_id, " +
-    "tm.display_name, tm.first_name, tm.last_name, v.name as venue_name, " +
+    "tm.display_name, tm.first_name, tm.last_name, v.name as venue_name, v.id as venue_id, " +
     "tm.avatar_initials, tm.avatar_color " +
     "FROM relay_clerk_mappings rcm " +
     "JOIN team_members tm ON tm.id=rcm.team_member_id " +
     "JOIN connector_venue_mappings cvm ON cvm.location_id=rcm.location_id " +
     "JOIN venues v ON v.id=cvm.venue_id " +
-    "WHERE rcm.team_member_id IS NOT NULL" +
+    "WHERE rcm.team_member_id IS NOT NULL AND tm.is_active = true AND tm.selector_excluded = false" +
     (locationId ? " AND rcm.location_id='" + locationId + "'" : "")
   );
 
   const scores = [];
   for (const clerk of clerksR.rows) {
+    // Labour hours (rolling matching interval, estimated from rotaready_pay)
+    const hoursR = await database_js_1.db.query(
+      "SELECT COALESCE(SUM(CASE " +
+      "  WHEN rp.hourly_rate > 5 AND NOT rp.is_salaried THEN rp.basic_pay / rp.hourly_rate " +
+      "  WHEN rp.is_salaried AND rp.total_pay > 0 THEN rp.total_pay / 12.21 " +
+      "  ELSE 0 END), 0) AS est_hours " +
+      "FROM rotaready_pay rp " +
+      "JOIN team_members tm ON tm.rota_id = rp.user_id::text " +
+      "WHERE tm.id = $1 AND " + (period === 'last_week' ? "rp.pay_date BETWEEN '" + periodRange.start + "' AND '" + periodRange.end + "'" : "rp.pay_date >= now()::date - INTERVAL '" + interval + "'"),
+      [clerk.team_member_id]
+    ).catch(() => ({rows: [{est_hours: 0}]}));
+    const estHours = Number(hoursR.rows[0]?.est_hours || 0);
+
     const mR = await database_js_1.db.query(
       "SELECT " +
       "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group='31' AND si.individual_net_price>=5),0) as mains, " +
@@ -2208,9 +3014,10 @@ async function calculateScores(period, locationId) {
       "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('8','9','10') AND LOWER(si.name) LIKE '%dbl%'),0) as dbl_spirits, " +
       "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('3','4','5','6') AND LOWER(si.name) LIKE '%250ml%'),0) as lg_wine, " +
       "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('3','4','5','6')),0) as all_wine, " +
+      "COALESCE(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('3','4','5','6')),0) as wine_net_rev, " +
       "COALESCE(SUM(si.quantity) FILTER (WHERE LOWER(si.name) LIKE '%water%' AND si.sales_group NOT IN ('30000','20')),0) as water, " +
       "COALESCE(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('1','2','3','4','5','6','8','9','10','15','17','18','19','21','22','23','26','27','28','38')),0) as wet_rev, " +
-      "COALESCE(SUM(si.total_net_price) FILTER (WHERE si.sales_group='31' AND si.individual_net_price>=5),0) as dry_rev, " +
+      "COALESCE(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('29','30','31','32','33','34','35') AND si.individual_net_price>0),0) as dry_rev, " +
       "COALESCE(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('29','30','31','32','33','34','35') AND si.individual_net_price>=0),0) as food_rev " +
       "FROM relay_transactions t " +
       "JOIN relay_sold_items si ON si.transaction_id=t.id " +
@@ -2219,6 +3026,7 @@ async function calculateScores(period, locationId) {
     );
 
     const m = mR.rows[0];
+    m.est_hours = estHours;
     const mains = Number(m.mains);
     if (mains < 20) continue; // Need 20+ mains for meaningful score
 
@@ -2245,11 +3053,44 @@ async function calculateScores(period, locationId) {
     const finalScore = calcFinalScore(metricScores, activeMetrics);
     const tier = getSellerTier(finalScore);
 
+    // Read previous cached score BEFORE we overwrite it
+    const cachedR = await database_js_1.db.query(
+      "SELECT selector_score FROM team_members WHERE id=$1",
+      [clerk.team_member_id]
+    ).catch(() => ({rows: []}));
+    const cachedPriorScore = cachedR.rows[0]?.selector_score;
+
     // Update team_members table
     await database_js_1.db.query(
       "UPDATE team_members SET selector_score=$1, selector_tier=$2, selector_updated_at=NOW() WHERE id=$3",
       [finalScore, tier, clerk.team_member_id]
     ).catch(()=>{});
+
+    // ---- Write weekly history snapshot ----
+    const weekEnding = (() => {
+      const d = new Date();
+      const day = d.getDay();
+      const daysToSun = day === 0 ? 0 : 7 - day;
+      d.setDate(d.getDate() + daysToSun);
+      return d.toISOString().slice(0, 10);
+    })();
+    const priorR = await database_js_1.db.query(
+      "SELECT total_score FROM selector_scores WHERE team_member_id=$1 AND week_ending < $2 ORDER BY week_ending DESC LIMIT 1",
+      [clerk.team_member_id, weekEnding]
+    ).catch(() => ({rows: []}));
+    let previousScore = priorR.rows[0]?.total_score ? Number(priorR.rows[0].total_score) : null;
+    if (previousScore === null && cachedPriorScore !== null && cachedPriorScore !== undefined) {
+      previousScore = Number(cachedPriorScore);
+    }
+    const scoreChange = previousScore !== null ? Number((finalScore - previousScore).toFixed(2)) : null;
+    await database_js_1.db.query(
+      "INSERT INTO selector_scores (team_member_id, venue_id, week_ending, total_score, previous_score, score_change, tier, programme_status, score_breakdown) " +
+      "VALUES ($1,$2,$3,$4,$5,$6,$7,'on-programme',$8::jsonb) " +
+      "ON CONFLICT (team_member_id, week_ending) DO UPDATE " +
+      "SET total_score=EXCLUDED.total_score, previous_score=EXCLUDED.previous_score, score_change=EXCLUDED.score_change, tier=EXCLUDED.tier, score_breakdown=EXCLUDED.score_breakdown",
+      [clerk.team_member_id, clerk.venue_id, weekEnding, finalScore, previousScore, scoreChange, tier,
+       JSON.stringify({actuals, metric_scores: metricScores})]
+    ).catch(e => console.error('[selector_scores] write failed:', e.message));
 
     scores.push({
       team_member_id: clerk.team_member_id,
@@ -2263,6 +3104,8 @@ async function calculateScores(period, locationId) {
       mains,
       actuals,
       metric_scores: metricScores,
+      previous_score: previousScore,
+      score_change: scoreChange,
       active_metrics: activeMetrics.map(m => ({key: m.metric_key, label: m.name, weight: m.weight, target: m.target}))
     });
   }
@@ -2296,14 +3139,88 @@ router.get('/scores/leaderboard', auth, async (req, res, next) => {
   } catch(e) { next(e); }
 });
 
-// Individual score
+// Individual score (rich detail for side panel)
 router.get('/scores/:teamMemberId', auth, async (req, res, next) => {
   try {
-    const r = await database_js_1.db.query(
-      'SELECT tm.*, v.name as venue_name FROM team_members tm JOIN venues v ON v.id=tm.venue_id WHERE tm.id=$1',
-      [req.params.teamMemberId]
+    const tmId = req.params.teamMemberId;
+    // 1. Team member basics
+    const tmR = await database_js_1.db.query(
+      'SELECT tm.id, tm.display_name, tm.first_name, tm.last_name, tm.avatar_initials, tm.avatar_color, tm.role, tm.department, tm.selector_score, tm.selector_tier, v.name as venue_name, v.id as venue_id ' +
+      'FROM team_members tm JOIN venues v ON v.id=tm.venue_id WHERE tm.id=$1',
+      [tmId]
     );
-    ok(res, r.rows[0] || null);
+    if (!tmR.rows.length) return ok(res, null);
+    const tm = tmR.rows[0];
+
+    // 2. Weekly history (most recent first)
+    const histR = await database_js_1.db.query(
+      'SELECT week_ending, total_score, previous_score, score_change, tier, score_breakdown ' +
+      'FROM selector_scores WHERE team_member_id=$1 ORDER BY week_ending DESC LIMIT 52',
+      [tmId]
+    ).catch(() => ({rows: []}));
+    const history = histR.rows.map(h => ({
+      week_ending: h.week_ending,
+      total_score: Number(h.total_score),
+      previous_score: h.previous_score !== null ? Number(h.previous_score) : null,
+      score_change: h.score_change !== null ? Number(h.score_change) : null,
+      tier: h.tier,
+      actuals: h.score_breakdown?.actuals || null
+    }));
+
+    // 3. Rank in venue + venue total (from the latest week)
+    const latestWeek = history[0]?.week_ending;
+    let rankInVenue = null, venueTotal = null;
+    if (latestWeek) {
+      const rankR = await database_js_1.db.query(
+        'SELECT team_member_id, total_score, ' +
+        'RANK() OVER (ORDER BY total_score DESC) as rank, ' +
+        'COUNT(*) OVER () as total ' +
+        'FROM selector_scores WHERE venue_id=$1 AND week_ending=$2',
+        [tm.venue_id, latestWeek]
+      ).catch(() => ({rows: []}));
+      const me = rankR.rows.find(r => r.team_member_id === tmId);
+      if (me) { rankInVenue = Number(me.rank); venueTotal = Number(me.total); }
+    }
+
+    // 4. Per-metric deltas (current actual vs previous week's actual)
+    const metricDeltas = {};
+    if (history.length >= 2 && history[0].actuals && history[1].actuals) {
+      const cur = history[0].actuals, prev = history[1].actuals;
+      for (const k of Object.keys(cur)) {
+        if (typeof cur[k] === 'number' && typeof prev[k] === 'number') {
+          metricDeltas[k] = Number((cur[k] - prev[k]).toFixed(2));
+        }
+      }
+    }
+
+    // 5. Active metrics (for labels/targets)
+    const metricsR = await database_js_1.db.query(
+      'SELECT metric_key, name, target, weight, direction FROM selector_metrics WHERE is_active=true ORDER BY weight DESC'
+    ).catch(() => ({rows: []}));
+
+    ok(res, {
+      team_member: {
+        id: tm.id,
+        name: tm.display_name,
+        role: tm.role || null,
+        department: tm.department || null,
+        venue_name: tm.venue_name,
+        avatar_initials: tm.avatar_initials,
+        avatar_color: tm.avatar_color
+      },
+      current: {
+        score: history[0]?.total_score ?? (tm.selector_score !== null ? Number(tm.selector_score) : null),
+        tier: history[0]?.tier ?? tm.selector_tier,
+        previous_score: history[0]?.previous_score ?? null,
+        score_change: history[0]?.score_change ?? null,
+        rank_in_venue: rankInVenue,
+        venue_total: venueTotal,
+        actuals: history[0]?.actuals || {},
+        metric_deltas: metricDeltas
+      },
+      history,
+      active_metrics: metricsR.rows.map(m => ({key: m.metric_key, label: m.name, target: Number(m.target), weight: m.weight, direction: m.direction}))
+    });
   } catch(e) { next(e); }
 });
 
@@ -2333,89 +3250,266 @@ async function seedUsers() {
 }
 seedUsers().catch(e => console.error('[Users] Seed error:', e.message));
 
-// Auth login via DB
+// Auth login via DB — queries platform_users (the real users table)
 router.post('/auth/login/db', async (req, res, next) => {
   try {
     const { email, password } = req.body;
     const r = await database_js_1.db.query(
-      'SELECT * FROM coach_users WHERE email=$1 AND is_active=true', [email]
+      "SELECT id, email, password_hash, first_name, last_name, role, venue_id, is_active " +
+      "FROM platform_users WHERE lower(email)=lower($1) AND is_active=true", [email]
     );
     if (!r.rows.length) return err(res, 'Invalid credentials', 401);
     const user = r.rows[0];
-    const bcrypt = require('bcrypt');
-    const valid = await bcrypt.compare(password, user.password_hash);
+    // platform_users uses bcryptjs-compatible hashes; require both to be safe
+    let valid = false;
+    try {
+      const bcryptjs = require('bcryptjs');
+      valid = await bcryptjs.compare(password, user.password_hash);
+    } catch(e) {
+      const bcrypt = require('bcrypt');
+      valid = await bcrypt.compare(password, user.password_hash);
+    }
     if (!valid) return err(res, 'Invalid credentials', 401);
-    await database_js_1.db.query('UPDATE coach_users SET last_login=NOW() WHERE id=$1', [user.id]);
+    await database_js_1.db.query('UPDATE platform_users SET last_login=NOW() WHERE id=$1', [user.id]);
+    // Build a UI-compatible user object (the frontend expects name/initials/venue fields)
+    const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email;
+    const initials = (user.first_name ? user.first_name[0] : user.email[0]).toUpperCase() +
+                     (user.last_name  ? user.last_name[0]  : '').toUpperCase();
+    // Map venue_id (UUID) back to a legacy venue slug the UI knows about
+    const venueMap = {
+      'e87b5986-0826-4464-ad62-e55175f9c3c4': 'griffin',
+      '38749619-c192-45d1-806b-2fdc5922adea': 'taprun',
+      'd9657ea0-19c4-4793-9c0c-21fd4179ac56': 'longhop'
+    };
+    const venueSlug = user.venue_id ? (venueMap[user.venue_id] || 'all') : 'all';
     const jwt = require('jsonwebtoken');
     const token = jwt.sign(
-      { userId: user.id, email: user.email, role: user.role, venueId: null },
+      { userId: user.id, email: user.email, role: user.role, venueId: user.venue_id },
       process.env.JWT_SECRET || 'selector-secret-2026',
       { expiresIn: '7d' }
     );
-    ok(res, { token, user: { id: user.id, email: user.email, name: user.name, initials: user.initials, role: user.role, venue: user.venue } });
+    ok(res, { token, user: {
+      id: user.id,
+      email: user.email,
+      name: fullName,
+      initials,
+      role: user.role,
+      venue: venueSlug
+    }});
   } catch(e) { next(e); }
 });
 
-// Get all users (admin only)
+// ====================================================================
+// USER ADMIN + CLERK MAPPING — platform_users era
+// ====================================================================
+
+// Helpers
+function _isAdmin(req)   { return req.user && req.user.role === 'admin'; }
+function _isHrOrAdmin(req) { return req.user && ['admin','hr'].includes(req.user.role); }
+function _tempPw() {
+  const { randomBytes } = require('crypto');
+  return randomBytes(9).toString('base64').replace(/[+/=]/g,'').substring(0,12);
+}
+
+// List users — admin or hr
 router.get('/users', auth, async (req, res, next) => {
   try {
-    if (!['admin'].includes(req.user?.role)) return err(res, 'Forbidden', 403);
+    if (!_isHrOrAdmin(req)) return err(res, 'Forbidden', 403);
+    const includeInactive = req.query.include_inactive === 'true';
+    const where = includeInactive ? '' : 'WHERE is_active = true';
     const r = await database_js_1.db.query(
-      'SELECT id, email, name, initials, role, venue, is_active, created_at, last_login FROM coach_users ORDER BY created_at'
+      "SELECT id, email, first_name, last_name, role, venue_id, is_active, " +
+      "created_at, last_login FROM platform_users " + where +
+      " ORDER BY is_active DESC, role, last_name NULLS LAST, email"
     );
     ok(res, r.rows);
   } catch(e) { next(e); }
 });
 
-// Create user (admin only)
+// Create user — admin only (generates temp password, returned once)
 router.post('/users', auth, async (req, res, next) => {
   try {
-    if (!['admin'].includes(req.user?.role)) return err(res, 'Forbidden', 403);
-    const { email, password, name, initials, role, venue } = req.body;
-    if (!email || !password || !name) return err(res, 'email, password and name required', 400);
-    const bcrypt = require('bcrypt');
-    const hash = await bcrypt.hash(password, 10);
-    const ini = initials || (name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2));
+    if (!_isAdmin(req)) return err(res, 'Forbidden', 403);
+    const { email, first_name, last_name, role, venue_id } = req.body;
+    if (!email || !role) return err(res, 'email and role required', 400);
+    if (!['admin','hr','coach','viewer'].includes(role)) return err(res, 'Invalid role', 400);
+    const bcryptjs = require('bcryptjs');
+    const pw = _tempPw();
+    const hash = await bcryptjs.hash(pw, 10);
     const r = await database_js_1.db.query(
-      'INSERT INTO coach_users (email,password_hash,name,initials,role,venue) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id,email,name,initials,role,venue,is_active,created_at',
-      [email.toLowerCase(), hash, name, ini, role||'coach', venue||'all']
+      "INSERT INTO platform_users (email, password_hash, first_name, last_name, role, venue_id, is_active) " +
+      "VALUES ($1, $2, $3, $4, $5, $6, true) " +
+      "RETURNING id, email, first_name, last_name, role, venue_id, is_active, created_at",
+      [email.toLowerCase().trim(), hash, first_name||null, last_name||null, role, venue_id||null]
     );
-    ok(res, r.rows[0], 201);
+    ok(res, { user: r.rows[0], temp_password: pw }, 201);
   } catch(e) {
     if (e.code === '23505') return err(res, 'Email already exists', 409);
     next(e);
   }
 });
 
-// Update user (admin only)
+// Update user — admin only
 router.put('/users/:id', auth, async (req, res, next) => {
   try {
-    if (!['admin'].includes(req.user?.role)) return err(res, 'Forbidden', 403);
+    if (!_isAdmin(req)) return err(res, 'Forbidden', 403);
     const { id } = req.params;
-    const { name, role, venue, is_active, password } = req.body;
-    if (password) {
-      const bcrypt = require('bcrypt');
-    const hash = await bcrypt.hash(password, 10);
-      await database_js_1.db.query(
-        'UPDATE coach_users SET name=$1,role=$2,venue=$3,is_active=$4,password_hash=$5,updated_at=NOW() WHERE id=$6',
-        [name, role, venue, is_active, hash, id]
-      );
-    } else {
-      await database_js_1.db.query(
-        'UPDATE coach_users SET name=$1,role=$2,venue=$3,is_active=$4,updated_at=NOW() WHERE id=$5',
-        [name, role, venue, is_active, id]
-      );
+    const { first_name, last_name, role, venue_id, is_active } = req.body;
+    if (role && !['admin','hr','coach','viewer'].includes(role)) return err(res, 'Invalid role', 400);
+    if (req.user.userId === id && (is_active === false || (role && role !== 'admin'))) {
+      return err(res, "Can't deactivate yourself or remove your own admin role", 400);
     }
-    ok(res, { message: 'User updated' });
+    const r = await database_js_1.db.query(
+      "UPDATE platform_users SET " +
+      "first_name = COALESCE($2, first_name), " +
+      "last_name  = COALESCE($3, last_name), " +
+      "role       = COALESCE($4, role), " +
+      "venue_id   = COALESCE($5, venue_id), " +
+      "is_active  = COALESCE($6, is_active), " +
+      "updated_at = now() " +
+      "WHERE id = $1 " +
+      "RETURNING id, email, first_name, last_name, role, venue_id, is_active",
+      [id, first_name, last_name, role, venue_id, typeof is_active === 'boolean' ? is_active : null]
+    );
+    if (!r.rows.length) return err(res, 'User not found', 404);
+    ok(res, r.rows[0]);
   } catch(e) { next(e); }
 });
 
-// Delete user (admin only)
+// Reset password — admin only
+router.post('/users/:id/reset-password', auth, async (req, res, next) => {
+  try {
+    if (!_isAdmin(req)) return err(res, 'Forbidden', 403);
+    const bcryptjs = require('bcryptjs');
+    const pw = _tempPw();
+    const hash = await bcryptjs.hash(pw, 10);
+    const r = await database_js_1.db.query(
+      "UPDATE platform_users SET password_hash=$2, updated_at=now() WHERE id=$1 RETURNING email",
+      [req.params.id, hash]
+    );
+    if (!r.rows.length) return err(res, 'User not found', 404);
+    ok(res, { email: r.rows[0].email, temp_password: pw });
+  } catch(e) { next(e); }
+});
+
+// Deactivate — admin only
 router.delete('/users/:id', auth, async (req, res, next) => {
   try {
-    if (!['admin'].includes(req.user?.role)) return err(res, 'Forbidden', 403);
-    await database_js_1.db.query('UPDATE coach_users SET is_active=false WHERE id=$1', [req.params.id]);
-    ok(res, { message: 'User deactivated' });
+    if (!_isAdmin(req)) return err(res, 'Forbidden', 403);
+    if (req.user.userId === req.params.id) return err(res, "Can't deactivate yourself", 400);
+    const r = await database_js_1.db.query(
+      "UPDATE platform_users SET is_active=false, updated_at=now() WHERE id=$1",
+      [req.params.id]
+    );
+    if (!r.rowCount) return err(res, 'User not found', 404);
+    ok(res, { deactivated: true });
+  } catch(e) { next(e); }
+});
+
+// ====================================================================
+// CLERK MAPPINGS — hr or admin
+// ====================================================================
+
+router.get('/clerk-mappings/stats', auth, async (req, res, next) => {
+  try {
+    if (!_isHrOrAdmin(req)) return err(res, 'Forbidden', 403);
+    const r = await database_js_1.db.query(
+      "SELECT COUNT(*)::int AS total, " +
+      "COUNT(*) FILTER (WHERE team_member_id IS NOT NULL)::int AS mapped, " +
+      "COUNT(*) FILTER (WHERE team_member_id IS NULL)::int AS unmapped " +
+      "FROM relay_clerk_mappings"
+    );
+    ok(res, r.rows[0]);
+  } catch(e) { next(e); }
+});
+
+router.get('/clerk-mappings/unmapped', auth, async (req, res, next) => {
+  try {
+    if (!_isHrOrAdmin(req)) return err(res, 'Forbidden', 403);
+    const r = await database_js_1.db.query("SELECT * FROM v_unmapped_clerks");
+    ok(res, r.rows);
+  } catch(e) { next(e); }
+});
+
+router.get('/clerk-mappings/mapped', auth, async (req, res, next) => {
+  try {
+    if (!_isHrOrAdmin(req)) return err(res, 'Forbidden', 403);
+    const r = await database_js_1.db.query("SELECT * FROM v_mapped_clerks");
+    ok(res, r.rows);
+  } catch(e) { next(e); }
+});
+
+router.get('/clerk-mappings/candidates', auth, async (req, res, next) => {
+  try {
+    if (!_isHrOrAdmin(req)) return err(res, 'Forbidden', 403);
+    const { venue_id, q } = req.query;
+    const conds = ['tm.is_active = true'];
+    const params = [];
+    if (venue_id) { params.push(venue_id); conds.push('tm.venue_id = $' + params.length); }
+    if (q) {
+      params.push('%' + q + '%');
+      conds.push('(tm.display_name ILIKE $' + params.length +
+                 ' OR tm.first_name ILIKE $' + params.length +
+                 ' OR tm.last_name ILIKE $' + params.length + ')');
+    }
+    const r = await database_js_1.db.query(
+      "SELECT tm.id, tm.display_name, tm.department, tm.role, tm.epos_id, v.name AS venue_name " +
+      "FROM team_members tm LEFT JOIN venues v ON v.id = tm.venue_id " +
+      "WHERE " + conds.join(' AND ') +
+      " ORDER BY tm.display_name LIMIT 100",
+      params
+    );
+    ok(res, r.rows);
+  } catch(e) { next(e); }
+});
+
+router.post('/clerk-mappings/:clerk_id/map', auth, async (req, res, next) => {
+  try {
+    if (!_isHrOrAdmin(req)) return err(res, 'Forbidden', 403);
+    const clerkId = parseInt(req.params.clerk_id, 10);
+    const { team_member_id } = req.body;
+    if (!team_member_id) return err(res, 'team_member_id required', 400);
+    const r = await database_js_1.db.query(
+      "UPDATE relay_clerk_mappings SET team_member_id=$2 WHERE clerk_id=$1 " +
+      "RETURNING clerk_id, clerk_name, team_member_id",
+      [clerkId, team_member_id]
+    );
+    if (!r.rows.length) return err(res, 'Clerk not found', 404);
+    await database_js_1.db.query(
+      "UPDATE team_members SET epos_id=$1::text, updated_at=now() " +
+      "WHERE id=$2 AND (epos_id IS NULL OR epos_id='')",
+      [clerkId, team_member_id]
+    );
+    ok(res, r.rows[0]);
+  } catch(e) { next(e); }
+});
+
+router.post('/clerk-mappings/:clerk_id/unmap', auth, async (req, res, next) => {
+  try {
+    if (!_isHrOrAdmin(req)) return err(res, 'Forbidden', 403);
+    const clerkId = parseInt(req.params.clerk_id, 10);
+    const r = await database_js_1.db.query(
+      "UPDATE relay_clerk_mappings SET team_member_id=NULL WHERE clerk_id=$1",
+      [clerkId]
+    );
+    if (!r.rowCount) return err(res, 'Clerk not found', 404);
+    ok(res, { unmapped: true });
+  } catch(e) { next(e); }
+});
+
+// Toggle team member scoring inclusion (hr or admin)
+router.put('/squad/:id/selector-toggle', auth, async (req, res, next) => {
+  try {
+    if (!req.user || !['admin','hr'].includes(req.user.role)) return err(res, 'Forbidden', 403);
+    const { excluded } = req.body;
+    if (typeof excluded !== 'boolean') return err(res, 'excluded (boolean) required', 400);
+    const r = await database_js_1.db.query(
+      "UPDATE team_members SET selector_excluded=$2, updated_at=NOW() WHERE id=$1 " +
+      "RETURNING id, display_name, selector_excluded",
+      [req.params.id, excluded]
+    );
+    if (!r.rows.length) return err(res, 'Team member not found', 404);
+    ok(res, r.rows[0]);
   } catch(e) { next(e); }
 });
 
@@ -2529,16 +3623,34 @@ async function runScheduledSyncs() {
   }
 }
 
-// Wire up scheduler - run every 10 minutes, function self-limits to first 5 mins of hour
-setInterval(runScheduledSyncs, 10 * 60 * 1000);
-// Startup syncs run immediately regardless of hour/minute
-console.log('[Scheduler] Scheduler wired - running every 10 minutes');
+// ROTAREADY 15-MIN SYNC - runs every 15 min, 24/7 for Harry's freshness
+let _rrInProgress = false;
+let _rrLastRun = 0;
+async function runRotaready15min() {
+  if (_rrInProgress) { console.log('[Scheduler] RR previous run in progress, skip'); return; }
+  const now = Date.now();
+  if ((now - _rrLastRun) < 14 * 60 * 1000) return;
+  _rrInProgress = true;
+  _rrLastRun = now;
+  try {
+    console.log('[Scheduler] RotaReady 15-min sync starting');
+    await syncRotaReadyStaff();
+    console.log('[Scheduler] RotaReady 15-min sync complete');
+  } catch(e) {
+    console.error('[Scheduler] RotaReady 15-min error:', e.message);
+  } finally {
+    _rrInProgress = false;
+  }
+}
 
-
-// Wire up scheduler - run every 10 minutes, function self-limits to first 5 mins of hour
+// Wire up main scheduler - every 10 min
 setInterval(runScheduledSyncs, 10 * 60 * 1000);
-// Startup syncs run immediately regardless of hour/minute
-console.log('[Scheduler] Scheduler wired - running every 10 minutes');
+console.log('[Scheduler] Main scheduler wired - every 10 min');
+
+// Wire up RotaReady 15-min scheduler
+setInterval(runRotaready15min, 15 * 60 * 1000);
+setTimeout(runRotaready15min, 30 * 1000);
+console.log('[Scheduler] RotaReady 15-min scheduler wired');
 
 // Force run on startup regardless of minute
 async function runStartupSyncs() {
