@@ -1102,27 +1102,43 @@ router.get('/venues/mappings', auth, async (req, res, next) => {
 // Transaction summary
 router.get('/transactions/summary', auth, async (req, res, next) => {
   try {
-    const { period, locationId } = req.query;
+    const { period, locationId, from, to } = req.query;
     const locMap = {griffin:'0001', taprun:'0002', longhop:'0003'};
     const locId = locationId && locationId !== 'all' ? (locMap[locationId] || locationId) : null;
-    const locWhere = locId ? " AND t.location_id = '" + locId + "'" : '';
+    const locWhere = locId ? " AND location_id = '" + locId + "'" : '';
+
+    // Overall summary
     const result = await database_js_1.db.query(
       "SELECT COUNT(*) AS total_transactions," +
-      " COALESCE(SUM(t.total_gross_item_cost),0) AS total_revenue," +
-      " COALESCE(SUM(COALESCE(m.mains_count, 0)),0) AS total_covers," +
-      " COALESCE(AVG(CASE WHEN COALESCE(m.mains_count,0)>0 THEN t.total_gross_item_cost::decimal/m.mains_count ELSE NULL END),0) AS avg_transaction," +
-      " COALESCE(SUM(CASE WHEN DATE(t.datetime_opened)=CURRENT_DATE THEN 1 ELSE 0 END),0) AS today_transactions," +
-      " COALESCE(SUM(CASE WHEN DATE(t.datetime_opened)=CURRENT_DATE THEN t.total_gross_item_cost ELSE 0 END),0) AS today_revenue," +
-      " COALESCE(SUM(CASE WHEN t.datetime_opened >= NOW() - (7 * INTERVAL '1 day') THEN 1 ELSE 0 END),0) AS week_transactions," +
-      " COALESCE(SUM(CASE WHEN t.datetime_opened >= NOW() - (7 * INTERVAL '1 day') THEN t.total_gross_item_cost ELSE 0 END),0) AS week_revenue," +
-      " COALESCE(SUM(CASE WHEN t.datetime_opened >= NOW() - (30 * INTERVAL '1 day') THEN 1 ELSE 0 END),0) AS month_transactions," +
-      " COALESCE(SUM(CASE WHEN t.datetime_opened >= NOW() - (30 * INTERVAL '1 day') THEN t.total_gross_item_cost ELSE 0 END),0) AS month_revenue," +
-      " COUNT(DISTINCT t.location_id) AS active_locations" +
-      " FROM relay_transactions t" +
-      " LEFT JOIN (SELECT transaction_id, SUM(quantity) AS mains_count FROM relay_sold_items WHERE sales_group='31' GROUP BY transaction_id) m ON m.transaction_id=t.id" +
-      " WHERE 1=1" + locWhere
+      " COALESCE(SUM(total_net_item_cost),0) AS total_revenue," +
+      " COALESCE(SUM(CASE WHEN DATE(datetime_opened AT TIME ZONE 'Europe/London')=CURRENT_DATE THEN 1 ELSE 0 END),0) AS today_transactions," +
+      " COALESCE(SUM(CASE WHEN DATE(datetime_opened AT TIME ZONE 'Europe/London')=CURRENT_DATE THEN total_net_item_cost ELSE 0 END),0) AS today_revenue," +
+      " COALESCE(SUM(CASE WHEN datetime_opened >= NOW() - INTERVAL '7 days' THEN 1 ELSE 0 END),0) AS week_transactions," +
+      " COALESCE(SUM(CASE WHEN datetime_opened >= NOW() - INTERVAL '7 days' THEN total_net_item_cost ELSE 0 END),0) AS week_revenue," +
+      " COUNT(DISTINCT location_id) AS active_locations" +
+      " FROM relay_transactions WHERE 1=1" + locWhere
     ).catch(() => ({ rows: [{}] }));
-    ok(res, result.rows[0]);
+
+    // Mon-Sun current week by venue
+    const weekStart = new Date();
+    const dow = weekStart.getDay();
+    weekStart.setDate(weekStart.getDate() - (dow === 0 ? 6 : dow - 1));
+    weekStart.setHours(0,0,0,0);
+    const weekStartStr = weekStart.toISOString().split('T')[0];
+
+    const byVenueR = await database_js_1.db.query(
+      "SELECT t.location_id, v.name as venue_name," +
+      " COUNT(*) as transactions," +
+      " ROUND(SUM(t.total_net_item_cost)::numeric,2) as net_revenue" +
+      " FROM relay_transactions t" +
+      " JOIN connector_venue_mappings cvm ON cvm.location_id=t.location_id AND cvm.connector='relay'" +
+      " JOIN venues v ON v.id=cvm.venue_id" +
+      " WHERE (t.datetime_opened AT TIME ZONE 'Europe/London')::date >= $1" +
+      " GROUP BY t.location_id, v.name ORDER BY t.location_id",
+      [weekStartStr]
+    ).catch(() => ({ rows: [] }));
+
+    ok(res, { ...result.rows[0], byVenue: byVenueR.rows });
   } catch(e) { next(e); }
 });
 
