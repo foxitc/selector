@@ -521,22 +521,6 @@ select.fg-i { cursor:pointer; appearance:none; }
           </button>
         </div>
 
-<div class="card" id="health-card" style="margin-bottom:14px;border:1px solid var(--border)">
-  <div class="card-h" style="display:flex;justify-content:space-between;align-items:center">
-    <div class="card-t">
-      <span id="health-summary-dot" class="dot" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--green);margin-right:8px;vertical-align:middle"></span>
-      System Health
-      <span id="health-summary-text" style="color:var(--fg2);font-weight:400;margin-left:8px;font-size:12px">Loading…</span>
-    </div>
-    <div style="display:flex;gap:6px;align-items:center;font-size:11px;color:var(--fg3)">
-      <span id="health-updated">—</span>
-      <button class="btn btn-ghost btn-sm" onclick="loadClubHealth()" style="padding:4px 10px">Refresh</button>
-    </div>
-  </div>
-  <div id="health-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;padding:14px"></div>
-</div>
-
-
         <div class="stats">
           <div class="stat">
             <div class="stat-stripe" style="background:var(--green)"></div>
@@ -1001,55 +985,10 @@ function nav(id) {
   if (id==='apis') loadOutboundKeys();
 }
 
-// ── Club Health (data engine status) ──
-let _clubHealthInterval = null;
-
-async function loadClubHealth() {
-  try {
-    const r = await api('/club/health');
-    if (!r.data) return;
-    const { checks, summary, generated_at } = r.data;
-
-    // Update header
-    const dotColor = summary.worst === 'red' ? 'var(--red)' : summary.worst === 'amber' ? 'var(--amber)' : 'var(--green)';
-    const sumDot = document.getElementById('health-summary-dot');
-    if (sumDot) sumDot.style.background = dotColor;
-    const sumText = document.getElementById('health-summary-text');
-    if (sumText) sumText.textContent = summary.green + ' green · ' + summary.amber + ' amber · ' + summary.red + ' red';
-    const upd = document.getElementById('health-updated');
-    if (upd) upd.textContent = 'Updated ' + new Date(generated_at).toLocaleTimeString('en-GB');
-
-    // Render grid
-    const grid = document.getElementById('health-grid');
-    if (!grid) return;
-    grid.innerHTML = checks.map(c => {
-      const colorVar = c.status === 'red' ? 'var(--red)' : c.status === 'amber' ? 'var(--amber)' : 'var(--green)';
-      const bgVar = c.status === 'red' ? 'var(--red-bg)' : c.status === 'amber' ? 'var(--amber-bg)' : 'var(--green-bg)';
-      return '<div style="border:1px solid var(--border);border-radius:8px;padding:12px 14px;background:var(--bg2)">'
-        + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'
-        + '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + colorVar + '"></span>'
-        + '<span style="font-size:12px;font-weight:500;color:var(--fg)">' + c.source + '</span>'
-        + '<span style="font-size:10px;color:var(--fg3);margin-left:auto;text-transform:uppercase;letter-spacing:0.04em">' + c.status + '</span>'
-        + '</div>'
-        + '<div style="font-size:12px;color:var(--fg2);line-height:1.4">' + c.message + '</div>'
-        + '</div>';
-    }).join('');
-  } catch(e) {
-    log('Health check failed: ' + e.message, 'error');
-  }
-}
-
-function startHealthPolling() {
-  if (_clubHealthInterval) clearInterval(_clubHealthInterval);
-  loadClubHealth();
-  _clubHealthInterval = setInterval(loadClubHealth, 30000);
-}
-
 // Init
 async function init() {
   await getToken();
   loadDashboard();
-  startHealthPolling();
   log('The Club connected','ok');
   log('theclub.thecatandwickets.com · SSL active','ok');
   log('Relay webhook ready','ok');

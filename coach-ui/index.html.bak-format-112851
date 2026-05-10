@@ -892,22 +892,6 @@ tr.sel-excluded { opacity: 0.45; }
         <div class="ph">
           <div><div class="ph-t">The Selector — Scores</div><div class="ph-s"><span style="color:var(--accent);font-weight:600">Pub Score</span> = venue average · <span style="color:var(--teal);font-weight:600">Player Score</span> = individual</div></div>
           <div style="display:flex;gap:6px;align-items:center">
-            <select id="scores-venue-filter" onchange="loadScores()" style="padding:6px 10px;border:1px solid var(--border2);border-radius:8px;font-size:12px;font-family:var(--sans);outline:none;margin-right:4px">
-              <option value="all">All venues</option>
-              <option value="griffin">Griffin Inn</option>
-              <option value="taprun">Tap & Run</option>
-              <option value="longhop">Long Hop</option>
-            </select>
-            <select id="scores-metric-filter" onchange="filterScoresByMetric()" style="padding:6px 10px;border:1px solid var(--border2);border-radius:8px;font-size:12px;font-family:var(--sans);outline:none;margin-right:8px">
-              <option value="all">All metrics</option>
-              <option value="sides_pct">Sides leaderboard</option>
-              <option value="nibbles_pct">Nibbles leaderboard</option>
-              <option value="avg_spend_dry">ASPH leaderboard</option>
-              <option value="drinks_per_cover">Drinks leaderboard</option>
-              <option value="starters_desserts">Desserts leaderboard</option>
-              <option value="coffee_pct">Coffee leaderboard</option>
-              <option value="premium_wine">Premium Wine leaderboard</option>
-            </select>
             <button class="period-btn btn btn-ghost btn-sm" data-period="today" onclick="setScoresPeriod('today')">24 hrs</button>
             <button class="period-btn btn btn-ghost btn-sm active" data-period="week" onclick="setScoresPeriod('week')">7 days</button>
             <button class="period-btn btn btn-ghost btn-sm" data-period="fortnight" onclick="setScoresPeriod('fortnight')">14 days</button>
@@ -1627,68 +1611,10 @@ async function recalcScores() {
   if (btn) btn.textContent = 'Recalculate';
 }
 
-
-let allScoresData = [];
-
-function filterScoresByMetric() {
-  const metricKey = document.getElementById('scores-metric-filter')?.value || 'all';
-  if (metricKey === 'all' || !allScoresData.length) return;
-  
-  // Sort by specific metric actual value
-  const sorted = [...allScoresData].sort((a,b) => {
-    const av = (a.actuals||{})[metricKey] || 0;
-    const bv = (b.actuals||{})[metricKey] || 0;
-    return bv - av;
-  });
-  renderScoresTable(sorted, metricKey);
-}
-
-function renderScoresTable(scores, highlightMetric) {
-  const tierColors = {'could-say':'var(--teal)','should-say':'var(--gold)','have-to':'var(--coral)','review':'var(--ink4)'};
-  const tierLabels = {'could-say':'Test Player','should-say':'County Player','have-to':'Club','review':'Academy'};
-  const activeMetrics = scores[0]?.active_metrics || [];
-  
-  document.getElementById('scores-tbody').innerHTML = scores.length === 0
-    ? '<tr><td colspan="20" class="empty">No scores — click Recalculate</td></tr>'
-    : scores.map((s, i) => {
-        const a = s.actuals || {};
-        const tierColor = tierColors[s.tier] || 'var(--ink4)';
-        const tierLabel = tierLabels[s.tier] || s.tier;
-        const metricCols = activeMetrics.map(m => {
-          const val = a[m.key];
-          const ms = (s.metric_scores||{})[m.key] || 0;
-          const isHighlighted = m.key === highlightMetric;
-          const display = val === undefined ? '—' :
-            (m.key === 'avg_spend_dry' || m.key === 'avg_spend_wet') ? '£' + val :
-            m.key === 'premium_wine' ? '£' + val :
-            m.key === 'named_review' ? val :
-            val + '%';
-          const bg = isHighlighted ? 'rgba(74,155,142,0.12)' :
-            ms >= 75 ? 'rgba(26,107,90,0.06)' : ms >= 50 ? 'rgba(196,146,42,0.06)' : '';
-          return '<td class="mono" style="font-size:12px;background:' + bg + (isHighlighted?';font-weight:600':'') + '" '
-            + 'title="Score: ' + ms + '/100 | Target: ' + m.target + '">' + display + '</td>';
-        }).join('');
-
-        return '<tr style="cursor:pointer" onclick=\'openStaffPanel(' + JSON.stringify(s).replace(/'/g,'&#39;') + ')\'>'
-          + '<td class="dim">' + (i+1) + '</td>'
-          + '<td class="p" style="display:flex;align-items:center;gap:8px;min-width:140px">'
-          + '<div style="width:26px;height:26px;border-radius:50%;background:' + (s.avatar_color||'#4a9b8e') + ';display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:white;flex-shrink:0">' + (s.avatar_initials||'?') + '</div>'
-          + s.display_name + '</td>'
-          + '<td class="dim" style="font-size:12px">' + (s.venue_name||'—') + '</td>'
-          + '<td><span style="font-family:var(--mono);font-size:18px;font-weight:700;color:' + tierColor + '">' + s.score + '</span></td>'
-          + '<td><span class="b" style="background:' + tierColor + '15;color:' + tierColor + ';border:1px solid ' + tierColor + '30;font-size:10px">' + tierLabel + '</span></td>'
-          + '<td class="mono">' + (s.mains||0) + '</td>'
-          + metricCols
-          + '</tr>';
-      }).join('');
-}
-
 async function loadScores() {
   try {
     const locMap = {'griffin':'0001','taprun':'0002','longhop':'0003'};
-    const scoresVenueEl = document.getElementById('scores-venue-filter');
-    const scoresVenue = scoresVenueEl ? scoresVenueEl.value : 'all';
-    const venueParam = scoresVenue !== 'all' ? '&venue=' + scoresVenue : '';
+    const venueParam = currentVenue !== 'all' ? '&venue=' + currentVenue : '';
     const r = await api('/scores/leaderboard?period=' + currentScoresPeriod + venueParam);
     const scores = r.data || [];
 
@@ -1739,66 +1665,59 @@ async function loadScores() {
 
     document.getElementById('scores-updated').textContent = scores.length + ' staff scored · ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
 
-    allScoresData = scores;
-    renderScoresTable(scores, 'all');
+    document.getElementById('scores-tbody').innerHTML = scores.length === 0
+      ? '<tr><td colspan="21" class="empty">No scores yet — click Recalculate</td></tr>'
+      : scores.map((s, i) => {
+          const a = s.actuals || {};
+          const tierColor = tierColors[s.tier] || 'var(--ink4)';
+          const tierLabel = tierLabels[s.tier] || s.tier;
+          // Pub score = venue average (shown as context)
+          const metricCols = activeMetrics.map(m => {
+            const val = a[m.key];
+            const ms = (s.metric_scores||{})[m.key] || 0;
+            const display = val === undefined ? '—' :
+              m.key.includes('pct') || m.key.includes('desserts') || m.key.includes('starters') ? val + '%' :
+              m.key.includes('spend') || m.key.includes('asph') || m.key.includes('dry') || m.key.includes('wet') ? '£' + val :
+              val;
+            const bg = ms >= 75 ? 'rgba(26,107,90,0.08)' : ms >= 50 ? 'rgba(196,146,42,0.08)' : ms > 0 ? '' : 'rgba(253,111,83,0.04)';
+            return '<td class="mono" style="font-size:12px;background:' + bg + '">' + display + '</td>';
+          }).join('');
 
+          return '<tr data-tmid="' + s.team_member_id + '">'
+            + '<td class="dim">' + (i+1) + '</td>'
+            + '<td class="p" style="min-width:180px">'
+            + '<div style="display:flex;align-items:center;gap:8px">'
+            + '<div style="width:26px;height:26px;border-radius:50%;background:' + (s.avatar_color||'#4a9b8e') + ';display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:white;flex-shrink:0">' + (s.avatar_initials||'?') + '</div>'
+            + '<span style="flex:1">' + s.display_name + '</span>'
+            + (function(){
+                var sc = s.score_change;
+                if (sc === null || sc === undefined) return '';
+                var n = Number(sc);
+                if (n > 1) return '<span style="color:var(--teal);font-weight:600;font-size:11px;white-space:nowrap">↑ +' + n.toFixed(1) + '</span>';
+                if (n < -1) return '<span style="color:var(--coral);font-weight:600;font-size:11px;white-space:nowrap">↓ ' + n.toFixed(1) + '</span>';
+                return '<span class="dim" style="font-size:11px">→</span>';
+              })()
+            + '</div>'
+            + '</td>'
+            + '<td class="dim" style="font-size:12px">' + (s.venue_name||'—') + '</td>'
+            + '<td><span style="font-family:var(--mono);font-size:18px;font-weight:700;color:' + tierColor + '">' + s.score + '</span></td>'
+            + '<td><span class="b" style="background:' + tierColor + '15;color:' + tierColor + ';border:1px solid ' + tierColor + '30;font-size:10px">' + tierLabel + '</span></td>'
+            + '<td class="mono">' + (s.mains||0) + '</td>'
+            + metricCols
+            + (function(){
+                var sc = s.score_change;
+                if (sc === null || sc === undefined) return '<td class="dim" style="text-align:center">—</td>';
+                var n = Number(sc);
+                if (n > 1) return '<td style="text-align:center;color:var(--teal);font-weight:600">↑ +' + n.toFixed(1) + '</td>';
+                if (n < -1) return '<td style="text-align:center;color:var(--coral);font-weight:600">↓ ' + n.toFixed(1) + '</td>';
+                return '<td class="dim" style="text-align:center">→</td>';
+              })()
+            + '<td class="mono">' + (a.named_review||0) + '</td>'
+            + '</tr>';
+        }).join('');
   } catch(e) { console.error('Scores error:', e); }
 }
 
-
-
-function openStaffPanel(scoreData) {
-  const tierLabels = {'could-say':'Test Player','should-say':'County Player','have-to':'Club','review':'Academy'};
-  const tierColors = {'could-say':'var(--teal)','should-say':'var(--gold)','have-to':'var(--coral)','review':'var(--ink4)'};
-  
-  document.getElementById('sp-name').textContent = scoreData.display_name || '—';
-  document.getElementById('sp-venue').textContent = scoreData.venue_name || '—';
-  document.getElementById('sp-score').textContent = scoreData.score ?? '—';
-  document.getElementById('sp-mains').textContent = scoreData.mains ?? '—';
-  document.getElementById('sp-tier').textContent = tierLabels[scoreData.tier] || '—';
-  document.getElementById('sp-tier').style.color = tierColors[scoreData.tier] || 'var(--ink)';
-  document.getElementById('sp-period').textContent = 'Period: ' + currentScoresPeriod.replace('month','28 days').replace('week','7 days').replace('fortnight','14 days').replace('quarter','90 days').replace('today','24 hrs');
-  
-  // Metric breakdown bars
-  const metrics = scoreData.active_metrics || [];
-  const actuals = scoreData.actuals || {};
-  const metricScores = scoreData.metric_scores || {};
-  
-  document.getElementById('sp-metrics').innerHTML = metrics.map(m => {
-    const actual = actuals[m.key];
-    const ms = metricScores[m.key] || 0;
-    const barColor = ms >= 75 ? 'var(--teal)' : ms >= 50 ? 'var(--gold)' : 'var(--coral)';
-    const displayVal = actual === undefined ? '—' :
-      (m.key === 'avg_spend_dry' || m.key === 'avg_spend_wet') ? '£' + actual :
-      m.key === 'premium_wine' ? '£' + actual + ' per 100' :
-      m.key === 'named_review' ? actual + ' reviews' :
-      actual + '%';
-    const targetDisplay = m.key === 'avg_spend_dry' ? '£' + m.target :
-      m.key === 'premium_wine' ? '£' + m.target :
-      m.key === 'named_review' ? m.target + ' reviews' : m.target + '%';
-    return '<div style="padding:10px 12px;background:var(--bg);border-radius:8px">'
-      + '<div style="display:flex;justify-content:space-between;margin-bottom:6px">'
-      + '<span style="font-size:12px;font-weight:500;color:var(--ink2)">' + m.label + '</span>'
-      + '<span style="font-size:12px;font-weight:700;color:' + barColor + '">' + ms + ' pts</span>'
-      + '</div>'
-      + '<div style="height:4px;background:var(--border);border-radius:2px;margin-bottom:6px">'
-      + '<div style="height:4px;background:' + barColor + ';border-radius:2px;width:' + Math.min(100,ms) + '%"></div>'
-      + '</div>'
-      + '<div style="display:flex;justify-content:space-between">'
-      + '<span style="font-size:11px;color:var(--ink4)">Actual: ' + displayVal + '</span>'
-      + '<span style="font-size:11px;color:var(--ink4)">Target: ' + targetDisplay + '</span>'
-      + '</div>'
-      + '</div>';
-  }).join('');
-  
-  document.getElementById('staff-panel').style.right = '0';
-  document.getElementById('staff-panel-overlay').style.display = 'block';
-}
-
-function closeStaffPanel() {
-  document.getElementById('staff-panel').style.right = '-420px';
-  document.getElementById('staff-panel-overlay').style.display = 'none';
-}
 
 let squadData = [];
 let clerkNames = {};
@@ -1904,71 +1823,6 @@ async function deactivateUser(idx) {
 
 let metricsData = [];
 
-
-
-
-function filterSquad() {
-  const search = document.getElementById('squad-search')?.value?.toLowerCase() || '';
-  const venue = document.getElementById('squad-venue-filter')?.value || 'all';
-  const venueMap = {'griffin':'0001','taprun':'0002','longhop':'0003'};
-  const locId = venueMap[venue];
-  
-  const filtered = squadData.filter(m => {
-    const nameMatch = !search || m.display_name?.toLowerCase().includes(search);
-    const venueMatch = venue === 'all' || m.location_id === locId;
-    return nameMatch && venueMatch;
-  });
-  renderSquadTable(filtered);
-}
-
-function renderSquadTable(members) {
-  const tbody = document.getElementById('squad-tbody');
-  if (!members.length) {
-    tbody.innerHTML = '<tr><td colspan="9" class="empty">No team members found</td></tr>';
-    return;
-  }
-  const tierColors = {'could-say':'var(--teal)','should-say':'var(--gold)','have-to':'var(--coral)','review':'var(--ink4)'};
-  const tierLabels = {'could-say':'Test Player','should-say':'County Player','have-to':'Club','review':'Academy'};
-  tbody.innerHTML = members.map(m => {
-    const cplTotal = Number(m.cpl_total||0);
-    const cplDone = Number(m.cpl_completed||0);
-    const cplDisplay = cplTotal > 0 ? cplDone+'/'+cplTotal : (m.cpl_employee_id ? '<span style="color:var(--gold)">Not enrolled</span>' : '<span style="color:var(--ink4)">No link</span>');
-    const tierColor = tierColors[m.selector_tier] || 'var(--ink4)';
-    const tierLabel = tierLabels[m.selector_tier] || '—';
-    const score = m.selector_score != null ? m.selector_score : '—';
-    return '<tr>'
-      + '<td class="p" style="display:flex;align-items:center;gap:8px">'
-      + '<div style="width:28px;height:28px;border-radius:50%;background:' + (m.avatar_color||'#4a9b8e') + ';display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:white;flex-shrink:0">' + (m.avatar_initials||'?') + '</div>'
-      + m.display_name + '</td>'
-      + '<td class="dim">' + (m.venue_name||'—') + '</td>'
-      + '<td class="dim">' + (m.role||'—') + '</td>'
-      + '<td><span style="font-weight:600;color:' + tierColor + '">' + score + '</span></td>'
-      + '<td><span class="b" style="background:' + tierColor + '15;color:' + tierColor + ';font-size:10px">' + tierLabel + '</span></td>'
-      + '<td class="dim">' + (m.food_safety_status||'—') + '</td>'
-      + '<td>' + cplDisplay + '</td>'
-      + '<td>' + (m.is_active ? '<span style="color:#16a34a;font-size:12px;font-weight:500">Active</span>' : '<span style="color:var(--ink4);font-size:12px">Inactive</span>') + '</td>'
-      + '<td><button class="btn btn-ghost btn-sm" onclick="toggleSquadMember(\'' + m.id + '\',\'' + m.display_name + '\',' + m.is_active + ')">' + (m.is_active ? 'Deactivate' : 'Activate') + '</button></td>'
-      + '</tr>';
-  }).join('');
-}
-
-async function toggleSquadMember(id, name, isActive) {
-  const action = isActive ? 'deactivate' : 'activate';
-  if (!confirm('Are you sure you want to ' + action + ' ' + name + '? This will immediately update their scores.')) return;
-  try {
-    const r = await fetch(API_BASE + '/squad/' + id + '/status', {
-      method: 'PUT',
-      headers: {'Content-Type':'application/json','Authorization':'Bearer '+TOKEN},
-      body: JSON.stringify({is_active: !isActive})
-    });
-    const d = await r.json();
-    if (d.error) return alert('Error: ' + d.error.message);
-    // Reload squad and refresh scores
-    await loadSquad();
-    if (typeof loadScores === 'function') loadScores();
-  } catch(e) { alert('Error: ' + e.message); }
-}
-
 async function loadSquad() {
   const venue = document.getElementById('squad-venue-filter')?.value || '';
   const venueParam = venue ? '?venue=' + venue : '';
@@ -2017,8 +1871,36 @@ function renderSquad() {
   }
 
   console.log('[Squad] Rendering', data.length, 'members, first CPL:', data[0]?.cpl_total);
-  squadData = data;
-  renderSquadTable(data);
+  document.getElementById('squad-tbody').innerHTML = data.length === 0
+    ? '<tr><td colspan="9" class="empty">No team members found</td></tr>'
+    : data.map(m => {
+        const score = m.selector_score ? Number(m.selector_score).toFixed(0) : '—';
+        const tier = m.selector_tier || m.tier;
+        const tierColor = tierColors[tier] || 'var(--ink4)';
+        const tierLabel = tierLabels[tier] || '—';
+        const cplTotal = Number(m.cpl_total||0);
+  const cplCompleted = Number(m.cpl_completed||0);
+  const cpl = cplTotal > 0 ? cplCompleted + '/' + cplTotal : (m.cpl_employee_id ? 'Not enrolled' : 'No CPL link');
+        const avgScore = m.cpl_avg_score ? m.cpl_avg_score + '%' : '—';
+        return '<tr data-member-id="' + m.id + '"' + (m.selector_excluded ? ' class="sel-excluded"' : '') + '>'
+          + '<td class="p" style="display:flex;align-items:center;gap:8px">'
+          + '<div style="width:28px;height:28px;border-radius:50%;background:' + (m.avatar_color||'#4a9b8e') + ';display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:white;flex-shrink:0">' + (m.avatar_initials||'??') + '</div>'
+          + m.display_name + '</td>'
+          + '<td class="dim">' + (m.venue_name||'—') + '</td>'
+          + '<td><span style="font-family:var(--mono);font-size:16px;font-weight:700;color:' + tierColor + '">' + score + '</span></td>'
+          + '<td>' + (tier ? '<span class="b" style="background:' + tierColor + '22;color:' + tierColor + ';border:1px solid ' + tierColor + '44">' + tierLabel + '</span>' : '—') + '</td>'
+          + '<td class="mono">' + cpl + '</td>'
+          + '<td class="mono">' + avgScore + '</td>'
+          + '<td>' + statusBadge(m.food_safety_status) + '</td>'
+          + '<td>' + statusBadge(m.allergen_status) + '</td>'
+          + '<td>' + statusBadge(m.induction_status || m.cw_induction_status) + '</td>'
+          + '<td style="text-align:center">'
+          +   '<input type="checkbox" class="sel-chk" '
+          +   'data-member-id="' + m.id + '" '
+          +   (m.selector_excluded ? '' : 'checked') + '>'
+          + '</td>'
+          + '</tr>';
+      }).join('');
 }
 
 async function loadBookingsToday() {
@@ -2943,22 +2825,11 @@ function renderMemberPanel(d) {
   var rankHtml = cur.rank_in_venue ? cur.rank_in_venue + '<span style="font-size:12px;color:#9ca3af;font-weight:400">/' + cur.venue_total + '</span>' : '—';
   var activeMap = {};
   (d.active_metrics || []).forEach(function(m) { activeMap[m.key] = m; });
-  function formatValue(val, fmt) {
-    if (val === null || val === undefined) return '—';
-    if (typeof val !== 'number') return val;
-    switch(fmt) {
-      case 'currency_2': return '£' + val.toFixed(2);
-      case 'percent_1':  return val.toFixed(1) + '%';
-      case 'integer':    return Math.round(val).toString();
-      case 'decimal_2':  return val.toFixed(2);
-      default:           return val.toFixed(1);
-    }
-  }
   var actuals = cur.actuals || {}, deltas = cur.metric_deltas || {};
   // Mains Sold rendered as context row at top — not a scored metric
   var mainsRow = '';
   if (actuals.mains !== undefined && actuals.mains !== null) {
-    mainsRow = '<tr style="background:#f9fafb;border-bottom:2px solid #e5e7eb"><td style="font-weight:600">Mains</td><td class="val" style="font-weight:600">' + Math.round(Number(actuals.mains)) + '</td><td></td></tr>';
+    mainsRow = '<tr style="background:#f9fafb"><td style="font-weight:600">Mains Sold</td><td class="val" style="font-weight:600">' + Math.round(Number(actuals.mains)) + '</td><td></td></tr>';
   }
   var metricRows = Object.keys(actuals).filter(function(k){ return k !== 'mains'; }).map(function(key) {
     var meta = activeMap[key] || {label: key};
@@ -2970,17 +2841,8 @@ function renderMemberPanel(d) {
       if (n2 > 0.1) { deltaCls = 'up'; deltaTxt = '↑ +' + n2.toFixed(1); }
       else if (n2 < -0.1) { deltaCls = 'down'; deltaTxt = '↓ ' + n2.toFixed(1); }
     }
-    var valStr = formatValue(val, meta.display_format);
-    var scores = cur.metric_scores || {};
-    var ms = scores[key];
-    var scoreHtml;
-    if (ms === undefined || ms === null) {
-      scoreHtml = '<span style="color:#9ca3af">' + valStr + '</span>';
-    } else {
-      var scoreColor = ms >= 75 ? '#1D9E75' : ms >= 50 ? '#BA7517' : ms >= 25 ? '#d85a30' : '#6b7280';
-      scoreHtml = '<div style="font-size:16px;font-weight:600;color:' + scoreColor + '">' + ms + '</div><div style="font-size:11px;color:#9ca3af;margin-top:2px">' + valStr + '</div>';
-    }
-    return '<tr><td>' + (meta.label || key) + '</td><td class="val">' + scoreHtml + '</td><td class="delta ' + deltaCls + '">' + deltaTxt + '</td></tr>';
+    var valStr = typeof val === 'number' ? (key.indexOf('spend') > -1 ? '£' + val.toFixed(2) : (key.indexOf('pct') > -1 || key === 'starters_desserts' ? val.toFixed(1) + '%' : val.toFixed(1))) : val;
+    return '<tr><td>' + (meta.label || key) + '</td><td class="val">' + valStr + '</td><td class="delta ' + deltaCls + '">' + deltaTxt + '</td></tr>';
   }).join('');
   var historyHtml = hist.slice(0, 12).map(function(h) {
     var dt = new Date(h.week_ending);
@@ -3004,7 +2866,6 @@ function renderMemberPanel(d) {
     '<div class="mp-section-title">Score Trend</div>' +
     '<div class="mp-chart">' + chartHtml + '</div>' +
     '<div class="mp-section-title">Current Metrics</div>' +
-    '<div style="font-size:11px;color:#9ca3af;margin:-4px 0 8px 0">Each metric scored 0–100 · 50 = at target · 100 = 2× target</div>' +
     '<table class="mp-metrics-tbl"><tbody>' + mainsRow + (metricRows || (mainsRow ? '' : '<tr><td style="text-align:center;color:#9ca3af" colspan="3">No data</td></tr>')) + '</tbody></table>' +
     '<div class="mp-section-title">Score History</div>' +
     (historyHtml || '<div style="color:#9ca3af;font-size:13px">No history yet — accumulates weekly</div>');
@@ -3031,40 +2892,6 @@ document.addEventListener('click', function(e) {
   if (row) openMemberPanel(row.dataset.tmid);
 });
 </script>
-
-
-      <!-- STAFF SIDE PANEL -->
-      <div id="staff-panel" style="position:fixed;top:0;right:-420px;width:400px;height:100vh;background:var(--white);border-left:1px solid var(--border);box-shadow:-4px 0 24px rgba(0,0,0,0.08);z-index:200;transition:right 0.3s ease;overflow-y:auto;padding:0">
-        <div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--white);z-index:1">
-          <div>
-            <div id="sp-name" style="font-size:16px;font-weight:700;color:var(--ink)">—</div>
-            <div id="sp-venue" style="font-size:12px;color:var(--ink3);margin-top:2px">—</div>
-          </div>
-          <button onclick="closeStaffPanel()" style="width:32px;height:32px;border-radius:50%;border:1px solid var(--border);background:none;cursor:pointer;font-size:18px;color:var(--ink3);display:flex;align-items:center;justify-content:center">×</button>
-        </div>
-        <div style="padding:20px 24px">
-          <!-- Score summary -->
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:20px">
-            <div style="text-align:center;padding:14px;background:var(--bg);border-radius:10px">
-              <div id="sp-score" style="font-size:28px;font-weight:700;color:var(--ink)">—</div>
-              <div style="font-size:10px;color:var(--ink4);text-transform:uppercase;letter-spacing:0.08em;margin-top:2px">Score</div>
-            </div>
-            <div style="text-align:center;padding:14px;background:var(--bg);border-radius:10px">
-              <div id="sp-mains" style="font-size:28px;font-weight:700;color:var(--teal)">—</div>
-              <div style="font-size:10px;color:var(--ink4);text-transform:uppercase;letter-spacing:0.08em;margin-top:2px">Mains</div>
-            </div>
-            <div style="text-align:center;padding:14px;background:var(--bg);border-radius:10px">
-              <div id="sp-tier" style="font-size:13px;font-weight:700;color:var(--ink)">—</div>
-              <div style="font-size:10px;color:var(--ink4);text-transform:uppercase;letter-spacing:0.08em;margin-top:2px">Tier</div>
-            </div>
-          </div>
-          <div style="font-size:11px;color:var(--ink4);margin-bottom:16px" id="sp-period">Period: —</div>
-          <!-- Metric breakdown -->
-          <div style="font-size:12px;font-weight:600;color:var(--ink3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px">Metric Breakdown</div>
-          <div id="sp-metrics" style="display:flex;flex-direction:column;gap:8px"></div>
-        </div>
-      </div>
-      <div id="staff-panel-overlay" onclick="closeStaffPanel()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.2);z-index:199"></div>
 
 </body>
 </html>

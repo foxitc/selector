@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pub Leaderboard — Cat & Wickets</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --cream: #faf8f4; --cream2: #f4f0e8; --cream3: #ede8dc;
+  --white: #ffffff; --teal: #1a6b5a; --teal2: #22876f;
+  --teal-bg: #edf5f2; --teal-mid: #c8e6de;
+  --coral: #e8614a; --coral-bg: #fdf0ed;
+  --gold: #c4922a; --gold-bg: #fdf6e8;
+  --ink: #1c1917; --ink2: #44403c; --ink3: #78716c; --ink4: #a8a29e;
+  --border: #e7e2d8; --border2: #d6cfc3;
+  --shadow: 0 1px 3px rgba(28,25,23,0.08);
+  --shadow2: 0 4px 12px rgba(28,25,23,0.1);
+  --display: 'Playfair Display', serif; --sans: 'DM Sans', sans-serif; --mono: 'DM Mono', monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--cream); color: var(--ink); font-family: var(--sans); font-size: 14px; }
+
+.header {
+  background: var(--white); border-bottom: 1px solid var(--border);
+  padding: 0 32px; height: 56px; display: flex; align-items: center;
+  justify-content: space-between; box-shadow: var(--shadow); position: sticky; top: 0; z-index: 10;
+}
+.header-left { display: flex; align-items: center; gap: 14px; }
+.header-crest { width: 32px; height: 32px; background: var(--teal); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-family: var(--display); font-size: 11px; font-weight: 700; color: white; }
+.header-title { font-family: var(--display); font-size: 17px; font-weight: 600; }
+.btn { padding: 7px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--white); color: var(--ink); cursor: pointer; font-family: var(--sans); font-size: 13px; font-weight: 500; }
+.btn-ghost { background: transparent; }
+
+.page { max-width: 1400px; margin: 0 auto; padding: 32px 24px; }
+.ph { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; gap: 20px; }
+.ph-t { font-family: var(--display); font-size: 28px; font-weight: 700; letter-spacing: -0.01em; }
+.ph-s { font-size: 13px; color: var(--ink3); margin-top: 3px; max-width: 560px; line-height: 1.5; }
+
+.controls { display: flex; align-items: center; gap: 12px; background: var(--white); border: 1px solid var(--border); padding: 12px 16px; border-radius: 12px; box-shadow: var(--shadow); margin-bottom: 20px; flex-wrap: wrap; }
+.controls label { font-size: 11px; font-weight: 600; letter-spacing: 0.05em; color: var(--ink3); text-transform: uppercase; }
+.controls select { border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; font-family: var(--sans); font-size: 13px; background: var(--white); color: var(--ink); cursor: pointer; }
+
+.metric-picker { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px 16px; background: var(--white); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 20px; box-shadow: var(--shadow); }
+.metric-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 16px; font-size: 12px; font-weight: 500; border: 1px solid var(--border); background: var(--cream); cursor: pointer; user-select: none; transition: all 0.15s; }
+.metric-chip.selected { background: var(--teal); color: var(--white); border-color: var(--teal); }
+.metric-chip:hover { transform: translateY(-1px); box-shadow: var(--shadow); }
+
+.league { background: var(--white); border-radius: 16px; box-shadow: var(--shadow2); overflow: hidden; border: 1px solid var(--border); }
+.league-row { display: grid; grid-template-columns: 60px 220px 110px auto; gap: 16px; align-items: center; padding: 18px 24px; border-bottom: 1px solid var(--border); transition: background 0.1s; }
+.league-row:last-child { border-bottom: none; }
+.league-row:hover { background: var(--cream); }
+.league-row.head { background: var(--cream2); border-bottom: 2px solid var(--border2); font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink3); }
+.rank { font-family: var(--display); font-size: 28px; font-weight: 700; text-align: center; }
+.rank.r1 { color: #c4922a; } .rank.r2 { color: #94a3b8; } .rank.r3 { color: #b87333; }
+.pub-name { font-family: var(--display); font-size: 18px; font-weight: 600; }
+.pub-short { font-size: 11px; color: var(--ink4); margin-top: 2px; font-family: var(--mono); letter-spacing: 0.05em; }
+.score-pill { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 14px; border-radius: 12px; min-width: 80px; }
+.score-pill.green { background: var(--teal-bg); color: var(--teal); }
+.score-pill.amber { background: var(--gold-bg); color: var(--gold); }
+.score-pill.red { background: var(--coral-bg); color: var(--coral); }
+.score-num { font-family: var(--display); font-size: 22px; font-weight: 700; line-height: 1; }
+.score-tier { font-size: 9px; letter-spacing: 0.06em; font-weight: 600; text-transform: uppercase; }
+.metrics-strip { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(70px, 1fr); gap: 12px; }
+.m-cell { text-align: left; padding: 0 8px; border-left: 1px solid var(--border); }
+.m-cell:first-child { border-left: none; }
+.m-name { font-size: 10px; color: var(--ink4); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; line-height: 1.2; }
+.m-val { font-family: var(--mono); font-weight: 600; font-size: 14px; }
+.m-val.green { color: var(--teal); } .m-val.amber { color: var(--gold); } .m-val.red { color: var(--coral); }
+.m-val.empty { color: var(--ink4); }
+
+.empty-state { padding: 60px; text-align: center; color: var(--ink4); font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="header-left">
+    <div class="header-crest">C&amp;W</div>
+    <div>
+      <div class="header-title">Pub Leaderboard</div>
+      <div style="font-size:11px;color:var(--ink4)">Cross-venue performance comparison</div>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px">
+    <a href="/" class="btn btn-ghost">← Back to Coach</a>
+  </div>
+</div>
+
+<div class="page">
+  <div class="ph">
+    <div>
+      <div class="ph-t">League Table</div>
+      <div class="ph-s">All three pubs ranked by composite score across active selector metrics. Same scoring formula as individuals — applied at venue level. Pick which metrics to show.</div>
+    </div>
+    <div class="controls">
+      <label for="periodSel">Period</label>
+      <select id="periodSel" onchange="loadLeague()">
+        <option value="7d">Last 7 days</option>
+        <option value="14d">Last 14 days</option>
+        <option value="30d" selected>Last 30 days</option>
+        <option value="90d">Last 90 days</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="metric-picker" id="metricPicker">
+    <span style="font-size:11px;color:var(--ink3);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;align-self:center;margin-right:4px">Show metrics:</span>
+  </div>
+
+  <div class="league" id="leagueTable">
+    <div class="empty-state">Loading league…</div>
+  </div>
+
+  <div style="background:var(--white);border-radius:16px;box-shadow:var(--shadow2);border:1px solid var(--border);margin-top:24px;padding:24px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:12px">
+      <div>
+        <div style="font-family:var(--display);font-size:20px;font-weight:600">Score Trend</div>
+        <div style="font-size:12px;color:var(--ink3);margin-top:2px">Weekly composite score by venue</div>
+      </div>
+      <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink2)"><span style="display:inline-block;width:14px;height:3px;background:#1a6b5a;border-radius:2px"></span>Griffin</div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink2)"><span style="display:inline-block;width:14px;height:3px;background:#e8614a;border-radius:2px"></span>Tap & Run</div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink2)"><span style="display:inline-block;width:14px;height:3px;background:#c4922a;border-radius:2px"></span>Long Hop</div>
+      </div>
+    </div>
+    <div id="trendChart" style="position:relative;width:100%;min-height:280px"></div>
+  </div>
+</div>
+
+<script>
+const API = '/api/v1';
+let token = '';
+let leagueData = null;
+let selectedMetrics = new Set();
+let allMetrics = [];
+
+async function getToken() {
+  const stored = sessionStorage.getItem('coach_token');
+  if (stored) return stored;
+  window.location.href = '/login.html';
+  return '';
+}
+
+async function loadAllMetrics() {
+  const r = await fetch(`${API}/selector/metrics`, { headers: { 'Authorization': `Bearer ${token}` } });
+  const d = await r.json();
+  allMetrics = (d.data || []).filter(m => m.is_active);
+  // Default to selecting first 6 most-weighted metrics
+  if (selectedMetrics.size === 0) {
+    allMetrics.slice(0, 6).forEach(m => selectedMetrics.add(m.metric_key));
+  }
+  renderPicker();
+}
+
+function renderPicker() {
+  const pick = document.getElementById('metricPicker');
+  const heading = pick.children[0].outerHTML;
+  pick.innerHTML = heading + allMetrics.map(m =>
+    `<div class="metric-chip ${selectedMetrics.has(m.metric_key) ? 'selected' : ''}" onclick="toggleMetric('${m.metric_key}')">${m.name}</div>`
+  ).join('');
+}
+
+function toggleMetric(key) {
+  if (selectedMetrics.has(key)) selectedMetrics.delete(key);
+  else selectedMetrics.add(key);
+  renderPicker();
+  loadLeague();
+}
+
+async function loadLeague() {
+  const period = document.getElementById('periodSel').value;
+  const metrics = Array.from(selectedMetrics).join(',');
+  const url = `${API}/league/pubs?period=${period}` + (metrics ? `&metrics=${metrics}` : '');
+  const r = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+  const d = await r.json();
+  leagueData = d.data;
+  renderLeague();
+}
+
+function renderLeague() {
+  const t = document.getElementById('leagueTable');
+  if (!leagueData || !leagueData.league?.length) {
+    t.innerHTML = '<div class="empty-state">No league data available</div>';
+    return;
+  }
+
+  // Build header row
+  const selKeys = Array.from(selectedMetrics);
+  const visibleMetrics = allMetrics.filter(m => selKeys.includes(m.metric_key));
+
+  let html = '<div class="league-row head"><div>Rank</div><div>Pub</div><div>Score</div><div class="metrics-strip">' +
+    visibleMetrics.map(m => `<div class="m-cell"><div class="m-name">${m.name}</div></div>`).join('') +
+    '</div></div>';
+
+  for (const v of leagueData.league) {
+    const rankIcon = v.rank === 1 ? '🥇' : v.rank === 2 ? '🥈' : v.rank === 3 ? '🥉' : v.rank;
+    const scoreClass = v.score >= 80 ? 'green' : v.score >= 60 ? 'amber' : 'red';
+
+    let metricCells = '';
+    for (const m of visibleMetrics) {
+      const mv = v.metrics[m.metric_key];
+      if (!mv) {
+        metricCells += '<div class="m-cell"><div class="m-val empty">—</div></div>';
+      } else {
+        const target = Number(mv.target);
+        const fd = target < 10 ? 2 : 1;
+        const valStr = mv.actual.toLocaleString(undefined, { minimumFractionDigits: fd, maximumFractionDigits: fd });
+        const prefix = m.name.toLowerCase().includes('£') || m.metric_key.includes('spend') || m.metric_key.includes('rev_per') ? '£' : '';
+        metricCells += `<div class="m-cell"><div class="m-val ${mv.status}">${prefix}${valStr}</div></div>`;
+      }
+    }
+
+    html += `<div class="league-row">
+      <div class="rank r${v.rank}">${rankIcon}</div>
+      <div><div class="pub-name">${v.venue_name}</div><div class="pub-short">${v.venue_short} · ${v.location_id}</div></div>
+      <div><div class="score-pill ${scoreClass}"><div class="score-num">${v.score}</div><div class="score-tier">${v.tier}</div></div></div>
+      <div class="metrics-strip">${metricCells}</div>
+    </div>`;
+  }
+
+  t.innerHTML = html;
+}
+
+async function loadTrend() {
+  try {
+    const r = await fetch(`${API}/league/pubs/trend?weeks=8`, { headers: { 'Authorization': `Bearer ${token}` } });
+    const d = await r.json();
+    renderTrend(d.data);
+  } catch(e) { console.error('Trend load error:', e); }
+}
+
+function renderTrend(data) {
+  const container = document.getElementById('trendChart');
+  if (!container || !data?.weeks?.length) return;
+
+  const W = container.clientWidth || 900;
+  const H = 280;
+  const padL = 40, padR = 16, padT = 14, padB = 32;
+  const innerW = W - padL - padR;
+  const innerH = H - padT - padB;
+
+  const weeks = data.weeks;
+  const venues = [
+    { id: 'griffin', color: '#1a6b5a', label: 'GRI' },
+    { id: 'taprun',  color: '#e8614a', label: 'TAP' },
+    { id: 'longhop', color: '#c4922a', label: 'HOP' }
+  ];
+
+  // Y axis: 0 to 100
+  const yMin = 0, yMax = 100;
+  const x = (i) => padL + (innerW * i) / Math.max(weeks.length - 1, 1);
+  const y = (v) => padT + innerH - (innerH * (v - yMin) / (yMax - yMin));
+
+  // Build paths
+  const paths = venues.map(v => {
+    let d = '';
+    weeks.forEach((wk, i) => {
+      const score = wk.scores[v.id];
+      if (score == null) return;
+      const cmd = d === '' ? 'M' : 'L';
+      d += `${cmd}${x(i).toFixed(1)},${y(score).toFixed(1)} `;
+    });
+    return { ...v, path: d.trim() };
+  });
+
+  // Build dots
+  const dots = [];
+  weeks.forEach((wk, i) => {
+    venues.forEach(v => {
+      const score = wk.scores[v.id];
+      if (score == null) return;
+      dots.push({ x: x(i), y: y(score), color: v.color, score, label: v.label, week: wk.week_ending });
+    });
+  });
+
+  // Y axis grid lines (0, 25, 50, 75, 100)
+  const yGridValues = [0, 25, 50, 75, 100];
+  const yGrid = yGridValues.map(val => ({
+    val,
+    y: y(val),
+    band: val === 60 ? 'County Player ▲' : val === 80 ? 'Test Player ▲' : null
+  }));
+
+  // X axis labels
+  const xLabels = weeks.map((wk, i) => {
+    const d = new Date(wk.week_ending);
+    return { x: x(i), label: d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) };
+  });
+
+  // SVG
+  let svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" style="overflow:visible" xmlns="http://www.w3.org/2000/svg">`;
+
+  // Tier bands (colored backgrounds)
+  svg += `<rect x="${padL}" y="${y(60)}" width="${innerW}" height="${y(0)-y(60)}" fill="#fdf0ed" opacity="0.4"/>`;
+  svg += `<rect x="${padL}" y="${y(80)}" width="${innerW}" height="${y(60)-y(80)}" fill="#fdf6e8" opacity="0.4"/>`;
+  svg += `<rect x="${padL}" y="${padT}" width="${innerW}" height="${y(80)-padT}" fill="#edf5f2" opacity="0.4"/>`;
+
+  // Y grid + labels
+  yGrid.forEach(g => {
+    svg += `<line x1="${padL}" y1="${g.y}" x2="${padL+innerW}" y2="${g.y}" stroke="#e7e2d8" stroke-width="1" stroke-dasharray="2 4"/>`;
+    svg += `<text x="${padL-8}" y="${g.y+4}" font-family="DM Mono, monospace" font-size="10" fill="#a8a29e" text-anchor="end">${g.val}</text>`;
+  });
+
+  // Tier labels (right side)
+  svg += `<text x="${padL+innerW-4}" y="${y(70)+4}" font-family="DM Sans, sans-serif" font-size="9" fill="#c4922a" text-anchor="end" font-weight="600">COUNTY 60+</text>`;
+  svg += `<text x="${padL+innerW-4}" y="${y(90)+4}" font-family="DM Sans, sans-serif" font-size="9" fill="#1a6b5a" text-anchor="end" font-weight="600">TEST 80+</text>`;
+
+  // X labels
+  xLabels.forEach(l => {
+    svg += `<text x="${l.x}" y="${H-padB+18}" font-family="DM Sans, sans-serif" font-size="10" fill="#78716c" text-anchor="middle">${l.label}</text>`;
+  });
+
+  // Lines
+  paths.forEach(p => {
+    if (!p.path) return;
+    svg += `<path d="${p.path}" fill="none" stroke="${p.color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`;
+  });
+
+  // Dots
+  dots.forEach(d => {
+    svg += `<circle cx="${d.x}" cy="${d.y}" r="4.5" fill="white" stroke="${d.color}" stroke-width="2.5"/>`;
+    svg += `<circle cx="${d.x}" cy="${d.y}" r="14" fill="transparent">
+              <title>${d.label} · week ending ${d.week} · score ${d.score}</title>
+            </circle>`;
+  });
+
+  svg += '</svg>';
+  container.innerHTML = svg;
+}
+
+(async () => {
+  token = await getToken();
+  await loadAllMetrics();
+  await loadLeague();
+  await loadTrend();
+})();
+</script>
+</body>
+</html>

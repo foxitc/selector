@@ -521,22 +521,6 @@ select.fg-i { cursor:pointer; appearance:none; }
           </button>
         </div>
 
-<div class="card" id="health-card" style="margin-bottom:14px;border:1px solid var(--border)">
-  <div class="card-h" style="display:flex;justify-content:space-between;align-items:center">
-    <div class="card-t">
-      <span id="health-summary-dot" class="dot" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--green);margin-right:8px;vertical-align:middle"></span>
-      System Health
-      <span id="health-summary-text" style="color:var(--fg2);font-weight:400;margin-left:8px;font-size:12px">Loading…</span>
-    </div>
-    <div style="display:flex;gap:6px;align-items:center;font-size:11px;color:var(--fg3)">
-      <span id="health-updated">—</span>
-      <button class="btn btn-ghost btn-sm" onclick="loadClubHealth()" style="padding:4px 10px">Refresh</button>
-    </div>
-  </div>
-  <div id="health-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;padding:14px"></div>
-</div>
-
-
         <div class="stats">
           <div class="stat">
             <div class="stat-stripe" style="background:var(--green)"></div>
@@ -731,9 +715,10 @@ select.fg-i { cursor:pointer; appearance:none; }
         <div class="card" style="margin-bottom:14px">
           <div class="card-h"><div class="card-t">Active Keys</div></div>
           <table class="tbl">
-            <thead><tr><th>Name</th><th>Key</th><th>Requests (24h)</th><th>Last Used</th><th>Status</th><th></th></tr></thead>
-            <tbody id="outbound-keys-tbody">
-              <tr><td colspan="6" class="empty">Loading…</td></tr>
+            <thead><tr><th>Name</th><th>Key</th><th>Permissions</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+              <tr><td class="p">Relay Inbound</td><td class="mono">b9d9755...3980 <span style="color:var(--red);font-size:10px">(rotated)</span></td><td><span class="b b-blue">webhook:write</span></td><td><span class="b b-green"><span class="dot"></span>Active</span></td><td><button class="btn btn-ghost btn-sm" onclick="showKey()">View</button></td></tr>
+              <tr><td colspan="5" class="empty">No outbound keys yet — create one for the MD app or Test Player</td></tr>
             </tbody>
           </table>
         </div>
@@ -998,58 +983,12 @@ function nav(id) {
   if (id==='clerks') loadClerks();
   if (id==='venues') loadVenues();
   if (id==='audit') renderAudit();
-  if (id==='apis') loadOutboundKeys();
-}
-
-// ── Club Health (data engine status) ──
-let _clubHealthInterval = null;
-
-async function loadClubHealth() {
-  try {
-    const r = await api('/club/health');
-    if (!r.data) return;
-    const { checks, summary, generated_at } = r.data;
-
-    // Update header
-    const dotColor = summary.worst === 'red' ? 'var(--red)' : summary.worst === 'amber' ? 'var(--amber)' : 'var(--green)';
-    const sumDot = document.getElementById('health-summary-dot');
-    if (sumDot) sumDot.style.background = dotColor;
-    const sumText = document.getElementById('health-summary-text');
-    if (sumText) sumText.textContent = summary.green + ' green · ' + summary.amber + ' amber · ' + summary.red + ' red';
-    const upd = document.getElementById('health-updated');
-    if (upd) upd.textContent = 'Updated ' + new Date(generated_at).toLocaleTimeString('en-GB');
-
-    // Render grid
-    const grid = document.getElementById('health-grid');
-    if (!grid) return;
-    grid.innerHTML = checks.map(c => {
-      const colorVar = c.status === 'red' ? 'var(--red)' : c.status === 'amber' ? 'var(--amber)' : 'var(--green)';
-      const bgVar = c.status === 'red' ? 'var(--red-bg)' : c.status === 'amber' ? 'var(--amber-bg)' : 'var(--green-bg)';
-      return '<div style="border:1px solid var(--border);border-radius:8px;padding:12px 14px;background:var(--bg2)">'
-        + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'
-        + '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + colorVar + '"></span>'
-        + '<span style="font-size:12px;font-weight:500;color:var(--fg)">' + c.source + '</span>'
-        + '<span style="font-size:10px;color:var(--fg3);margin-left:auto;text-transform:uppercase;letter-spacing:0.04em">' + c.status + '</span>'
-        + '</div>'
-        + '<div style="font-size:12px;color:var(--fg2);line-height:1.4">' + c.message + '</div>'
-        + '</div>';
-    }).join('');
-  } catch(e) {
-    log('Health check failed: ' + e.message, 'error');
-  }
-}
-
-function startHealthPolling() {
-  if (_clubHealthInterval) clearInterval(_clubHealthInterval);
-  loadClubHealth();
-  _clubHealthInterval = setInterval(loadClubHealth, 30000);
 }
 
 // Init
 async function init() {
   await getToken();
   loadDashboard();
-  startHealthPolling();
   log('The Club connected','ok');
   log('theclub.thecatandwickets.com · SSL active','ok');
   log('Relay webhook ready','ok');
@@ -1585,153 +1524,7 @@ async function showKey() {
   document.getElementById('km-v').textContent = key || '[Key not available — check server .env]';
 }
 
-async function loadOutboundKeys() {
-  try {
-    const r = await api('/admin/api-keys');
-    const keys = (r.data || []).filter(k => !k.revoked_at);
-    const tbody = document.getElementById('outbound-keys-tbody');
-    if (!tbody) return;
-    if (keys.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="6" class="empty">No outbound keys yet — click "Create API Key" to add one</td></tr>';
-      return;
-    }
-    tbody.innerHTML = keys.map(k => {
-      const lastUsed = k.last_used_at ? fmtDT(k.last_used_at) : '<span style="color:var(--fg3)">Never</span>';
-      const safeName = (k.name || '').replace(/'/g, '&#39;');
-      return '<tr style="cursor:pointer" onclick="openKeyDetail(\'' + k.id + '\')">'
-        + '<td class="p">' + k.name + '</td>'
-        + '<td class="mono">' + k.key_prefix + '…</td>'
-        + '<td>' + (k.requests_24h || 0) + '</td>'
-        + '<td style="font-size:11px">' + lastUsed + '</td>'
-        + '<td><span class="b b-green"><span class="dot"></span>Active</span></td>'
-        + '<td onclick="event.stopPropagation()"><button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="revokeOutboundKey(\'' + k.id + '\', \'' + safeName.replace(/\'/g, '') + '\')">Revoke</button></td>'
-        + '</tr>';
-    }).join('');
-  } catch(e) {
-    log('Failed to load API keys: ' + e.message, 'error');
-  }
-}
-
-async function revokeOutboundKey(id, name) {
-  if (!confirm('Revoke API key "' + name + '"? Anyone using this key will lose access immediately.')) return;
-  try {
-    const r = await api('/admin/api-keys/' + id, { method: 'DELETE' });
-    if (r.error) { log('Revoke failed: ' + r.error.message, 'error'); return; }
-    log('Key revoked: ' + name, 'ok');
-    loadOutboundKeys();
-  } catch(e) {
-    log('Revoke error: ' + e.message, 'error');
-  }
-}
-
-// ── Key detail panel ──
-let _outboundKeysCache = [];
-
-async function openKeyDetail(id) {
-  // We've cached keys from loadOutboundKeys; find by id
-  const r = await api('/admin/api-keys');
-  const all = r.data || [];
-  const k = all.find(x => x.id === id);
-  if (!k) { log('Key not found','error'); return; }
-
-  document.getElementById('keydp-title').textContent = k.name;
-
-  const created = k.created_at ? fmtDT(k.created_at) : '—';
-  const lastUsed = k.last_used_at ? fmtDT(k.last_used_at) : 'Never';
-  const status = k.revoked_at ? '<span class="b" style="background:var(--red-bg);color:var(--red)">Revoked</span>' : '<span class="b b-green"><span class="dot"></span>Active</span>';
-  const revokedRow = k.revoked_at ? '<div class="keydp-row"><span class="keydp-row-l">Revoked</span><span class="keydp-row-v">' + fmtDT(k.revoked_at) + '</span></div>' : '';
-
-  const baseUrl = 'https://theclub.thecatandwickets.com/api/v1';
-  const exampleEndpoint = '/scores/leaderboard?period=week';
-  const fullKeyPlaceholder = k.key_prefix + 'XXXXXXXXXXXXXXXXXXXXXXXXX';
-  const curl = 'curl -H "X-API-Key: ' + fullKeyPlaceholder + '" \\\n  "' + baseUrl + exampleEndpoint + '"';
-
-  document.getElementById('keydp-body').innerHTML =
-    '<div class="keydp-stats">'
-    + '<div class="keydp-stat"><div class="keydp-stat-l">Requests 24h</div><div class="keydp-stat-v">' + (k.requests_24h || 0) + '</div></div>'
-    + '<div class="keydp-stat"><div class="keydp-stat-l">Rate Limit</div><div class="keydp-stat-v">' + k.rate_limit + '/hr</div></div>'
-    + '</div>'
-    + '<div class="keydp-section">'
-    + '<div class="keydp-section-t">Details</div>'
-    + '<div class="keydp-row"><span class="keydp-row-l">Name</span><span class="keydp-row-v">' + k.name + '</span></div>'
-    + '<div class="keydp-row"><span class="keydp-row-l">Key Prefix</span><span class="keydp-row-v">' + k.key_prefix + '…</span></div>'
-    + '<div class="keydp-row"><span class="keydp-row-l">Status</span><span>' + status + '</span></div>'
-    + '<div class="keydp-row"><span class="keydp-row-l">Created</span><span class="keydp-row-v">' + created + '</span></div>'
-    + '<div class="keydp-row"><span class="keydp-row-l">Last Used</span><span class="keydp-row-v">' + lastUsed + '</span></div>'
-    + revokedRow
-    + '</div>'
-    + '<div class="keydp-section">'
-    + '<div class="keydp-section-t">Sample Request</div>'
-    + '<div class="keydp-curl"><button class="keydp-curl-copy" onclick="copyCurlSnippet(this)">Copy</button>' + curl + '</div>'
-    + '<div style="font-size:11px;color:var(--fg3);margin-top:8px">Replace XXX… with the full key. The raw key is hashed and cannot be retrieved \u2014 if lost, revoke and create a new one.</div>'
-    + '</div>'
-    + '<div class="keydp-section">'
-    + '<div class="keydp-section-t">Available Endpoints</div>'
-    + '<div style="font-family:var(--mono);font-size:11px;color:var(--fg2);line-height:1.9">'
-    + 'GET /scores/leaderboard?period=week|last_week|month|today<br>'
-    + 'GET /scores/{team_member_id}<br>'
-    + 'GET /metrics/asph<br>'
-    + 'GET /metrics/google/ratings<br>'
-    + 'GET /metrics/resdiary<br>'
-    + 'GET /venues<br>'
-    + 'GET /squad<br>'
-    + 'GET /selector/metrics<br>'
-    + 'GET /clerks<br>'
-    + '</div>'
-    + '</div>'
-    + (k.revoked_at ? '' : '<div class="keydp-actions"><button class="keydp-btn-revoke" onclick="revokeFromDetail(\'' + k.id + '\', \'' + (k.name||'').replace(/\'/g,'') + '\')">Revoke this key</button></div>');
-
-  document.getElementById('keydp-overlay').classList.add('open');
-  document.getElementById('keydp').classList.add('open');
-}
-
-function closeKeyDetail() {
-  document.getElementById('keydp-overlay').classList.remove('open');
-  document.getElementById('keydp').classList.remove('open');
-}
-
-function copyCurlSnippet(btn) {
-  const text = btn.parentElement.textContent.replace('Copy','').trim();
-  navigator.clipboard?.writeText(text);
-  const orig = btn.textContent;
-  btn.textContent = 'Copied!';
-  setTimeout(() => { btn.textContent = orig; }, 1500);
-}
-
-async function revokeFromDetail(id, name) {
-  if (!confirm('Revoke "' + name + '"?')) return;
-  await api('/admin/api-keys/' + id, { method: 'DELETE' });
-  log('Key revoked: ' + name, 'ok');
-  closeKeyDetail();
-  loadOutboundKeys();
-}
-
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeKeyDetail();
-});
-
-async function genKey() {
-  const name = document.getElementById('nkn')?.value?.trim();
-  if (!name || name.length < 2) { alert('Enter a key name (at least 2 characters)'); return; }
-  try {
-    const r = await api('/admin/api-keys', { method: 'POST', body: JSON.stringify({ name, rate_limit: 1000 }) });
-    if (r.error) { alert('Error: ' + r.error.message); return; }
-    closeM('create-key');
-    // Clear the form
-    const nkn = document.getElementById('nkn'); if (nkn) nkn.value = '';
-    // Show key in the existing reveal modal
-    document.getElementById('km-t').textContent = name + ' — API Key';
-    document.getElementById('km-l').textContent = 'Copy this now — it will not be shown again';
-    document.getElementById('km-v').textContent = r.data.key;
-    openM('show-key');
-    log('Key created: ' + name, 'ok');
-    loadOutboundKeys();
-  } catch(e) {
-    alert('Error creating key: ' + e.message);
-  }
-}
-
-function _genKey_old_unused() {
+function genKey() {
   const name=document.getElementById('nkn').value.trim();
   if (!name) return;
   const key=Array.from(crypto.getRandomValues(new Uint8Array(32))).map(b=>b.toString(16).padStart(2,'0')).join('');
@@ -1750,44 +1543,5 @@ document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{
 function fmtD(s) { try{return new Date(s).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',timeZone:'Europe/London'});}catch{return s||'—';} }
 function fmtDT(s) { try{return new Date(s).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',second:'2-digit',timeZone:'Europe/London'});}catch{return s||'—';} }
 </script>
-
-<style>
-.keydp-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:999; opacity:0; pointer-events:none; transition:opacity 0.2s; }
-.keydp-overlay.open { opacity:1; pointer-events:auto; }
-.keydp { position:fixed; top:0; right:0; bottom:0; width:520px; max-width:90vw; background:var(--bg2); border-left:1px solid var(--border); z-index:1000; transform:translateX(100%); transition:transform 0.25s ease; overflow-y:auto; box-shadow:-4px 0 16px rgba(0,0,0,0.08); }
-.keydp.open { transform:translateX(0); }
-.keydp-h { display:flex; align-items:center; justify-content:space-between; padding:18px 22px; border-bottom:1px solid var(--border); position:sticky; top:0; background:var(--bg2); z-index:2; }
-.keydp-t { font-size:15px; font-weight:600; color:var(--fg); }
-.keydp-x { cursor:pointer; color:var(--fg2); padding:4px 8px; border-radius:6px; font-size:18px; line-height:1; }
-.keydp-x:hover { background:var(--bg3); color:var(--fg); }
-.keydp-b { padding:18px 22px; }
-.keydp-stats { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px; }
-.keydp-stat { background:var(--bg3); border-radius:8px; padding:12px 14px; border:1px solid var(--border); }
-.keydp-stat-l { font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:var(--fg3); margin-bottom:4px; }
-.keydp-stat-v { font-size:18px; font-weight:600; color:var(--fg); font-family:var(--mono); }
-.keydp-section { margin-bottom:20px; }
-.keydp-section-t { font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:var(--fg3); margin-bottom:8px; font-weight:600; }
-.keydp-row { display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px solid var(--border); font-size:13px; }
-.keydp-row:last-child { border-bottom:none; }
-.keydp-row-l { color:var(--fg2); }
-.keydp-row-v { color:var(--fg); font-family:var(--mono); font-size:12px; }
-.keydp-curl { background:#0c0d12; color:#a5b4fc; padding:14px; border-radius:8px; font-family:var(--mono); font-size:11px; line-height:1.7; white-space:pre-wrap; word-break:break-all; position:relative; }
-[data-theme="dark"] .keydp-curl { background:#000; }
-.keydp-curl-copy { position:absolute; top:8px; right:8px; background:var(--accent); color:#fff; border:none; padding:4px 10px; border-radius:4px; font-size:11px; cursor:pointer; }
-.keydp-curl-copy:hover { background:var(--accent2); }
-.keydp-actions { display:flex; gap:10px; margin-top:18px; padding-top:18px; border-top:1px solid var(--border); }
-.keydp-btn-revoke { background:var(--red-bg); color:var(--red); border:1px solid var(--red); padding:8px 14px; border-radius:6px; cursor:pointer; font-size:12px; font-weight:500; }
-.keydp-btn-revoke:hover { background:var(--red); color:#fff; }
-</style>
-
-<div class="keydp-overlay" id="keydp-overlay" onclick="closeKeyDetail()"></div>
-<div class="keydp" id="keydp">
-  <div class="keydp-h">
-    <div class="keydp-t" id="keydp-title">Key Details</div>
-    <span class="keydp-x" onclick="closeKeyDetail()">×</span>
-  </div>
-  <div class="keydp-b" id="keydp-body">Loading…</div>
-</div>
-
 </body>
 </html>

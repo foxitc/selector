@@ -67,7 +67,7 @@ body { background: var(--cream); color: var(--ink); font-family: var(--sans); fo
 
 .metric-row {
   display: grid;
-  grid-template-columns: 32px 1fr 90px 120px 80px 100px 80px;
+  grid-template-columns: 32px 1fr 90px 110px 110px 80px 100px 80px;
   gap: 12px; align-items: center;
   padding: 12px 20px; border-bottom: 1px solid var(--border);
   transition: background 0.1s;
@@ -78,7 +78,7 @@ body { background: var(--cream); color: var(--ink); font-family: var(--sans); fo
 
 .metric-head {
   display: grid;
-  grid-template-columns: 32px 1fr 90px 120px 80px 100px 80px;
+  grid-template-columns: 32px 1fr 90px 110px 110px 80px 100px 80px;
   gap: 12px; padding: 9px 20px;
   border-bottom: 2px solid var(--border);
   background: var(--cream2);
@@ -209,6 +209,15 @@ select.fi { cursor: pointer; }
       <div class="ph-t">Scoring Model</div>
       <div class="ph-s">Configure how The Selector calculates team member scores. Every metric below maps directly to Jack's spreadsheet. Toggle metrics on/off, adjust targets and weights — scores recalculate instantly.</div>
     </div>
+    <div style="display:flex;align-items:center;gap:10px;background:var(--white);border:1px solid var(--border);padding:6px 10px 6px 14px;border-radius:10px;box-shadow:var(--shadow)">
+      <span style="font-size:11px;font-weight:600;letter-spacing:0.05em;color:var(--ink3);text-transform:uppercase">Avg Period</span>
+      <select id="periodFilter" onchange="loadMetrics()" style="border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-family:var(--sans);font-size:13px;background:var(--white);color:var(--ink);cursor:pointer">
+        <option value="7d">Last 7 days</option>
+        <option value="14d">Last 14 days</option>
+        <option value="30d" selected>Last 30 days</option>
+        <option value="90d">Last 90 days</option>
+      </select>
+    </div>
   </div>
 
   <!-- Live score preview -->
@@ -259,7 +268,7 @@ select.fi { cursor: pointer; }
         <span style="font-size:11px;color:var(--ink4)">Higher weight = more influence on final score</span>
       </div>
       <div class="metric-head">
-        <span></span><span>Metric</span><span>Category</span><span>Target</span><span>Weight</span><span>Direction</span><span style="text-align:right">Preview</span>
+        <span></span><span>Metric</span><span>Category</span><span>Target</span><span>Actual Avg</span><span>Weight</span><span>Direction</span><span style="text-align:right">Preview</span>
       </div>
       <div id="rows-drinks"></div>
     </div>
@@ -268,7 +277,7 @@ select.fi { cursor: pointer; }
     <div class="card" id="cat-food">
       <div class="card-h"><div class="card-t"><span class="cat-pill cat-food">Food</span> <span id="food-count" style="color:var(--ink4);font-weight:400"></span></div></div>
       <div class="metric-head">
-        <span></span><span>Metric</span><span>Category</span><span>Target</span><span>Weight</span><span>Direction</span><span style="text-align:right">Preview</span>
+        <span></span><span>Metric</span><span>Category</span><span>Target</span><span>Actual Avg</span><span>Weight</span><span>Direction</span><span style="text-align:right">Preview</span>
       </div>
       <div id="rows-food"></div>
     </div>
@@ -277,16 +286,25 @@ select.fi { cursor: pointer; }
     <div class="card" id="cat-ops">
       <div class="card-h"><div class="card-t"><span class="cat-pill cat-ops">Operations</span> <span id="ops-count" style="color:var(--ink4);font-weight:400"></span></div></div>
       <div class="metric-head">
-        <span></span><span>Metric</span><span>Category</span><span>Target</span><span>Weight</span><span>Direction</span><span style="text-align:right">Preview</span>
+        <span></span><span>Metric</span><span>Category</span><span>Target</span><span>Actual Avg</span><span>Weight</span><span>Direction</span><span style="text-align:right">Preview</span>
       </div>
       <div id="rows-operations"></div>
+    </div>
+
+    <!-- Productivity -->
+    <div class="card" id="cat-productivity">
+      <div class="card-h"><div class="card-t"><span class="cat-pill cat-mixed">Productivity</span> <span id="productivity-count" style="color:var(--ink4);font-weight:400"></span></div></div>
+      <div class="metric-head">
+        <span></span><span>Metric</span><span>Category</span><span>Target</span><span>Actual Avg</span><span>Weight</span><span>Direction</span><span style="text-align:right">Preview</span>
+      </div>
+      <div id="rows-productivity"></div>
     </div>
 
     <!-- Mixed + Group -->
     <div class="card">
       <div class="card-h"><div class="card-t"><span class="cat-pill cat-group">Group & Mixed</span></div></div>
       <div class="metric-head">
-        <span></span><span>Metric</span><span>Category</span><span>Target</span><span>Weight</span><span>Direction</span><span style="text-align:right">Preview</span>
+        <span></span><span>Metric</span><span>Category</span><span>Target</span><span>Actual Avg</span><span>Weight</span><span>Direction</span><span style="text-align:right">Preview</span>
       </div>
       <div id="rows-mixed"></div>
       <div id="rows-group"></div>
@@ -451,9 +469,10 @@ async function getToken() {
 }
 
 async function loadMetrics() {
-  const r = await fetch(`${API}/selector/metrics`, {headers:{'Authorization':`Bearer ${token}`}});
+  const period = document.getElementById('periodFilter')?.value || '30d';
+  const r = await fetch(`${API}/selector/metrics/with-averages?period=${period}&venue=all`, {headers:{'Authorization':`Bearer ${token}`}});
   const d = await r.json();
-  metrics = d.data || [];
+  metrics = d.data?.metrics || d.data || [];
   renderMetrics();
   updatePreview();
 }
@@ -529,8 +548,8 @@ function updatePreview() {
 }
 
 function renderMetrics() {
-  const cats = ['Drinks', 'Food', 'Operations', 'Mixed', 'Group'];
-  const catIdMap = {Drinks:'drinks',Food:'food',Operations:'operations',Mixed:'mixed',Group:'group'};
+  const cats = ['Drinks', 'Food', 'Operations', 'Productivity', 'Mixed', 'Group'];
+  const catIdMap = {Drinks:'drinks',Food:'food',Operations:'operations',Productivity:'productivity',Mixed:'mixed',Group:'group'};
 
   // Update source lists
   const manualMetrics = metrics.filter(m => m.data_source === 'manual');
@@ -564,6 +583,7 @@ function renderMetrics() {
         </div>
         <span class="cat-pill ${catClass(m.category)}">${m.category}</span>
         <input class="num-input" type="number" step="0.01" value="${m.target}" id="target-${m.metric_key}" onchange="updateMetric('${m.metric_key}','target',this.value)" style="width:100px">
+        <div style="font-size:14px;font-weight:600;font-family:var(--mono);color:${m.actual_average === null || m.actual_average === undefined ? 'var(--ink4)' : (m.status === 'green' ? 'var(--teal)' : m.status === 'amber' ? 'var(--gold)' : 'var(--coral)')}">${m.actual_average === null || m.actual_average === undefined ? '—' : Number(m.actual_average).toLocaleString(undefined,{minimumFractionDigits:m.target<10?2:1,maximumFractionDigits:m.target<10?2:1})}</div>
         <input class="num-input" type="number" min="1" max="10" step="1" value="${m.weight}" id="weight-${m.metric_key}" onchange="updateMetric('${m.metric_key}','weight',this.value)" style="width:60px">
         <span class="direction-tag ${m.direction === 'positive' ? 'dir-pos' : 'dir-neg'}">
           ${m.direction === 'positive' ? '▲ Higher' : '▼ Lower'}
