@@ -1669,7 +1669,7 @@ function renderScoresTable(scores, highlightMetric) {
             + 'title="Score: ' + ms + '/100 | Target: ' + m.target + '">' + display + '</td>';
         }).join('');
 
-        return '<tr style="cursor:pointer" onclick="openStaffPanel(' + JSON.stringify(s).replace(/'/g,"\'") + ')">'
+        return '<tr style="cursor:pointer" onclick=\'openStaffPanel(' + JSON.stringify(s).replace(/'/g,'&#39;') + ')\'>'
           + '<td class="dim">' + (i+1) + '</td>'
           + '<td class="p" style="display:flex;align-items:center;gap:8px;min-width:140px">'
           + '<div style="width:26px;height:26px;border-radius:50%;background:' + (s.avatar_color||'#4a9b8e') + ';display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:white;flex-shrink:0">' + (s.avatar_initials||'?') + '</div>'
@@ -1905,58 +1905,6 @@ async function deactivateUser(idx) {
 let metricsData = [];
 
 
-function openStaffPanel(scoreData) {
-  const tierLabels = {'could-say':'Test Player','should-say':'County Player','have-to':'Club','review':'Academy'};
-  const tierColors = {'could-say':'var(--teal)','should-say':'var(--gold)','have-to':'var(--coral)','review':'var(--ink4)'};
-  
-  document.getElementById('sp-name').textContent = scoreData.display_name || '—';
-  document.getElementById('sp-venue').textContent = scoreData.venue_name || '—';
-  document.getElementById('sp-score').textContent = scoreData.score ?? '—';
-  document.getElementById('sp-mains').textContent = scoreData.mains ?? '—';
-  document.getElementById('sp-tier').textContent = tierLabels[scoreData.tier] || '—';
-  document.getElementById('sp-tier').style.color = tierColors[scoreData.tier] || 'var(--ink)';
-  document.getElementById('sp-period').textContent = 'Period: ' + currentScoresPeriod.replace('month','28 days').replace('week','7 days').replace('fortnight','14 days').replace('quarter','90 days').replace('today','24 hrs');
-  
-  // Metric breakdown bars
-  const metrics = scoreData.active_metrics || [];
-  const actuals = scoreData.actuals || {};
-  const metricScores = scoreData.metric_scores || {};
-  
-  document.getElementById('sp-metrics').innerHTML = metrics.map(m => {
-    const actual = actuals[m.key];
-    const ms = metricScores[m.key] || 0;
-    const barColor = ms >= 75 ? 'var(--teal)' : ms >= 50 ? 'var(--gold)' : 'var(--coral)';
-    const displayVal = actual === undefined ? '—' :
-      (m.key === 'avg_spend_dry' || m.key === 'avg_spend_wet') ? '£' + actual :
-      m.key === 'premium_wine' ? '£' + actual + ' per 100' :
-      m.key === 'named_review' ? actual + ' reviews' :
-      actual + '%';
-    const targetDisplay = m.key === 'avg_spend_dry' ? '£' + m.target :
-      m.key === 'premium_wine' ? '£' + m.target :
-      m.key === 'named_review' ? m.target + ' reviews' : m.target + '%';
-    return '<div style="padding:10px 12px;background:var(--bg);border-radius:8px">'
-      + '<div style="display:flex;justify-content:space-between;margin-bottom:6px">'
-      + '<span style="font-size:12px;font-weight:500;color:var(--ink2)">' + m.label + '</span>'
-      + '<span style="font-size:12px;font-weight:700;color:' + barColor + '">' + ms + ' pts</span>'
-      + '</div>'
-      + '<div style="height:4px;background:var(--border);border-radius:2px;margin-bottom:6px">'
-      + '<div style="height:4px;background:' + barColor + ';border-radius:2px;width:' + Math.min(100,ms) + '%"></div>'
-      + '</div>'
-      + '<div style="display:flex;justify-content:space-between">'
-      + '<span style="font-size:11px;color:var(--ink4)">Actual: ' + displayVal + '</span>'
-      + '<span style="font-size:11px;color:var(--ink4)">Target: ' + targetDisplay + '</span>'
-      + '</div>'
-      + '</div>';
-  }).join('');
-  
-  document.getElementById('staff-panel').style.right = '0';
-  document.getElementById('staff-panel-overlay').style.display = 'block';
-}
-
-function closeStaffPanel() {
-  document.getElementById('staff-panel').style.right = '-420px';
-  document.getElementById('staff-panel-overlay').style.display = 'none';
-}
 
 
 function filterSquad() {
