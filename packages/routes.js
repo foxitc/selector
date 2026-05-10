@@ -3256,6 +3256,51 @@ router.get('/scores/:teamMemberId', auth, async (req, res, next) => {
   } catch(e) { next(e); }
 });
 
+
+// Squad member status toggle - immediately updates scores
+router.put('/squad/:id/status', auth, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { is_active } = req.body;
+    
+    // Update team member status
+    await database_js_1.db.query(
+      'UPDATE team_members SET is_active=$1, selector_excluded=$2, updated_at=NOW() WHERE id=$3',
+      [is_active, !is_active, id]
+    );
+    
+    if (!is_active) {
+      // Deactivating - zero out their scores immediately
+      await database_js_1.db.query(
+        "UPDATE team_members SET selector_score=NULL, selector_tier=NULL, selector_updated_at=NOW() WHERE id=$1",
+        [id]
+      );
+    }
+    
+    ok(res, { message: is_active ? 'Member activated' : 'Member deactivated and removed from scoring' });
+  } catch(e) { next(e); }
+});
+
+// New starter alert - staff who have hit 100 mains but aren't in scoring
+router.get('/squad/new-starters', auth, async (req, res, next) => {
+  try {
+    const r = await database_js_1.db.query(
+      "SELECT tm.id, tm.display_name, tm.venue_id, v.name as venue_name, " +
+      "COUNT(DISTINCT si.transaction_id) FILTER (WHERE si.sales_group='31' AND si.individual_net_price>=5) as food_transactions, " +
+      "SUM(si.quantity) FILTER (WHERE si.sales_group='31' AND si.individual_net_price>=5) as mains_total " +
+      "FROM team_members tm " +
+      "JOIN venues v ON v.id=tm.venue_id " +
+      "JOIN relay_clerk_mappings rcm ON rcm.team_member_id=tm.id " +
+      "JOIN relay_sold_items si ON si.added_by_clerk_id=rcm.clerk_id " +
+      "JOIN relay_transactions t ON t.id=si.transaction_id " +
+      "WHERE tm.is_active=true AND (tm.selector_excluded=true OR tm.selector_score IS NULL) " +
+      "GROUP BY tm.id, tm.display_name, tm.venue_id, v.name " +
+      "HAVING SUM(si.quantity) FILTER (WHERE si.sales_group='31' AND si.individual_net_price>=5) >= 100"
+    );
+    ok(res, r.rows);
+  } catch(e) { next(e); }
+});
+
 // ── USER MANAGEMENT ──
 
 // Seed default users if none exist
