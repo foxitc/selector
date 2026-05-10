@@ -1973,7 +1973,7 @@ function filterSquad() {
   renderSquad(filtered);
 }
 
-function renderSquad(members) {
+function renderSquadTable(members) {
   const tbody = document.getElementById('squad-tbody');
   if (!members.length) {
     tbody.innerHTML = '<tr><td colspan="9" class="empty">No team members found</td></tr>';
@@ -2070,7 +2070,7 @@ function renderSquad() {
 
   console.log('[Squad] Rendering', data.length, 'members, first CPL:', data[0]?.cpl_total);
   squadData = data;
-  renderSquad(data);
+  renderSquadTable(data);
 }
 
 async function loadBookingsToday() {
