@@ -1,0 +1,1218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Selector — V2 Config · Cat & Wickets</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --cream: #faf8f4;
+  --cream2: #f4f0e8;
+  --cream3: #ede8dc;
+  --white: #ffffff;
+  --teal: #1a6b5a;
+  --teal2: #22876f;
+  --teal-bg: #edf5f2;
+  --teal-mid: #c8e6de;
+  --coral: #e8614a;
+  --coral-bg: #fdf0ed;
+  --gold: #c4922a;
+  --gold-bg: #fdf6e8;
+  --blue: #2563eb;
+  --blue-bg: #eff6ff;
+  --amber: #d97706;
+  --amber-bg: #fef3c7;
+  --ink: #1c1917;
+  --ink2: #44403c;
+  --ink3: #78716c;
+  --ink4: #a8a29e;
+  --border: #e7e2d8;
+  --border2: #d6cfc3;
+  --shadow: 0 1px 3px rgba(28,25,23,0.06);
+  --shadow2: 0 4px 16px rgba(28,25,23,0.08);
+  --shadow3: 0 8px 28px rgba(28,25,23,0.12);
+  --radius: 12px;
+  --radius-sm: 8px;
+  --display: 'Playfair Display', Georgia, serif;
+  --sans: 'DM Sans', -apple-system, system-ui, sans-serif;
+  --mono: 'DM Mono', ui-monospace, monospace;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: var(--sans);
+  background: var(--cream2);
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Subtle paper texture via radial gradient */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at top left, rgba(196,146,42,0.04), transparent 50%),
+    radial-gradient(ellipse at bottom right, rgba(26,107,90,0.04), transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.container {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 40px 28px 120px;
+  position: relative;
+  z-index: 1;
+}
+
+/* HEADER */
+.head {
+  margin-bottom: 32px;
+  padding-bottom: 28px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.head-titles { flex: 1; min-width: 320px; }
+.head-eyebrow {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--gold);
+  margin: 0 0 8px 0;
+}
+.head-title {
+  font-family: var(--display);
+  font-size: 38px;
+  font-weight: 600;
+  line-height: 1.1;
+  margin: 0 0 8px 0;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.head-title em {
+  font-style: italic;
+  color: var(--teal);
+  font-weight: 500;
+}
+.head-sub {
+  color: var(--ink3);
+  font-size: 14px;
+  margin: 0;
+  max-width: 580px;
+}
+.head-meta {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  flex-shrink: 0;
+}
+.head-meta-item {
+  text-align: right;
+}
+.head-meta-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ink4);
+  margin: 0 0 2px 0;
+}
+.head-meta-value {
+  font-family: var(--mono);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink);
+  margin: 0;
+}
+
+/* TABS */
+.tabs {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tabs::-webkit-scrollbar { display: none; }
+.tab {
+  padding: 14px 22px;
+  background: none;
+  border: none;
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink3);
+  cursor: pointer;
+  position: relative;
+  bottom: -1px;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+}
+.tab:hover { color: var(--ink); }
+.tab.active {
+  color: var(--teal);
+  border-bottom-color: var(--teal);
+  font-weight: 600;
+}
+.tab-num {
+  font-family: var(--mono);
+  font-size: 10px;
+  margin-left: 6px;
+  background: var(--cream3);
+  padding: 2px 6px;
+  border-radius: 10px;
+  color: var(--ink3);
+}
+.tab.active .tab-num { background: var(--teal-mid); color: var(--teal); }
+
+/* CARDS */
+.card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow);
+}
+.card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.card-titles { flex: 1; min-width: 260px; }
+.card-title {
+  font-family: var(--display);
+  font-size: 22px;
+  font-weight: 600;
+  margin: 0 0 4px 0;
+  letter-spacing: -0.005em;
+}
+.card-sub {
+  color: var(--ink3);
+  font-size: 13px;
+  margin: 0;
+  max-width: 640px;
+}
+
+/* TAB CONTENT */
+.tab-content { display: none; }
+.tab-content.active { display: block; animation: fadeIn 0.2s ease; }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* METRICS TABLE */
+.metrics-wrapper {
+  overflow-x: auto;
+  margin: 0 -28px;
+  padding: 0 28px;
+}
+.metrics-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 880px;
+}
+.metrics-table th {
+  text-align: left;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ink4);
+  padding: 10px 10px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.metrics-table td {
+  padding: 14px 10px;
+  border-bottom: 1px solid var(--cream3);
+  vertical-align: middle;
+}
+.metrics-table tr:last-child td { border-bottom: none; }
+.metrics-table tr.inactive td { opacity: 0.45; }
+.metrics-table tr.inactive .metric-cell-active { opacity: 1; }
+
+.metric-name {
+  font-weight: 500;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.metric-name-display {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.metric-cat {
+  display: inline-block;
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  font-family: var(--sans);
+}
+.metric-cat.food { background: var(--gold-bg); color: var(--gold); }
+.metric-cat.drinks { background: var(--blue-bg); color: var(--blue); }
+.metric-cat.guest { background: var(--teal-bg); color: var(--teal); }
+
+/* INPUTS */
+input[type="text"], input[type="number"] {
+  font-family: var(--mono);
+  font-size: 13px;
+  padding: 7px 10px;
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  background: var(--white);
+  color: var(--ink);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  width: 100%;
+}
+input[type="number"]::-webkit-inner-spin-button { opacity: 0.4; }
+input[type="text"]:focus, input[type="number"]:focus {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px rgba(26,107,90,0.1);
+}
+input.short { width: 76px; }
+input.medium { width: 96px; }
+
+/* SWITCH (active toggle) */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+}
+.switch input { opacity: 0; width: 0; height: 0; }
+.switch-slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background: var(--cream3);
+  border-radius: 20px;
+  transition: 0.2s;
+}
+.switch-slider::before {
+  content: '';
+  position: absolute;
+  height: 14px;
+  width: 14px;
+  left: 3px;
+  top: 3px;
+  background: var(--white);
+  border-radius: 50%;
+  transition: 0.2s;
+  box-shadow: var(--shadow);
+}
+.switch input:checked + .switch-slider { background: var(--teal); }
+.switch input:checked + .switch-slider::before { transform: translateX(16px); }
+
+.target-display {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--teal);
+  white-space: nowrap;
+}
+
+/* TIER LADDER */
+.tier-list { display: flex; flex-direction: column; gap: 12px; }
+.tier-row {
+  display: grid;
+  grid-template-columns: 28px 64px 1fr 100px 100px 36px;
+  gap: 16px;
+  align-items: center;
+  padding: 14px 16px;
+  background: var(--cream);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  transition: box-shadow 0.15s;
+}
+.tier-row:hover { box-shadow: var(--shadow); }
+.tier-handle {
+  color: var(--ink4);
+  font-family: var(--mono);
+  font-size: 14px;
+  font-weight: 500;
+  text-align: center;
+}
+.tier-color-pick {
+  width: 64px;
+  height: 36px;
+  border-radius: 6px;
+  border: 1px solid var(--border2);
+  cursor: pointer;
+  background: transparent;
+  padding: 0;
+}
+.tier-color-pick::-webkit-color-swatch-wrapper { padding: 4px; }
+.tier-color-pick::-webkit-color-swatch { border-radius: 4px; border: none; }
+.tier-name-input {
+  font-family: var(--display);
+  font-size: 17px;
+  font-weight: 500;
+  border: 1px solid transparent;
+  background: transparent;
+  padding: 6px 8px;
+  width: 100%;
+  border-radius: 4px;
+}
+.tier-name-input:hover { border-color: var(--border); }
+.tier-name-input:focus { border-color: var(--teal); background: var(--white); }
+.tier-range {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  justify-content: center;
+}
+.tier-range input { width: 56px; text-align: center; }
+.tier-range-sep { color: var(--ink4); font-size: 12px; }
+.tier-delete {
+  background: none;
+  border: none;
+  color: var(--ink4);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: color 0.15s, background 0.15s;
+}
+.tier-delete:hover { color: var(--coral); background: var(--coral-bg); }
+
+.tier-add {
+  margin-top: 8px;
+  padding: 12px;
+  border: 1px dashed var(--border2);
+  background: transparent;
+  border-radius: var(--radius-sm);
+  font-family: var(--sans);
+  color: var(--ink3);
+  cursor: pointer;
+  width: 100%;
+  font-size: 13px;
+  transition: border-color 0.15s, color 0.15s;
+}
+.tier-add:hover { border-color: var(--teal); color: var(--teal); }
+
+/* TIER PREVIEW STRIP */
+.tier-strip {
+  display: flex;
+  height: 32px;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-top: 20px;
+  box-shadow: var(--shadow);
+}
+.tier-strip-seg {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--white);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+/* BASELINE RADIO CARDS */
+.radio-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+}
+.radio-card {
+  position: relative;
+  display: block;
+  padding: 18px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--cream);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.radio-card:hover { border-color: var(--border2); background: var(--white); }
+.radio-card input { position: absolute; opacity: 0; }
+.radio-card.selected {
+  border-color: var(--teal);
+  background: var(--teal-bg);
+  box-shadow: 0 0 0 3px rgba(26,107,90,0.08);
+}
+.radio-card-title {
+  font-family: var(--display);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0 0 4px 0;
+}
+.radio-card-sub {
+  font-size: 12px;
+  color: var(--ink3);
+  margin: 0;
+  line-height: 1.4;
+}
+.radio-card.selected .radio-card-title { color: var(--teal); }
+
+/* LIVE PREVIEW */
+.preview-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+@media (max-width: 800px) {
+  .preview-grid { grid-template-columns: 1fr; }
+}
+
+.preview-input-card {
+  background: var(--cream);
+  padding: 20px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+.preview-input-row {
+  display: grid;
+  grid-template-columns: 1fr 100px;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--cream3);
+}
+.preview-input-row:last-child { border-bottom: none; }
+.preview-input-label {
+  font-size: 12px;
+  color: var(--ink2);
+}
+.preview-input-row input { font-size: 13px; }
+
+.preview-output-card {
+  background: linear-gradient(180deg, var(--teal-bg), var(--cream));
+  padding: 32px 24px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--teal-mid);
+  text-align: center;
+  position: sticky;
+  top: 16px;
+}
+.preview-eyebrow {
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--teal);
+  margin: 0 0 12px 0;
+}
+.preview-score {
+  font-family: var(--display);
+  font-size: 80px;
+  font-weight: 700;
+  color: var(--teal);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  margin: 0 0 4px 0;
+}
+.preview-score-suffix {
+  font-family: var(--mono);
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--ink3);
+}
+.preview-tier-pill {
+  display: inline-block;
+  padding: 6px 16px;
+  border-radius: 100px;
+  font-family: var(--display);
+  font-size: 18px;
+  font-weight: 600;
+  margin: 4px 0 24px 0;
+  background: var(--white);
+  border: 1px solid var(--border);
+}
+.preview-breakdown {
+  text-align: left;
+  margin-top: 16px;
+  padding-top: 20px;
+  border-top: 1px solid var(--teal-mid);
+}
+.preview-breakdown-title {
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ink3);
+  margin: 0 0 12px 0;
+}
+.preview-metric-row {
+  display: grid;
+  grid-template-columns: 1fr 56px 80px;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 0;
+  font-size: 12px;
+}
+.preview-metric-name { color: var(--ink2); }
+.preview-metric-pts {
+  font-family: var(--mono);
+  font-weight: 600;
+  text-align: right;
+}
+.preview-metric-bar {
+  height: 4px;
+  background: var(--cream3);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.preview-metric-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+/* BUTTONS */
+.btn {
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 10px 20px;
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  background: var(--white);
+  color: var(--ink);
+  cursor: pointer;
+  transition: all 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+.btn:hover { border-color: var(--ink3); }
+.btn:active { transform: translateY(1px); }
+.btn-primary {
+  background: var(--teal);
+  color: var(--white);
+  border-color: var(--teal);
+}
+.btn-primary:hover { background: var(--teal2); border-color: var(--teal2); }
+.btn-ghost { background: transparent; border-color: transparent; color: var(--ink3); }
+.btn-ghost:hover { color: var(--ink); border-color: var(--border); }
+.btn-link {
+  background: none;
+  border: none;
+  color: var(--ink3);
+  text-decoration: underline;
+  text-decoration-color: var(--border2);
+  text-underline-offset: 3px;
+  padding: 4px 6px;
+  cursor: pointer;
+  font-family: var(--sans);
+  font-size: 12px;
+}
+.btn-link:hover { color: var(--ink); text-decoration-color: var(--ink3); }
+
+/* ACTION BAR (sticky bottom) */
+.actions {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-top: 1px solid var(--border);
+  padding: 14px 28px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  z-index: 50;
+}
+.actions-inner {
+  max-width: 1240px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+}
+.actions-status {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink3);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ink4);
+}
+.dot.dirty { background: var(--gold); animation: pulse 1.5s ease infinite; }
+.dot.saved { background: var(--teal); }
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.4); }
+}
+
+/* TOAST */
+.toast {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--ink);
+  color: var(--cream);
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: var(--shadow3);
+  opacity: 0;
+  transition: opacity 0.2s, transform 0.2s;
+  pointer-events: none;
+  z-index: 100;
+}
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* INFO BANNER */
+.banner {
+  background: var(--gold-bg);
+  border: 1px solid #f0d99a;
+  border-radius: var(--radius-sm);
+  padding: 14px 18px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--ink2);
+}
+.banner svg { flex-shrink: 0; color: var(--gold); margin-top: 2px; }
+.banner strong { color: var(--ink); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header class="head">
+    <div class="head-titles">
+      <p class="head-eyebrow">Cat &amp; Wickets · Analytics Coach</p>
+      <h1 class="head-title">The Selector — <em>V2</em></h1>
+      <p class="head-sub">Configure metric weights, scoring boundaries, and the cricket tier ladder. Changes preview live before you save.</p>
+    </div>
+    <div class="head-meta">
+      <div class="head-meta-item">
+        <p class="head-meta-label">Active metrics</p>
+        <p class="head-meta-value" id="meta-active">8</p>
+      </div>
+      <div class="head-meta-item">
+        <p class="head-meta-label">Max points</p>
+        <p class="head-meta-value" id="meta-points">800</p>
+      </div>
+      <div class="head-meta-item">
+        <p class="head-meta-label">Tiers</p>
+        <p class="head-meta-value" id="meta-tiers">5</p>
+      </div>
+    </div>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab active" data-tab="metrics" role="tab">Metrics<span class="tab-num" id="tab-num-metrics">8</span></button>
+    <button class="tab" data-tab="tiers" role="tab">Tier Ladder<span class="tab-num" id="tab-num-tiers">5</span></button>
+    <button class="tab" data-tab="baseline" role="tab">Pub Average</button>
+    <button class="tab" data-tab="preview" role="tab">Live Preview</button>
+  </nav>
+
+  <!-- METRICS -->
+  <div id="tab-metrics" class="tab-content active" role="tabpanel">
+    <div class="card">
+      <div class="card-head">
+        <div class="card-titles">
+          <h2 class="card-title">Scoring metrics</h2>
+          <p class="card-sub">Each metric scores 0–100 points. Below the floor = 0pts. At the 100pt target = 100pts. Linear in between. Weighted contributions sum to the overall score.</p>
+        </div>
+      </div>
+      <div class="banner">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+        <span>The <strong>100pt target</strong> column is auto-calculated as <span style="font-family:var(--mono)">Pub Avg × (1 + Uplift Cap)</span>. Edit <strong>Pub Avg</strong> or <strong>Uplift Cap</strong> to change it.</span>
+      </div>
+      <div class="metrics-wrapper">
+        <table class="metrics-table">
+          <thead>
+            <tr>
+              <th>Active</th>
+              <th>Metric</th>
+              <th>Category</th>
+              <th>Weight</th>
+              <th>Pub Avg</th>
+              <th>Uplift Cap</th>
+              <th>Floor (0pt)</th>
+              <th>100pt Target</th>
+            </tr>
+          </thead>
+          <tbody id="metrics-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- TIERS -->
+  <div id="tab-tiers" class="tab-content" role="tabpanel">
+    <div class="card">
+      <div class="card-head">
+        <div class="card-titles">
+          <h2 class="card-title">Cricket tier ladder</h2>
+          <p class="card-sub">Map score ranges to cricket tiers. Higher tiers at the top. Drag to reorder, click the swatch to change colour.</p>
+        </div>
+      </div>
+      <div class="tier-list" id="tier-list"></div>
+      <button class="tier-add" id="tier-add">+ Add tier</button>
+      <div class="tier-strip" id="tier-strip" aria-hidden="true"></div>
+      <p style="margin: 8px 0 0 0; font-size: 11px; color: var(--ink4); font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.08em;">Score 0 ────────────────────── 100</p>
+    </div>
+  </div>
+
+  <!-- BASELINE -->
+  <div id="tab-baseline" class="tab-content" role="tabpanel">
+    <div class="card">
+      <div class="card-head">
+        <div class="card-titles">
+          <h2 class="card-title">Pub average baseline</h2>
+          <p class="card-sub">The 100pt target for each metric is calculated as Pub Average × (1 + Uplift Cap). Choose how Pub Average is derived.</p>
+        </div>
+      </div>
+      <div class="radio-grid" id="baseline-grid"></div>
+      <p style="margin: 20px 0 0 0; font-size: 12px; color: var(--ink3); padding: 12px 16px; background: var(--cream); border-radius: 6px; border-left: 3px solid var(--gold);">
+        <strong style="color: var(--ink);">Trade-off:</strong> Rolling baselines auto-adjust as the pub improves but can demoralise (the bar always rises). Locked baselines hold the target steady but require manual reset annually. <strong>Default for V2:</strong> Rolling 30 days.
+      </p>
+    </div>
+  </div>
+
+  <!-- PREVIEW -->
+  <div id="tab-preview" class="tab-content" role="tabpanel">
+    <div class="card">
+      <div class="card-head">
+        <div class="card-titles">
+          <h2 class="card-title">Live preview</h2>
+          <p class="card-sub">Plug in a hypothetical team member's actuals to see how they'd score with the current configuration.</p>
+        </div>
+        <button class="btn btn-ghost" id="preview-load-avg">Load pub averages</button>
+      </div>
+      <div class="preview-grid">
+        <div class="preview-input-card" id="preview-inputs"></div>
+        <div class="preview-output-card">
+          <p class="preview-eyebrow">Overall score</p>
+          <div class="preview-score"><span id="preview-score">—</span><span class="preview-score-suffix">/100</span></div>
+          <div class="preview-tier-pill" id="preview-tier" style="color: var(--ink3)">—</div>
+          <div class="preview-breakdown">
+            <p class="preview-breakdown-title">Per-metric breakdown</p>
+            <div id="preview-breakdown"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ACTION BAR -->
+<div class="actions">
+  <div class="actions-inner">
+    <div class="actions-status">
+      <span class="dot saved" id="status-dot"></span>
+      <span id="status-text">All changes saved</span>
+    </div>
+    <div style="display: flex; gap: 8px;">
+      <button class="btn btn-ghost" id="btn-export">Export JSON</button>
+      <button class="btn" id="btn-reset">Reset to V2 defaults</button>
+      <button class="btn btn-primary" id="btn-save">Save configuration</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// V2 DEFAULTS — drawn from Team_Scoring_V2.csv
+// ============================================================
+const DEFAULT_CONFIG = {
+  metrics: [
+    { key: 'dry_asph',              label: 'Dry ASPH',                       category: 'food',   active: true, weight: 1.0, pubAvg: 25.40,  upliftCap: 0.25, floor: 0,  prefix: '£', suffix: '' },
+    { key: 'group_nps',             label: 'Group NPS Score',                category: 'guest',  active: true, weight: 1.0, pubAvg: 72.0,   upliftCap: 0.10, floor: 60, prefix: '',  suffix: '' },
+    { key: 'bottled_water_pct',     label: 'Bottled Water % of Mains',       category: 'food',   active: true, weight: 1.0, pubAvg: 10.90,  upliftCap: 0.25, floor: 0,  prefix: '',  suffix: '%' },
+    { key: 'drinks_pct',            label: 'Drinks % of Mains',              category: 'drinks', active: true, weight: 1.0, pubAvg: 172.80, upliftCap: 0.25, floor: 0,  prefix: '',  suffix: '%' },
+    { key: 'nibbles_pct',           label: 'Nibbles % of Mains',             category: 'food',   active: true, weight: 1.0, pubAvg: 18.60,  upliftCap: 0.25, floor: 0,  prefix: '',  suffix: '%' },
+    { key: 'premium_wine_pct',      label: 'Premium Wine % of Mains',        category: 'drinks', active: true, weight: 1.0, pubAvg: 6.00,   upliftCap: 0.25, floor: 0,  prefix: '',  suffix: '%' },
+    { key: 'sides_pct',             label: 'Sides % of Mains',               category: 'food',   active: true, weight: 1.0, pubAvg: 25.00,  upliftCap: 0.25, floor: 0,  prefix: '',  suffix: '%' },
+    { key: 'starters_desserts_pct', label: 'Starters & Desserts % of Mains', category: 'food',   active: true, weight: 1.0, pubAvg: 73.70,  upliftCap: 0.25, floor: 0,  prefix: '',  suffix: '%' }
+  ],
+  tiers: [
+    { name: 'Test Player',          color: '#1a6b5a', minScore: 90, maxScore: 100 },
+    { name: 'County Breakthrough',  color: '#22876f', minScore: 75, maxScore: 89  },
+    { name: 'County Player',        color: '#2563eb', minScore: 40, maxScore: 74  },
+    { name: 'Club Promotion',       color: '#d97706', minScore: 20, maxScore: 39  },
+    { name: 'Club Player',          color: '#e8614a', minScore: 0,  maxScore: 19  }
+  ],
+  baseline: 'rolling-30'
+};
+
+const BASELINE_OPTIONS = [
+  { value: 'rolling-7',  title: 'Rolling 7 days',  sub: 'Recent. Sensitive to short-term swings.' },
+  { value: 'rolling-30', title: 'Rolling 30 days', sub: 'Default. Smooths weekly variation.' },
+  { value: 'rolling-90', title: 'Rolling 90 days', sub: 'Stable. Reflects seasonal patterns.' },
+  { value: 'locked',     title: 'Locked baseline', sub: 'Fixed reference period. Manual reset annually.' }
+];
+
+let config = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+let dirty = false;
+let previewActuals = {}; // user inputs for preview
+
+// ============================================================
+// SCORING MATH
+// ============================================================
+function metricScore(actual, m) {
+  if (actual === null || actual === undefined || actual === '') return null;
+  const a = Number(actual);
+  if (isNaN(a)) return null;
+  const target100 = m.pubAvg * (1 + m.upliftCap);
+  if (a <= m.floor) return 0;
+  if (a >= target100) return 100;
+  return Math.round(((a - m.floor) / (target100 - m.floor)) * 1000) / 10;
+}
+
+function overallScore(actuals) {
+  const active = config.metrics.filter(m => m.active);
+  let totalWeighted = 0;
+  let totalWeight = 0;
+  for (const m of active) {
+    const ms = metricScore(actuals[m.key], m);
+    if (ms === null) continue;
+    totalWeighted += ms * m.weight;
+    totalWeight += m.weight;
+  }
+  if (totalWeight === 0) return null;
+  return Math.round((totalWeighted / totalWeight) * 10) / 10;
+}
+
+function findTier(score) {
+  if (score === null || score === undefined) return null;
+  for (const t of config.tiers) {
+    if (score >= t.minScore && score <= t.maxScore) return t;
+  }
+  return null;
+}
+
+function fmtMetricValue(v, m) {
+  if (v === null || v === undefined || v === '') return '—';
+  const n = Number(v);
+  if (isNaN(n)) return '—';
+  const decimals = (Math.abs(n) >= 100 || n % 1 === 0) ? 0 : 2;
+  return m.prefix + n.toFixed(decimals) + m.suffix;
+}
+
+// ============================================================
+// RENDERING
+// ============================================================
+function renderMetrics() {
+  const tbody = document.getElementById('metrics-body');
+  tbody.innerHTML = config.metrics.map((m, i) => {
+    const target100 = m.pubAvg * (1 + m.upliftCap);
+    return `
+      <tr class="${m.active ? '' : 'inactive'}">
+        <td class="metric-cell-active">
+          <label class="switch">
+            <input type="checkbox" ${m.active ? 'checked' : ''} onchange="updateMetric(${i}, 'active', this.checked)">
+            <span class="switch-slider"></span>
+          </label>
+        </td>
+        <td class="metric-name">${m.label}</td>
+        <td><span class="metric-cat ${m.category}">${m.category}</span></td>
+        <td><input type="number" step="0.1" min="0" value="${m.weight}" class="short" onchange="updateMetric(${i}, 'weight', parseFloat(this.value)||0)"></td>
+        <td><input type="number" step="0.01" value="${m.pubAvg}" class="medium" onchange="updateMetric(${i}, 'pubAvg', parseFloat(this.value)||0)"></td>
+        <td><input type="number" step="0.05" min="0" value="${m.upliftCap}" class="short" onchange="updateMetric(${i}, 'upliftCap', parseFloat(this.value)||0)"></td>
+        <td><input type="number" step="1" value="${m.floor}" class="short" onchange="updateMetric(${i}, 'floor', parseFloat(this.value)||0)"></td>
+        <td class="target-display">${fmtMetricValue(target100, m)}</td>
+      </tr>
+    `;
+  }).join('');
+
+  // Update meta
+  const active = config.metrics.filter(m => m.active);
+  const totalWeight = active.reduce((s, m) => s + m.weight, 0);
+  document.getElementById('meta-active').textContent = active.length;
+  document.getElementById('meta-points').textContent = (totalWeight * 100).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  document.getElementById('tab-num-metrics').textContent = active.length;
+}
+
+function renderTiers() {
+  const list = document.getElementById('tier-list');
+  list.innerHTML = config.tiers.map((t, i) => `
+    <div class="tier-row">
+      <span class="tier-handle">${i + 1}</span>
+      <input type="color" class="tier-color-pick" value="${t.color}" onchange="updateTier(${i}, 'color', this.value)" aria-label="Tier colour">
+      <input type="text" class="tier-name-input" value="${escapeHtml(t.name)}" onchange="updateTier(${i}, 'name', this.value)" placeholder="Tier name…">
+      <div class="tier-range">
+        <input type="number" min="0" max="100" value="${t.minScore}" onchange="updateTier(${i}, 'minScore', parseInt(this.value)||0)" aria-label="Min score">
+        <span class="tier-range-sep">–</span>
+        <input type="number" min="0" max="100" value="${t.maxScore}" onchange="updateTier(${i}, 'maxScore', parseInt(this.value)||0)" aria-label="Max score">
+      </div>
+      <span></span>
+      <button class="tier-delete" onclick="deleteTier(${i})" aria-label="Remove tier" title="Remove tier">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/></svg>
+      </button>
+    </div>
+  `).join('');
+
+  // Tier preview strip (sorted ascending by score for the bar)
+  const sorted = [...config.tiers].sort((a, b) => a.minScore - b.minScore);
+  const strip = document.getElementById('tier-strip');
+  strip.innerHTML = sorted.map(t => {
+    const w = Math.max(0, t.maxScore - t.minScore + 1);
+    return `<div class="tier-strip-seg" style="background:${t.color}; flex:${w}">${t.name}</div>`;
+  }).join('');
+
+  document.getElementById('meta-tiers').textContent = config.tiers.length;
+  document.getElementById('tab-num-tiers').textContent = config.tiers.length;
+}
+
+function renderBaseline() {
+  const grid = document.getElementById('baseline-grid');
+  grid.innerHTML = BASELINE_OPTIONS.map(o => `
+    <label class="radio-card ${config.baseline === o.value ? 'selected' : ''}">
+      <input type="radio" name="baseline" value="${o.value}" ${config.baseline === o.value ? 'checked' : ''} onchange="updateBaseline('${o.value}')">
+      <p class="radio-card-title">${o.title}</p>
+      <p class="radio-card-sub">${o.sub}</p>
+    </label>
+  `).join('');
+}
+
+function renderPreview() {
+  const inputBox = document.getElementById('preview-inputs');
+  const active = config.metrics.filter(m => m.active);
+  inputBox.innerHTML = active.map(m => `
+    <div class="preview-input-row">
+      <span class="preview-input-label">${m.label}</span>
+      <input type="number" step="0.01" placeholder="${fmtMetricValue(m.pubAvg, m)}" value="${previewActuals[m.key] ?? ''}" oninput="updatePreviewActual('${m.key}', this.value)">
+    </div>
+  `).join('');
+
+  // Score
+  const score = overallScore(previewActuals);
+  const tier = findTier(score);
+  const scoreEl = document.getElementById('preview-score');
+  const tierEl = document.getElementById('preview-tier');
+
+  if (score === null) {
+    scoreEl.textContent = '—';
+    tierEl.textContent = 'Enter values';
+    tierEl.style.color = 'var(--ink3)';
+    tierEl.style.borderColor = 'var(--border)';
+  } else {
+    scoreEl.textContent = score.toFixed(1);
+    tierEl.textContent = tier ? tier.name : '—';
+    tierEl.style.color = tier ? tier.color : 'var(--ink3)';
+    tierEl.style.borderColor = tier ? tier.color : 'var(--border)';
+  }
+
+  // Per-metric breakdown
+  const breakdown = document.getElementById('preview-breakdown');
+  breakdown.innerHTML = active.map(m => {
+    const ms = metricScore(previewActuals[m.key], m);
+    const pct = ms !== null ? ms : 0;
+    const color = ms === null ? 'var(--ink4)' :
+                  ms >= 75 ? 'var(--teal)' :
+                  ms >= 50 ? 'var(--gold)' :
+                  ms >= 25 ? 'var(--amber)' :
+                             'var(--coral)';
+    return `
+      <div class="preview-metric-row">
+        <span class="preview-metric-name">${m.label}</span>
+        <div class="preview-metric-bar"><div class="preview-metric-bar-fill" style="width:${pct}%;background:${color}"></div></div>
+        <span class="preview-metric-pts" style="color:${color}">${ms === null ? '—' : ms.toFixed(0) + ' pts'}</span>
+      </div>
+    `;
+  }).join('');
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ============================================================
+// MUTATIONS
+// ============================================================
+function updateMetric(i, field, value) {
+  config.metrics[i][field] = value;
+  markDirty();
+  renderMetrics();
+  renderPreview();
+}
+
+function updateTier(i, field, value) {
+  config.tiers[i][field] = value;
+  markDirty();
+  renderTiers();
+  renderPreview();
+}
+
+function deleteTier(i) {
+  if (config.tiers.length <= 2) {
+    showToast('Need at least 2 tiers');
+    return;
+  }
+  config.tiers.splice(i, 1);
+  markDirty();
+  renderTiers();
+  renderPreview();
+}
+
+function addTier() {
+  config.tiers.push({ name: 'New tier', color: '#a8a29e', minScore: 0, maxScore: 19 });
+  markDirty();
+  renderTiers();
+}
+
+function updateBaseline(value) {
+  config.baseline = value;
+  markDirty();
+  renderBaseline();
+}
+
+function updatePreviewActual(key, value) {
+  if (value === '' || value === null) {
+    delete previewActuals[key];
+  } else {
+    previewActuals[key] = value;
+  }
+  renderPreview();
+}
+
+function loadPubAverages() {
+  for (const m of config.metrics) {
+    if (m.active) previewActuals[m.key] = m.pubAvg;
+  }
+  renderPreview();
+}
+
+// ============================================================
+// STATE
+// ============================================================
+function markDirty() {
+  if (dirty) return;
+  dirty = true;
+  document.getElementById('status-dot').classList.replace('saved', 'dirty');
+  document.getElementById('status-text').textContent = 'Unsaved changes';
+}
+
+function markClean() {
+  dirty = false;
+  document.getElementById('status-dot').classList.replace('dirty', 'saved');
+  document.getElementById('status-text').textContent = 'All changes saved';
+}
+
+function saveConfig() {
+  // TODO: POST /api/v1/selector/config (when wired up)
+  console.log('[selector v2] save', JSON.parse(JSON.stringify(config)));
+  markClean();
+  showToast('Configuration saved');
+}
+
+function resetConfig() {
+  if (!confirm('Reset all settings to V2 defaults? This will discard your current config.')) return;
+  config = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+  previewActuals = {};
+  markDirty();
+  renderAll();
+  showToast('Reset to V2 defaults');
+}
+
+function exportConfig() {
+  const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `selector-v2-config-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Config exported');
+}
+
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ============================================================
+// INIT
+// ============================================================
+function renderAll() {
+  renderMetrics();
+  renderTiers();
+  renderBaseline();
+  renderPreview();
+}
+
+document.querySelectorAll('.tab').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById('tab-' + t.dataset.tab).classList.add('active');
+  });
+});
+
+document.getElementById('btn-save').addEventListener('click', saveConfig);
+document.getElementById('btn-reset').addEventListener('click', resetConfig);
+document.getElementById('btn-export').addEventListener('click', exportConfig);
+document.getElementById('tier-add').addEventListener('click', addTier);
+document.getElementById('preview-load-avg').addEventListener('click', loadPubAverages);
+
+// Keyboard: Cmd/Ctrl+S to save
+document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+    e.preventDefault();
+    if (dirty) saveConfig();
+  }
+});
+
+renderAll();
+</script>
+
+</body>
+</html>
