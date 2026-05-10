@@ -1970,7 +1970,7 @@ function filterSquad() {
     const venueMatch = venue === 'all' || m.location_id === locId;
     return nameMatch && venueMatch;
   });
-  renderSquad(filtered);
+  renderSquadTable(filtered);
 }
 
 function renderSquadTable(members) {
