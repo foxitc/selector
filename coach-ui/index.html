@@ -1999,7 +1999,7 @@ function renderSquad(members) {
       + '<td class="dim">' + (m.food_safety_status||'—') + '</td>'
       + '<td>' + cplDisplay + '</td>'
       + '<td>' + (m.is_active ? '<span style="color:#16a34a;font-size:12px;font-weight:500">Active</span>' : '<span style="color:var(--ink4);font-size:12px">Inactive</span>') + '</td>'
-      + '<td><button class="btn btn-ghost btn-sm" onclick="toggleSquadMember('' + m.id + '','' + m.display_name + '',' + m.is_active + ')">' + (m.is_active ? 'Deactivate' : 'Activate') + '</button></td>'
+      + '<td><button class="btn btn-ghost btn-sm" onclick="toggleSquadMember(\'' + m.id + '\',\'' + m.display_name + '\',' + m.is_active + ')">' + (m.is_active ? 'Deactivate' : 'Activate') + '</button></td>'
       + '</tr>';
   }).join('');
 }
