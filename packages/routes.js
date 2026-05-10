@@ -1220,15 +1220,17 @@ router.get('/selector/metrics/with-averages', auth, async (req, res, next) => {
       "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group='29'),0) as nibbles, " +
       "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group='30'),0) as starters, " +
       "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('33','35')),0) as desserts, " +
-      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('1','2','3','4','5','6','8','9','10','15','17','18','19','21','22','23','26','27','28','38')),0) as drinks, " +
-      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('1','2','3','4','5','6','8','9','10','15','17','18','19','21','22','23','26','27','28','38') AND EXISTS (SELECT 1 FROM relay_sold_items si2 WHERE si2.transaction_id=si.transaction_id AND si2.added_by_clerk_id=$1 AND si2.sales_group='31' AND si2.individual_net_price>=5)),0) as drinks_food, " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('1','2','3','4','5','6','8','9','10','15','17','19','21','22','23','38') AND NOT (si.sales_group IN ('3','4','5','6') AND si.individual_net_price > 15)),0) as drinks, " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('1','2','3','4','5','6','8','9','10','15','17','18','19','21','22','23','26','27','28','38') AND EXISTS (SELECT 1 FROM relay_sold_items si2 WHERE si2.transaction_id=si.transaction_id AND si2.sales_group='31' AND si2.individual_net_price>=5)),0) as drinks_food, " +
       "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('3','4','5','6') AND (si.individual_net_price>40 OR (LOWER(si.name) LIKE 'btl%' AND si.individual_net_price>25))),0) as prem_wine, " +
       "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('8','15')),0) as spirits, " +
       "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('8','9','10') AND LOWER(si.name) LIKE '%dbl%'),0) as dbl_spirits, " +
       "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('3','4','5','6') AND LOWER(si.name) LIKE '%250ml%'),0) as lg_wine, " +
       "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('3','4','5','6')),0) as all_wine, " +
       "COALESCE(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('3','4','5','6')),0) as wine_net_rev, " +
-      "COALESCE(SUM(si.quantity) FILTER (WHERE LOWER(si.name) LIKE '%water%' AND si.sales_group NOT IN ('30000','20')),0) as water, " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group='28' AND si.individual_net_price > 0),0) as water, " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group='18' AND si.individual_net_price > 0),0) as coffee, " +
+      "COALESCE(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('3','4','5','6') AND (si.individual_net_price > 33 OR (LOWER(si.name) LIKE 'btl%' AND si.individual_net_price > 20))),0) as prem_wine_rev, " +
       "COALESCE(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('1','2','3','4','5','6','8','9','10','15','17','18','19','21','22','23','26','27','28','38')),0) as wet_rev, " +
       "COALESCE(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('29','30','31','32','33','34','35') AND si.individual_net_price>0),0) as dry_rev, " +
       "COALESCE(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('29','30','31','32','33','34','35') AND si.individual_net_price>=0),0) as food_rev " +
@@ -1328,15 +1330,17 @@ router.get('/league/pubs', auth, async (req, res, next) => {
         "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group='29'),0) as nibbles, " +
         "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group='30'),0) as starters, " +
         "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('33','35')),0) as desserts, " +
-        "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('1','2','3','4','5','6','8','9','10','15','17','18','19','21','22','23','26','27','28','38')),0) as drinks, " +
-      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('1','2','3','4','5','6','8','9','10','15','17','18','19','21','22','23','26','27','28','38') AND EXISTS (SELECT 1 FROM relay_sold_items si2 WHERE si2.transaction_id=si.transaction_id AND si2.added_by_clerk_id=$1 AND si2.sales_group='31' AND si2.individual_net_price>=5)),0) as drinks_food, " +
+        "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('1','2','3','4','5','6','8','9','10','15','17','19','21','22','23','38') AND NOT (si.sales_group IN ('3','4','5','6') AND si.individual_net_price > 15)),0) as drinks, " +
+        "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('1','2','3','4','5','6','8','9','10','15','17','18','19','21','22','23','26','27','28','38') AND EXISTS (SELECT 1 FROM relay_sold_items si2 WHERE si2.transaction_id=si.transaction_id AND si2.sales_group='31' AND si2.individual_net_price>=5)),0) as drinks_food, " +
         "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('3','4','5','6') AND (si.individual_net_price>40 OR (LOWER(si.name) LIKE 'btl%' AND si.individual_net_price>25))),0) as prem_wine, " +
         "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('8','15')),0) as spirits, " +
         "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('8','9','10') AND LOWER(si.name) LIKE '%dbl%'),0) as dbl_spirits, " +
         "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('3','4','5','6') AND LOWER(si.name) LIKE '%250ml%'),0) as lg_wine, " +
         "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('3','4','5','6')),0) as all_wine, " +
         "COALESCE(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('3','4','5','6')),0) as wine_net_rev, " +
-        "COALESCE(SUM(si.quantity) FILTER (WHERE LOWER(si.name) LIKE '%water%' AND si.sales_group NOT IN ('30000','20')),0) as water, " +
+        "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group='28' AND si.individual_net_price > 0),0) as water, " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group='18' AND si.individual_net_price > 0),0) as coffee, " +
+      "COALESCE(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('3','4','5','6') AND (si.individual_net_price > 33 OR (LOWER(si.name) LIKE 'btl%' AND si.individual_net_price > 20))),0) as prem_wine_rev, " +
         "COALESCE(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('1','2','3','4','5','6','8','9','10','15','17','18','19','21','22','23','26','27','28','38')),0) as wet_rev, " +
         "COALESCE(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('29','30','31','32','33','34','35') AND si.individual_net_price>0),0) as dry_rev, " +
         "COALESCE(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('29','30','31','32','33','34','35') AND si.individual_net_price>=0),0) as food_rev " +
@@ -1445,15 +1449,17 @@ router.get('/league/pubs/trend', auth, async (req, res, next) => {
           "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group='29'),0) as nibbles, " +
           "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group='30'),0) as starters, " +
           "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('33','35')),0) as desserts, " +
-          "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('1','2','3','4','5','6','8','9','10','15','17','18','19','21','22','23','26','27','28','38')),0) as drinks, " +
-      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('1','2','3','4','5','6','8','9','10','15','17','18','19','21','22','23','26','27','28','38') AND EXISTS (SELECT 1 FROM relay_sold_items si2 WHERE si2.transaction_id=si.transaction_id AND si2.added_by_clerk_id=$1 AND si2.sales_group='31' AND si2.individual_net_price>=5)),0) as drinks_food, " +
+          "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('1','2','3','4','5','6','8','9','10','15','17','19','21','22','23','38') AND NOT (si.sales_group IN ('3','4','5','6') AND si.individual_net_price > 15)),0) as drinks, " +
+          "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('1','2','3','4','5','6','8','9','10','15','17','18','19','21','22','23','26','27','28','38') AND EXISTS (SELECT 1 FROM relay_sold_items si2 WHERE si2.transaction_id=si.transaction_id AND si2.sales_group='31' AND si2.individual_net_price>=5)),0) as drinks_food, " +
           "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('3','4','5','6') AND (si.individual_net_price>40 OR (LOWER(si.name) LIKE 'btl%' AND si.individual_net_price>25))),0) as prem_wine, " +
           "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('8','15')),0) as spirits, " +
           "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('8','9','10') AND LOWER(si.name) LIKE '%dbl%'),0) as dbl_spirits, " +
           "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('3','4','5','6') AND LOWER(si.name) LIKE '%250ml%'),0) as lg_wine, " +
           "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('3','4','5','6')),0) as all_wine, " +
           "COALESCE(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('3','4','5','6')),0) as wine_net_rev, " +
-          "COALESCE(SUM(si.quantity) FILTER (WHERE LOWER(si.name) LIKE '%water%' AND si.sales_group NOT IN ('30000','20')),0) as water, " +
+          "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group='28' AND si.individual_net_price > 0),0) as water, " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group='18' AND si.individual_net_price > 0),0) as coffee, " +
+      "COALESCE(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('3','4','5','6') AND (si.individual_net_price > 33 OR (LOWER(si.name) LIKE 'btl%' AND si.individual_net_price > 20))),0) as prem_wine_rev, " +
           "COALESCE(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('1','2','3','4','5','6','8','9','10','15','17','18','19','21','22','23','26','27','28','38')),0) as wet_rev, " +
           "COALESCE(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('29','30','31','32','33','34','35') AND si.individual_net_price>0),0) as dry_rev " +
           "FROM relay_transactions t JOIN relay_sold_items si ON si.transaction_id=t.id " +
@@ -2875,7 +2881,7 @@ router.get('/metrics/team/flex', auth, async (req, res, next) => {
 // actual_fn receives the raw clerk data and returns the actual value in target units
 const METRIC_CALCULATORS = {
   avg_spend_dry: {
-    label: 'ASPH (£)',
+    label: 'Dry ASPH (£)',
     actual: (m) => m.mains > 0 ? parseFloat((m.dry_rev / m.mains).toFixed(2)) : 0
   },
   sides_pct: {
@@ -2888,51 +2894,50 @@ const METRIC_CALCULATORS = {
   },
   starters_desserts: {
     label: 'Starters & Desserts % of Mains',
-    actual: (m) => Number(m.mains) > 0 ? parseFloat(((Number(m.starters) + Number(m.desserts)) / Number(m.mains) * 100).toFixed(1)) : 0
+    actual: (m) => m.mains > 0 ? parseFloat(((Number(m.starters) + Number(m.desserts)) / m.mains * 100).toFixed(1)) : 0
   },
   drinks_per_cover: {
     label: 'Drinks % of Mains',
+    // Excludes: SG27 mixers (always paired with spirit = 1 drink), BTL wine, zero-price items
     actual: (m) => {
-      // drinks_food = drinks on same transactions as a main sold by this clerk
       if (m.mains < 1) return 0;
       return parseFloat((Number(m.drinks_food||0) / m.mains * 100).toFixed(1));
     }
   },
   premium_wine: {
-    label: 'Premium Wine % of Mains',
-    actual: (m) => m.mains > 0 ? parseFloat((m.prem_wine / m.mains * 100).toFixed(1)) : 0
+    label: 'Premium Wine £ per 100 Mains',
+    // Revenue from premium wine (BTL prefix or price>£40) per 100 mains sold
+    actual: (m) => m.mains > 0 ? parseFloat((Number(m.prem_wine_rev||0) / m.mains * 100).toFixed(2)) : 0
   },
-  avg_wine_spend: {
-    label: 'Avg Wine Spend per Item',
-    actual: (m) => m.all_wine > 0 ? parseFloat((Number(m.wine_net_rev) / Number(m.all_wine)).toFixed(2)) : 0
+  coffee_pct: {
+    label: 'Coffee % of Mains',
+    // After-dinner coffee upsell - SG18 paid items
+    actual: (m) => m.mains > 0 ? parseFloat((Number(m.coffee||0) / m.mains * 100).toFixed(1)) : 0
   },
   named_review: {
     label: 'Named Reviews',
     actual: (m) => Number(m.named_review || 0)
   },
+  bottled_water: {
+    label: 'Bottled Water % of Mains',
+    // Paid bottled water only (SG28, price > 0) - both large and small
+    actual: (m) => m.mains > 0 ? parseFloat((Number(m.water||0) / m.mains * 100).toFixed(1)) : 0
+  },
   double_spirits: {
     label: 'Double Spirits % of Mains',
-    actual: (m) => m.mains > 0 ? parseFloat((m.dbl_spirits / m.mains * 100).toFixed(1)) : 0
+    actual: (m) => m.mains > 0 ? parseFloat((Number(m.dbl_spirits||0) / m.mains * 100).toFixed(1)) : 0
   },
   large_wine: {
     label: 'Large Wine % of Mains',
-    actual: (m) => m.mains > 0 ? parseFloat((m.lg_wine / m.mains * 100).toFixed(1)) : 0
-  },
-  bottled_water: {
-    label: 'Bottled Water % of Mains',
-    actual: (m) => m.mains > 0 ? parseFloat((m.water / m.mains * 100).toFixed(1)) : 0
-  },
-  wine_per_10_mains: {
-    label: 'Wine Items per 10 Mains',
-    actual: (m) => m.mains > 0 ? parseFloat((Number(m.all_wine) / Number(m.mains) * 10).toFixed(1)) : 0
-  },
-  rev_per_labour_hour: {
-    label: 'Revenue per Labour Hour (£)',
-    actual: (m) => Number(m.est_hours) > 0 ? parseFloat((Number(m.dry_rev) / Number(m.est_hours)).toFixed(2)) : 0
+    actual: (m) => m.mains > 0 ? parseFloat((Number(m.lg_wine||0) / m.mains * 100).toFixed(1)) : 0
   },
   avg_spend_wet: {
     label: 'Wet ASPH (£)',
     actual: (m) => m.mains > 0 ? parseFloat((m.wet_rev / m.mains).toFixed(2)) : 0
+  },
+  group_nps: {
+    label: 'Group NPS',
+    actual: (m) => Number(m.group_nps || 0)
   },
 };
 
@@ -3028,15 +3033,17 @@ async function calculateScores(period, locationId) {
       "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group='29'),0) as nibbles, " +
       "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group='30'),0) as starters, " +
       "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('33','35')),0) as desserts, " +
-      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('1','2','3','4','5','6','8','9','10','15','17','18','19','21','22','23','26','27','28','38')),0) as drinks, " +
-      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('1','2','3','4','5','6','8','9','10','15','17','18','19','21','22','23','26','27','28','38') AND EXISTS (SELECT 1 FROM relay_sold_items si2 WHERE si2.transaction_id=si.transaction_id AND si2.added_by_clerk_id=$1 AND si2.sales_group='31' AND si2.individual_net_price>=5)),0) as drinks_food, " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('1','2','3','4','5','6','8','9','10','15','17','19','21','22','23','38') AND NOT (si.sales_group IN ('3','4','5','6') AND si.individual_net_price > 15)),0) as drinks, " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('1','2','3','4','5','6','8','9','10','15','17','19','21','22','23','38') AND NOT (si.sales_group IN ('3','4','5','6') AND si.individual_net_price > 15) AND EXISTS (SELECT 1 FROM relay_sold_items si2 WHERE si2.transaction_id=si.transaction_id AND si2.added_by_clerk_id=$1 AND si2.sales_group='31' AND si2.individual_net_price>=5)),0) as drinks_food, " +
       "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('3','4','5','6') AND (si.individual_net_price>40 OR (LOWER(si.name) LIKE 'btl%' AND si.individual_net_price>25))),0) as prem_wine, " +
       "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('8','15')),0) as spirits, " +
       "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('8','9','10') AND LOWER(si.name) LIKE '%dbl%'),0) as dbl_spirits, " +
       "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('3','4','5','6') AND LOWER(si.name) LIKE '%250ml%'),0) as lg_wine, " +
       "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group IN ('3','4','5','6')),0) as all_wine, " +
       "COALESCE(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('3','4','5','6')),0) as wine_net_rev, " +
-      "COALESCE(SUM(si.quantity) FILTER (WHERE LOWER(si.name) LIKE '%water%' AND si.sales_group NOT IN ('30000','20')),0) as water, " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group='28' AND si.individual_net_price > 0),0) as water, " +
+      "COALESCE(SUM(si.quantity) FILTER (WHERE si.sales_group='18' AND si.individual_net_price > 0),0) as coffee, " +
+      "COALESCE(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('3','4','5','6') AND (si.individual_net_price > 33 OR (LOWER(si.name) LIKE 'btl%' AND si.individual_net_price > 20))),0) as prem_wine_rev, " +
       "COALESCE(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('1','2','3','4','5','6','8','9','10','15','17','18','19','21','22','23','26','27','28','38')),0) as wet_rev, " +
       "COALESCE(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('29','30','31','32','33','34','35') AND si.individual_net_price>0),0) as dry_rev, " +
       "COALESCE(SUM(si.total_net_price) FILTER (WHERE si.sales_group IN ('29','30','31','32','33','34','35') AND si.individual_net_price>=0),0) as food_rev " +
@@ -3071,6 +3078,8 @@ async function calculateScores(period, locationId) {
       metricScores[metric.metric_key] = scoreMetric(actual, Number(metric.target));
     }
 
+    // Add mains as context-only data point (not a scored metric)
+    actuals.mains = Number(m.mains || 0);
     const finalScore = calcFinalScore(metricScores, activeMetrics);
     const tier = getSellerTier(finalScore);
 
@@ -3185,7 +3194,8 @@ router.get('/scores/:teamMemberId', auth, async (req, res, next) => {
       previous_score: h.previous_score !== null ? Number(h.previous_score) : null,
       score_change: h.score_change !== null ? Number(h.score_change) : null,
       tier: h.tier,
-      actuals: h.score_breakdown?.actuals || null
+      actuals: h.score_breakdown?.actuals || null,
+      metric_scores: h.score_breakdown?.metric_scores || null
     }));
 
     // 3. Rank in venue + venue total (from the latest week)
@@ -3216,7 +3226,7 @@ router.get('/scores/:teamMemberId', auth, async (req, res, next) => {
 
     // 5. Active metrics (for labels/targets)
     const metricsR = await database_js_1.db.query(
-      'SELECT metric_key, name, target, weight, direction FROM selector_metrics WHERE is_active=true ORDER BY weight DESC'
+      'SELECT metric_key, name, target, weight, direction, display_format FROM selector_metrics WHERE is_active=true ORDER BY weight DESC'
     ).catch(() => ({rows: []}));
 
     ok(res, {
@@ -3237,10 +3247,11 @@ router.get('/scores/:teamMemberId', auth, async (req, res, next) => {
         rank_in_venue: rankInVenue,
         venue_total: venueTotal,
         actuals: history[0]?.actuals || {},
+        metric_scores: history[0]?.metric_scores || {},
         metric_deltas: metricDeltas
       },
       history,
-      active_metrics: metricsR.rows.map(m => ({key: m.metric_key, label: m.name, target: Number(m.target), weight: m.weight, direction: m.direction}))
+      active_metrics: metricsR.rows.map(m => ({key: m.metric_key, label: m.name, target: Number(m.target), weight: m.weight, direction: m.direction, display_format: m.display_format || 'decimal_1'}))
     });
   } catch(e) { next(e); }
 });
