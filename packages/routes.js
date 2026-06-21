@@ -1199,6 +1199,12 @@ router.get('/selector/metrics/with-averages', auth, async (req, res, next) => {
     const interval = intervalMap[period] || '7 days';
     const venueMap = { 'griffin': '0001', 'taprun': '0002', 'longhop': '0003' };
     const locId = venueMap[venue] || null;
+    // Anchor the window to the last fully-populated labour day, not NOW(). Labour
+    // hours (RotaReady sign-off) lag sales by a day or two, so the most recent
+    // days have revenue but no hours. Dividing complete revenue by incomplete
+    // hours inflates productivity on short windows. Using MAX(pay_date) as the
+    // upper bound keeps revenue and hours over the identical day range.
+    const PAYCUT = "(SELECT MAX(pay_date) FROM rotaready_pay)";
 
     // Get all metrics
     const metricsR = await database_js_1.db.query(
@@ -1207,7 +1213,8 @@ router.get('/selector/metrics/with-averages', auth, async (req, res, next) => {
 
     // Aggregate raw data using same shape as per-clerk aggregator
     const params = [];
-    let where = "WHERE 1=1 AND si.datetime_sold >= NOW() - INTERVAL '" + interval + "'";
+    let where = "WHERE 1=1 AND si.datetime_sold > " + PAYCUT + " - INTERVAL '" + interval + "'" +
+                " AND si.datetime_sold < " + PAYCUT + " + INTERVAL '1 day'";
     if (locId) {
       params.push(locId);
       where += ' AND t.location_id=$' + params.length;
@@ -1241,7 +1248,8 @@ router.get('/selector/metrics/with-averages', auth, async (req, res, next) => {
     m.est_hours = 0; // will be computed if needed below
 
     // Estimated labour hours over the same period+venue (for rev_per_labour_hour)
-    let hoursWhere = "WHERE rp.pay_date >= NOW()::date - INTERVAL '" + interval + "'";
+    let hoursWhere = "WHERE rp.pay_date > " + PAYCUT + " - INTERVAL '" + interval + "'" +
+                     " AND rp.pay_date <= " + PAYCUT;
     const hoursParams = [];
     if (locId) {
       hoursParams.push(locId);
@@ -2422,7 +2430,12 @@ router.get('/metrics/asph', auth, async (req, res, next) => {
     const { period } = req.query;
     const intervalMap = {'today':'1 day','week':'7 days','fortnight':'14 days','month':'28 days','quarter':'90 days'};
     const interval = intervalMap[period] || '7 days';
-    
+    // Anchor revenue and labour to the last fully-populated labour day
+    // (MAX(pay_date)). Sign-off lags sales, so recent days carry revenue but no
+    // hours; bounding both sides by the same cutoff stops incomplete days from
+    // inflating rev_per_labour_hour and deflating labour_pct on short windows.
+    const PAYCUT = "(SELECT MAX(pay_date) FROM rotaready_pay)";
+
     const r = await database_js_1.db.query(
       "WITH food_metrics AS (" +
       "  SELECT t.location_id, " +
@@ -2433,13 +2446,13 @@ router.get('/metrics/asph', auth, async (req, res, next) => {
       "  NULLIF(SUM(si.quantity) FILTER (WHERE si.sales_group='31' AND si.individual_net_price >= 5), 0)::numeric, 2) as asph " +
       "  FROM relay_sold_items si " +
       "  JOIN relay_transactions t ON t.id=si.transaction_id " +
-      "  WHERE t.datetime_opened >= NOW() - INTERVAL '" + interval + "' " +
+      "  WHERE t.datetime_opened > " + PAYCUT + " - INTERVAL '" + interval + "' AND t.datetime_opened < " + PAYCUT + " + INTERVAL '1 day' " +
       "  GROUP BY t.location_id" +
       "), " +
       "net_rev AS (" +
       "  SELECT location_id, ROUND(SUM(total_net_item_cost)::numeric, 2) as net_revenue, COUNT(*) as transactions " +
       "  FROM relay_transactions " +
-      "  WHERE datetime_opened >= NOW() - INTERVAL '" + interval + "' " +
+      "  WHERE datetime_opened > " + PAYCUT + " - INTERVAL '" + interval + "' AND datetime_opened < " + PAYCUT + " + INTERVAL '1 day' " +
       "  GROUP BY location_id" +
       "), " +
       "labour AS (" +
@@ -2448,7 +2461,7 @@ router.get('/metrics/asph', auth, async (req, res, next) => {
       "  ROUND(SUM(CASE WHEN hourly_rate > 5 AND NOT is_salaried THEN basic_pay/hourly_rate " +
       "    WHEN is_salaried AND total_pay > 0 THEN total_pay/12.21 ELSE 0 END)::numeric, 1) as est_hours " +
       "  FROM rotaready_pay " +
-      "  WHERE pay_date >= NOW() - INTERVAL '" + interval + "' " +
+      "  WHERE pay_date > " + PAYCUT + " - INTERVAL '" + interval + "' AND pay_date <= " + PAYCUT + " " +
       "  GROUP BY location_id" +
       ") " +
       "SELECT f.location_id, f.mains_sold, f.dry_revenue, f.wet_revenue, f.asph, " +
