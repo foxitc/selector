@@ -2079,7 +2079,7 @@ async function syncRotaReadyStaff() {
   // Sync pay/labour data
   try {
     const now = new Date();
-    // Pull rolling 28 days to build history
+    // Pull rolling 90 days to build history
     const startD = new Date(now);
     startD.setUTCDate(startD.getUTCDate() - 90);
     const startDate = startD.toISOString().split('T')[0];
